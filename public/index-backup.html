@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tales for the Tillerman - Press Kit Slider</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+        .note {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Main buttons grid */
+        .main-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 3rem 0;
+        }
+        .main-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #333;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .main-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .main-btn-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .main-btn-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .main-btn-desc {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        /* Social buttons */
+        .social-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+        .social-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            background: white;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .social-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .social-icon {
+            font-size: 1.2rem;
+        }
+        
+        /* Platform-specific colors */
+        .spotify { background: #1DB954; color: white; }
+        .instagram { background: linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D); color: white; }
+        .linktree { background: #39E09B; color: white; }
+        .telegram { background: #0088cc; color: white; }
+        .youtube { background: #FF0000; color: white; }
+        .press-kit { background: #6C63FF; color: white; }
+        .book-band { background: #FF6B6B; color: white; }
+        
+        /* Members section */
+        .members-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+        .member-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .member-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .member-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 1rem;
+            border: 4px solid #f0f0f0;
+        }
+        .member-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0.5rem 0;
+        }
+        .member-role {
+            color: #666;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        
+        /* Band image */
+        .band-image {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 12px;
+            margin: 2rem auto;
+            display: block;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        
+        /* Logo and GIF buttons */
+        .logo-section {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        .logo-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem;
+            background: white;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .logo-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        }
+        .logo-icon {
+            font-size: 1.5rem;
+        }
+        
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: hidden;
+            position: relative;
+            animation: modalFadeIn 0.3s ease;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-image {
+            max-width: 100%;
+            max-height: 80vh;
+            display: block;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .modal-close:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+        .modal-info {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .modal-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0 0 0.5rem 0;
+        }
+        .modal-role {
+            color: #666;
+            font-size: 1rem;
+            margin: 0;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Tales for the Tillerman</h1>
+        <p class="subtitle">Press Kit & Booking Portal</p>
+        
+        <!-- Band hero image -->
+        <img src="images/band-hero.jpg" alt="Tales for the Tillerman Band" class="band-image">
+        
+        <!-- Main action buttons -->
+        <div class="main-buttons">
+            <a href="https://linktr.ee/tales4tillerman" class="main-btn linktree" target="_blank">
+                <div class="main-btn-icon">🌳</div>
+                <div class="main-btn-title">Linktree</div>
+                <div class="main-btn-desc">All links in one place</div>
+            </a>
+            
+            <a href="https://drive.google.com/drive/folders/1opYzf-h9UcNptgOeoGEchdkd0VkqYJPH?usp=drive_link" class="main-btn press-kit" target="_blank">
+                <div class="main-btn-icon">📁</div>
+                <div class="main-btn-title">Press Kit</div>
+                <div class="main-btn-desc">Photos, bio, tech rider</div>
+            </a>
+            
+            <a href="mailto:talesforthetillerman@gmail.com" class="main-btn book-band">
+                <div class="main-btn-icon">📧</div>
+                <div class="main-btn-title">Book the Band</div>
+                <div class="main-btn-desc">Contact for bookings</div>
+            </a>
+        </div>
+        
+        <!-- Logo and GIF buttons -->
+        <div class="logo-section">
+            <a href="https://linktr.ee/tales4tillerman" class="logo-btn" target="_blank">
+                <span class="logo-icon">🎵</span>
+                <span>Band Logo</span>
+            </a>
+            <a href="https://linktr.ee/tales4tillerman" class="logo-btn" target="_blank">
+                <span class="logo-icon">🎬</span>
+                <span>Band GIF</span>
+            </a>
+        </div>
+        
+        <!-- Social media buttons -->
+        <div class="social-buttons">
+            <a href="https://open.spotify.com/intl-es/artist/0FHjK3O0k8HQMrJsF7KQwF" class="social-btn spotify" target="_blank">
+                <span class="social-icon">🎵</span>
+                <span>Spotify</span>
+            </a>
+            
+            <a href="https://www.instagram.com/tales4tillerman" class="social-btn instagram" target="_blank">
+                <span class="social-icon">📸</span>
+                <span>Instagram</span>
+            </a>
+            
+            <a href="https://linktr.ee/tales4tillerman" class="social-btn linktree" target="_blank">
+                <span class="social-icon">🔗</span>
+                <span>Linktree</span>
+            </a>
+            
+            <a href="https://t.me/talesforthetillerman" class="social-btn telegram" target="_blank">
+                <span class="social-icon">📱</span>
+                <span>Telegram</span>
+            </a>
+            
+            <a href="https://www.youtube.com/channel/UCiSLr9s4NLC1kzHBqJirsrQ" class="social-btn youtube" target="_blank">
+                <span class="social-icon">🎥</span>
+                <span>YouTube</span>
+            </a>
+        </div>
+        
+        <!-- Members section -->
+        <h2>🎸 Band Members</h2>
+        <p>Click on any member to see their individual photo</p>
+        
+        <div class="members-grid" id="membersGrid">
+            <!-- Members will be populated by JavaScript -->
+        </div>
+        
+        <div class="note">
+            <p><strong>Interactive feature:</strong> Click on any band member above to see their full-size photo!</p>
+            <p>The modal closes automatically on scroll, click outside, or ESC key.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Deployed via GitHub Pages • Press Kit for booking outreach</p>
+            <p>© 2026 Tales for the Tillerman • Berlin, Germany</p>
+        </div>
+    </div>
+    
+    <!-- Modal for member photos -->
+    <div class="modal-overlay" id="memberModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">&times;</button>
+            <img id="modalImage" class="modal-image" src="" alt="">
+            <div class="modal-info">
+                <h3 id="modalName" class="modal-name"></h3>
+                <p id="modalRole" class="modal-role"></p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Band members data
+        const members = [
+            {
+                id: 'janosch-puhe',
+                name: 'Janosch Puhe',
+                role: 'Guitar & Vocals',
+                avatar: 'images/members/janosch-puhe.jpg',
+                fullImage: 'images/members/janosch-puhe.jpg'
+            },
+            {
+                id: 'jma-garcia-lopez',
+                name: 'J.M. García López',
+                role: 'Piano, Flute & Vocals',
+                avatar: 'images/members/jma-garcia-lopez.jpg',
+                fullImage: 'images/members/jma-garcia-lopez.jpg'
+            },
+            {
+                id: 'otto-herrmann',
+                name: 'Otto Herrmann',
+                role: 'Bass',
+                avatar: 'images/members/otto-herrmann.jpg',
+                fullImage: 'images/members/otto-herrmann.jpg'
+            },
+            {
+                id: 'robi-schmidt',
+                name: 'Robi Schmidt',
+                role: 'Drums',
+                avatar: 'images/members/robi-schmidt.jpg',
+                fullImage: 'images/members/robi-schmidt.jpg'
+            },
+            {
+                id: 'tarik-al-saadi',
+                name: 'Tarik Al-Saadi',
+                role: 'Percussion',
+                avatar: 'images/members/tarik-al-saadi.jpg',
+                fullImage: 'images/members/tarik-al-saadi.jpg'
+            }
+        ];
+        
+        // DOM elements
+        const membersGrid = document.getElementById('membersGrid');
+        const memberModal = document.getElementById('memberModal');
+        const modalImage = document.getElementById('modalImage');
+        const modalName = document.getElementById('modalName');
+        const modalRole = document.getElementById('modalRole');
+        const closeModal = document.getElementById('closeModal');
+        
+        // Render members grid
+        function renderMembers() {
+            membersGrid.innerHTML = '';
+            members.forEach(member => {
+                const card = document.createElement('div');
+                card.className = 'member-card';
+                card.innerHTML = `
+                    <img src="${member.avatar}" alt="${member.name}" class="member-avatar">
+                    <h3 class="member-name">${member.name}</h3>
+                    <p class="member-role">${member.role}</p>
+                `;
+                card.addEventListener('click', () => openModal(member));
+                membersGrid.appendChild(card);
+            });
+        }
+        
+        // Open modal with member photo
+        function openModal(member) {
+            modalImage.src = member.fullImage;
+            modalImage.alt = member.name;
+            modalName.textContent = member.name;
+            modalRole.textContent = member.role;
+            memberModal.classList.add('active');
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // Close modal
+        function closeMemberModal() {
+            memberModal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        // Event listeners
+        closeModal.addEventListener('click', closeMemberModal);
+        memberModal.addEventListener('click', (e) => {
+            if (e.target === memberModal) {
+                closeMemberModal();
+            }
+        });
+        
+        // Close modal on ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && memberModal.classList.contains('active')) {
+                closeMemberModal();
+            }
+        });
+        
+        // Close modal on scroll (as requested)
+        let scrollTimeout;
+        window.addEventListener('scroll', () => {
+            if (memberModal.classList.contains('active')) {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(closeMemberModal, 100);
+            }
+        });
+        
+        //
