@@ -122,9 +122,9 @@ export function Footer() {
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={link.name}
+                  aria-label={`Stream on ${link.name}`}
                   title={link.name}
-                  className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary text-white hover:bg-primary transition-colors"
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary text-white hover:bg-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 >
                   <link.icon />
                 </a>
@@ -136,19 +136,19 @@ export function Footer() {
         {/* Navigation Links */}
         <div className="border-t border-border/20 pt-8">
           <div className="flex flex-wrap justify-center gap-6 mb-8 text-sm">
-            <a href="#about" className="text-gray-300 hover:text-white transition-colors">
+            <a href="#about" className="text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 px-2 py-1 rounded">
               About
             </a>
-            <a href="#press-kit" className="text-gray-300 hover:text-white transition-colors">
+            <a href="#press-kit" className="text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 px-2 py-1 rounded">
               Press Kit
             </a>
-            <a href="#band" className="text-gray-300 hover:text-white transition-colors">
+            <a href="#band" className="text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 px-2 py-1 rounded">
               Band
             </a>
-            <a href="#live" className="text-gray-300 hover:text-white transition-colors">
+            <a href="#live" className="text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 px-2 py-1 rounded">
               Shows
             </a>
-            <a href="#contact" className="text-gray-300 hover:text-white transition-colors">
+            <a href="#contact" className="text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 px-2 py-1 rounded">
               Contact
             </a>
           </div>

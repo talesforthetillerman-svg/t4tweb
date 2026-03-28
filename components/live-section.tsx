@@ -52,13 +52,15 @@ export function LiveSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const [concerts, setConcerts] = useState<Concert[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const { opacity, y } = useScrollAnimation(sectionRef)
 
-  // Fetch and parse CSV data
+  // Fetch and parse CSV data with error handling
   useEffect(() => {
     async function fetchConcerts() {
       try {
         const response = await fetch("/data/concerts.csv")
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const csv = await response.text()
         const parsed = parseCSV(csv)
         // Sort by date, most recent first
@@ -66,8 +68,10 @@ export function LiveSection() {
           new Date(b.date).getTime() - new Date(a.date).getTime()
         )
         setConcerts(sorted)
+        setError(false)
       } catch (error) {
         console.error("Error loading concert data:", error)
+        setError(true)
       } finally {
         setLoading(false)
       }
@@ -260,8 +264,9 @@ export function LiveSection() {
                         href={platform.href}
                         target="_blank"
                         rel="noopener noreferrer"
+                        aria-label={`Listen on ${platform.name}`}
                         title={platform.name}
-                        className={`flex flex-col items-center justify-center p-4 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl ${platform.color}`}
+                        className={`flex flex-col items-center justify-center p-4 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${platform.color}`}
                       >
                         <platform.icon />
                         <span className="text-xs font-medium text-center mt-2">{platform.name}</span>
@@ -298,19 +303,109 @@ export function LiveSection() {
               </div>
             </motion.div>
 
-            {/* Concert List - NOW SECOND */}
+            {/* Upcoming Shows Block - CLS Prevention */}
+            {/* 
+              CLS Prevention Strategy:
+              1. Container has min-height to reserve space during loading
+              2. Skeleton placeholders match final content height (80px each)
+              3. All states (loading/error/empty/success) use consistent spacing
+              4. No layout shift when transitioning between states
+            */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="mb-12"
+              className="mb-12 min-h-[440px]"
             >
-              <h3 className="font-serif text-2xl text-foreground mb-6 text-center">Upcoming Shows</h3>
-              {loading ? (
-                <div className="text-center py-12">
-                  <div className="text-muted-foreground">Loading concerts...</div>
+              <h3 className="font-serif text-2xl text-foreground mb-6 text-center">
+                Upcoming Shows
+              </h3>
+              
+              {/* LOADING STATE - Elegant skeleton loader */}
+              {loading && (
+                <div className="space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div
+                      key={`skeleton-${i}`}
+                      className="min-h-[80px] bg-gradient-to-r from-secondary/30 via-secondary/50 to-secondary/30 rounded-xl overflow-hidden"
+                    >
+                      {/* Shimmer animation */}
+                      <div className="h-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                    </div>
+                  ))}
                 </div>
-              ) : (
+              )}
+              
+              {/* ERROR STATE - Fallback when CSV fails */}
+              {!loading && error && (
+                <div className="text-center py-12 px-6 bg-red-950/20 border border-red-900/30 rounded-xl">
+                  <div className="text-red-400 mb-4">
+                    <svg
+                      className="w-12 h-12 mx-auto mb-4 opacity-70"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-muted-foreground mb-6">
+                    Unable to load shows at the moment.
+                  </p>
+                  <motion.a
+                    whileHover={{ scale: 1.05 }}
+                    href="https://www.bandsintown.com/a/15468933-tales-for-the-tillerman"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all"
+                  >
+                    Check Shows on Bandsintown
+                  </motion.a>
+                </div>
+              )}
+              
+              {/* EMPTY STATE - No concerts */}
+              {!loading && !error && concerts.length === 0 && (
+                <div className="text-center py-12 px-6 bg-secondary/20 border border-border rounded-xl">
+                  <div className="text-muted-foreground mb-4">
+                    <svg
+                      className="w-12 h-12 mx-auto mb-4 opacity-50"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-muted-foreground mb-2">No shows scheduled at the moment.</p>
+                  <p className="text-muted-foreground text-sm mb-6">
+                    Follow us for exciting tour announcements coming soon!
+                  </p>
+                  <motion.a
+                    whileHover={{ scale: 1.05 }}
+                    href="https://www.bandsintown.com/a/15468933-tales-for-the-tillerman"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all"
+                  >
+                    <BandsinTownIcon />
+                    See All Shows on Bandsintown
+                  </motion.a>
+                </div>
+              )}
+              
+              {/* SUCCESS STATE - Show concerts */}
+              {!loading && !error && concerts.length > 0 && (
                 <div className="space-y-3">
                   {concerts.map((concert, index) => (
                     <motion.div
@@ -318,15 +413,21 @@ export function LiveSection() {
                       initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       whileHover={{ y: -2, scale: 1.01 }}
-                      transition={{ duration: 0.4, delay: index * 0.03, type: "spring", stiffness: 300, damping: 20 }}
-                      className="p-5 bg-secondary/50 rounded-xl border border-border hover:border-primary/30 transition-all duration-300 group shadow-lg hover:shadow-xl"
+                      transition={{
+                        duration: 0.4,
+                        delay: index * 0.03,
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 20,
+                      }}
+                      className="min-h-[80px] p-5 bg-secondary/50 rounded-xl border border-border hover:border-primary/30 transition-all duration-300 group shadow-lg hover:shadow-xl flex items-center"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
                         {/* Date */}
                         <div className="shrink-0 text-primary font-medium min-w-[100px]">
                           {formatDate(concert.date)}
                         </div>
-                        
+
                         {/* Venue & City */}
                         <div className="flex-1">
                           <div className="font-serif text-lg text-foreground group-hover:text-primary transition-colors">
@@ -336,7 +437,7 @@ export function LiveSection() {
                             {concert.city}, {concert.country}
                           </div>
                         </div>
-                        
+
                         {/* Genre & Price */}
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span className="px-3 py-1 bg-primary/10 rounded-full text-primary text-xs">

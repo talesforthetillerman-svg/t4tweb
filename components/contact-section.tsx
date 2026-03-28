@@ -29,7 +29,7 @@ export function ContactSection() {
   ]
 
   return (
-    <section id="contact" ref={sectionRef} className="relative py-12 md:py-16 overflow-hidden">
+    <section id="contact" ref={sectionRef} className="relative py-16 md:py-20 overflow-hidden">
       <div className="absolute inset-0 -z-10">
         <Image
           src="/images/sections/contact-bg.jpg"

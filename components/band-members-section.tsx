@@ -8,43 +8,33 @@ import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 const members = [
   {
     id: 1,
-    name: "Janosch",
     fullName: "Janosch Puhe",
     role: "Main Vocals",
     image: "/images/members/Janosch Puhe2.JPG",
-    color: "from-amber-500/30",
   },
   {
     id: 2,
-    name: "J.Ma",
     fullName: "J.Ma Garcia Lopez",
     role: "Keys and Synth",
     image: "/images/members/J.Ma Garcia Lopez2.JPG",
-    color: "from-teal-500/30",
   },
   {
     id: 3,
-    name: "Otto",
     fullName: "Otto Lorenz Contreras",
     role: "Drums",
     image: "/images/members/Otto Lorenz Contreras.JPG",
-    color: "from-indigo-500/30",
   },
   {
     id: 4,
-    name: "Robii",
     fullName: "Robii Crowford",
     role: "E Guit",
     image: "/images/members/Robii Crowford.JPG",
-    color: "from-rose-500/30",
   },
   {
     id: 5,
-    name: "Tarik",
     fullName: "Tarik Benatmane",
     role: "E Bass",
     image: "/images/members/Tarik Benatmane.JPG",
-    color: "from-orange-500/30",
   },
 ]
 
@@ -75,7 +65,7 @@ export function BandMembersSection() {
         {/* Header */}
         <motion.div
           style={{ opacity, y }}
-          className="text-center mb-12"
+          className="text-center mb-16"
         >
           <motion.span
             initial={{ opacity: 0 }}
@@ -168,56 +158,28 @@ export function BandMembersSection() {
                 onMouseEnter={() => setActiveIndex(index)}
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className={`w-full text-left p-5 md:p-6 rounded-2xl border transition-all duration-300 group ${
-                  activeIndex === index
-                    ? "bg-secondary border-primary/50 shadow-lg"
-                    : "bg-secondary/30 border-border hover:border-muted hover:bg-secondary/50"
+                className={`member-card ${
+                  activeIndex === index ? "active" : ""
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3
-                      className={`font-serif text-xl md:text-2xl transition-colors ${
-                        activeIndex === index
-                          ? "text-foreground"
-                          : "text-muted-foreground group-hover:text-foreground"
-                      }`}
-                    >
-                      {member.name}
-                    </h3>
-                    <p
-                      className={`text-sm transition-colors ${
-                        activeIndex === index
-                          ? "text-muted-foreground"
-                          : "text-muted-foreground/60"
-                      }`}
-                    >
-                      {member.role}
-                    </p>
-                  </div>
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                      activeIndex === index
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    <svg
-                      className={`w-5 h-5 transition-transform ${
-                        activeIndex === index ? "translate-x-0.5" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </div>
+                <div>
+                  <h3 className={`member-card-title ${
+                    activeIndex === index
+                      ? "text-foreground"
+                      : "text-muted-foreground group-hover:text-foreground"
+                  }`}>
+                    {member.fullName}
+                  </h3>
+                  <p className={`member-card-role ${
+                    activeIndex === index
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/60"
+                  }`}>
+                    {member.role}
+                  </p>
+                </div>
+                <div className="member-icon">
+                  <span className="text-xs font-bold">{member.id}</span>
                 </div>
               </motion.button>
             ))}

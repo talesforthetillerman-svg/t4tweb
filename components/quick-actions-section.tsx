@@ -41,7 +41,7 @@ export function QuickActionsSection() {
   ]
 
   return (
-    <section id="quick-actions" ref={sectionRef} className="relative py-8 md:py-12 overflow-hidden bg-black/50">
+    <section id="quick-actions" ref={sectionRef} className="relative py-12 md:py-16 overflow-hidden bg-black/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
           style={{ opacity, y }}
