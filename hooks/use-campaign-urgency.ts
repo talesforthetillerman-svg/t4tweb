@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 
 let cachedUrgency: string | null = null
+let cachedUrgencyPromise: Promise<string> | null = null
 
 function buildUrgencyFromCsv(csv: string): string | null {
   const lines = csv.trim().split("\n")
@@ -43,10 +44,17 @@ export function useCampaignUrgency(fallback: string) {
 
     async function loadUrgency() {
       try {
-        const response = await fetch("/data/concerts.csv")
-        if (!response.ok) throw new Error("Failed to load concerts CSV")
-        const csv = await response.text()
-        const dynamicUrgency = buildUrgencyFromCsv(csv) || fallback
+        if (!cachedUrgencyPromise) {
+          cachedUrgencyPromise = fetch("/data/concerts.csv")
+            .then((response) => {
+              if (!response.ok) throw new Error("Failed to load concerts CSV")
+              return response.text()
+            })
+            .then((csv) => buildUrgencyFromCsv(csv) || fallback)
+            .catch(() => fallback)
+        }
+
+        const dynamicUrgency = await cachedUrgencyPromise
         cachedUrgency = dynamicUrgency
         setUrgency(dynamicUrgency)
       } catch {
