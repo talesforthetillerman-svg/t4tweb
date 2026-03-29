@@ -1,13 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
 
 export function FloatingBookingBar() {
   const [dismissed, setDismissed] = useState(false)
+  const [ready, setReady] = useState(false)
 
-  if (dismissed) return null
+  useEffect(() => {
+    const isDismissed = window.sessionStorage.getItem("floating-booking-dismissed")
+    if (isDismissed === "true") {
+      setDismissed(true)
+    }
+    setReady(true)
+  }, [])
+
+  function dismissBar() {
+    setDismissed(true)
+    window.sessionStorage.setItem("floating-booking-dismissed", "true")
+  }
+
+  if (!ready || dismissed) return null
 
   return (
     <motion.div
@@ -33,7 +47,7 @@ export function FloatingBookingBar() {
         </a>
         <button
           type="button"
-          onClick={() => setDismissed(true)}
+          onClick={dismissBar}
           aria-label="Dismiss booking bar"
           className="inline-flex items-center justify-center rounded-lg border border-primary/40 px-3 py-2 text-xs text-primary hover:bg-primary/10 transition-colors"
         >

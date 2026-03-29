@@ -39,7 +39,7 @@ export function LatestReleaseSection() {
               href={CAMPAIGN_CONTENT.showsCtaHref}
               target="_blank"
               rel="noopener noreferrer"
-              className={`px-6 py-3 rounded-lg font-semibold text-center border border-primary/40 ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
+              className="px-6 py-3 rounded-lg font-semibold text-center border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
             >
               {CAMPAIGN_CONTENT.showsCtaLabel}
             </a>
