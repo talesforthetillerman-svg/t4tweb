@@ -29,14 +29,23 @@ Their performances balance musical depth with danceable power, bringing together
     <section
       id="about"
       ref={sectionRef}
-      className="relative min-h-screen w-full overflow-hidden"
+      className="relative w-full overflow-hidden"
     >
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-screen h-full -z-10 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/images/about-bg-main.jpg')" }}
+        className="absolute inset-0 top-0 w-screen h-full -z-10 bg-cover bg-center bg-no-repeat"
+        style={{ 
+          backgroundImage: "url('/images/about-bg-main.jpg')",
+          backgroundAttachment: "cover",
+          backgroundPosition: "center",
+          width: "100vw",
+          marginLeft: "calc(-50vw + 50%)"
+        }}
       />
-      <div className="absolute inset-0 -z-10 bg-black/34" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/6 via-transparent to-black/18 pointer-events-none z-0" />
+      <div className="absolute inset-0 w-full h-full -z-10 bg-black/34" />
+      <div className="absolute inset-0 w-full h-full bg-gradient-to-b from-black/6 via-transparent to-black/18 pointer-events-none z-0" />
+
+      {/* Top fade in */}
+      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent w-full pointer-events-none z-10" />
 
       <div className="relative z-10 min-h-screen w-full flex items-center justify-center px-4 sm:px-6 lg:px-10 py-24 md:py-32">
         <motion.div
@@ -48,7 +57,7 @@ Their performances balance musical depth with danceable power, bringing together
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
-              className="text-primary text-lg md:text-xl font-medium tracking-wider uppercase mb-6 block"
+              className="text-[#FF8C21] text-lg md:text-xl font-medium tracking-wider uppercase mb-6 block"
             >
               About the Band
             </motion.span>
@@ -85,13 +94,13 @@ Their performances balance musical depth with danceable power, bringing together
               </p>
 
               <p className="max-w-none text-lg md:text-xl leading-relaxed mb-0 pt-2">
-                <span className="text-primary font-medium">5 musicians</span>
+                <span className="text-[#FF8C21] font-medium">5 musicians</span>
                 <span className="text-white/55"> • </span>
-                <span className="text-primary font-medium">Berlin-based</span>
+                <span className="text-[#FF8C21] font-medium">Berlin-based</span>
                 <span className="text-white/55"> • </span>
-                <span className="text-primary font-medium">World music fusion</span>
+                <span className="text-[#FF8C21] font-medium">World music fusion</span>
                 <span className="text-white/55"> • </span>
-                <span className="text-primary font-medium">Live experience</span>
+                <span className="text-[#FF8C21] font-medium">Live experience</span>
               </p>
             </div>
           </motion.div>
@@ -104,8 +113,8 @@ Their performances balance musical depth with danceable power, bringing together
               transition={{ duration: 0.35 }}
               className={`inline-flex items-center justify-center px-9 py-4 rounded-xl border text-lg md:text-xl font-semibold transition-all shadow-lg ${
                 copied
-                  ? "bg-orange-500 text-white border-orange-400 shadow-orange-500/40"
-                  : "bg-orange-500/90 text-white border-orange-400/70 shadow-orange-500/30 hover:bg-orange-500"
+                  ? "bg-[#FF8C21] text-white border-[#FF7C00] shadow-[#FF8C21]/40"
+                  : "bg-[#FF8C21]/90 text-white border-[#FF7C00]/70 shadow-[#FF8C21]/30 hover:bg-[#FF8C21]"
               }`}
             >
               {copied ? "Copied" : "Copy"}
@@ -113,6 +122,9 @@ Their performances balance musical depth with danceable power, bringing together
           </div>
         </motion.div>
       </div>
+
+      {/* Bottom fade out */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent via-black/20 to-black w-full pointer-events-none z-10" />
     </section>
   )
 }

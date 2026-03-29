@@ -12,13 +12,14 @@
   --foreground: 0 0% 95%;
   --card: 0 0% 8%;
   --card-foreground: 0 0% 95%;
-  --primary: 35 100% 50%;
+  --primary: 33 100% 56%;  /* #FF8C21 */
   --primary-foreground: 0 0% 100%;
+  --primary-light: 33 100% 70%; /* Tone suave */
   --secondary: 0 0% 14%;
   --secondary-foreground: 0 0% 95%;
   --muted: 0 0% 18%;
   --muted-foreground: 0 0% 60%;
-  --accent: 35 90% 55%;
+  --accent: 33 100% 56%; /* Same as primary */
   --accent-foreground: 0 0% 100%;
   --border: 0 0% 18%;
   --ring: 35 100% 50%;
@@ -813,4 +814,120 @@ main,
 section {
   width: 100%;
   max-width: 100%;
+}
+
+/* ============================================================================
+   ORANGE BUTTONS - Consistent naranja #FF8C21 theme
+   ============================================================================ */
+
+/* Primary Orange Button with glow */
+.btn-orange {
+  background: linear-gradient(135deg, hsl(33, 100%, 56%), hsl(33, 100%, 50%));
+  color: #ffffff;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 25px rgba(255, 140, 33, 0.25);
+}
+
+.btn-orange:hover {
+  background: linear-gradient(135deg, hsl(33, 100%, 50%), hsl(33, 100%, 45%));
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(255, 140, 33, 0.35);
+}
+
+.btn-orange:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 20px rgba(255, 140, 33, 0.2);
+}
+
+/* Secondary Orange - Soft tone */
+.btn-orange-soft {
+  background: rgba(255, 140, 33, 0.15);
+  color: hsl(33, 100%, 56%);
+  border: 1px solid hsl(33, 100%, 56%);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(255, 140, 33, 0.1);
+}
+
+.btn-orange-soft:hover {
+  background: rgba(255, 140, 33, 0.25);
+  border-color: hsl(33, 100%, 45%);
+  box-shadow: 0 8px 20px rgba(255, 140, 33, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Ghost Orange Button */
+.btn-orange-ghost {
+  background: transparent;
+  color: hsl(33, 100%, 56%);
+  border: 2px solid hsl(33, 100%, 56%);
+  border-radius: 0.75rem;
+  padding: 0.65rem 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: inset 0 0 0 0 rgba(255, 140, 33, 0);
+}
+
+.btn-orange-ghost:hover {
+  background: hsl(33, 100%, 56%);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 2px rgba(255, 140, 33, 0.5), 0 8px 20px rgba(255, 140, 33, 0.2);
+}
+
+/* Icon Button Orange */
+.btn-icon-orange {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: rgba(255, 140, 33, 0.2);
+  color: hsl(33, 100%, 56%);
+  border: 1px solid hsl(33, 100%, 56%);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.btn-icon-orange:hover {
+  background: hsl(33, 100%, 56%);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(255, 140, 33, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Navigation Button Orange */
+.nav-btn-orange {
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, hsl(33, 100%, 56%), hsl(33, 100%, 52%));
+  color: #ffffff;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 20px rgba(255, 140, 33, 0.3);
+  white-space: nowrap;
+}
+
+.nav-btn-orange:hover {
+  background: linear-gradient(135deg, hsl(33, 100%, 52%), hsl(33, 100%, 48%));
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(255, 140, 33, 0.4);
+}
+
+.nav-btn-orange:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #000a0a, 0 0 0 4px hsl(33, 100%, 56%), 0 0 0 8px rgba(255, 140, 33, 0.2);
 }

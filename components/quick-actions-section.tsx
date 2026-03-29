@@ -41,18 +41,18 @@ export function QuickActionsSection() {
   ]
 
   return (
-    <section id="quick-actions" ref={sectionRef} className="relative py-12 md:py-16 overflow-hidden bg-black/50">
+    <section id="quick-actions" ref={sectionRef} className="relative py-8 md:py-10 overflow-hidden bg-black/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
           style={{ opacity, y }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6"
+          className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3"
         >
           {actions.map((action, index) => (
             <motion.a
               key={action.title}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -8, scale: 1.05 }}
+              whileHover={{ y: -4, scale: 1.03 }}
               transition={{
                 duration: 0.5,
                 delay: index * 0.1,
@@ -63,13 +63,13 @@ export function QuickActionsSection() {
               href={action.href}
               target={action.external ? "_blank" : undefined}
               rel={action.external ? "noopener noreferrer" : undefined}
-              className={`group flex flex-col items-center justify-center p-6 rounded-2xl text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-2xl ${action.color}`}
+              className={`group flex flex-col items-center justify-center p-4 md:p-5 rounded-xl text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-xl ${action.color}`}
             >
-              <div className="mb-3">
+              <div className="mb-2">
                 <action.icon />
               </div>
-              <h3 className="text-sm md:text-base text-center">{action.title}</h3>
-              <p className="text-xs md:text-xs opacity-90 text-center mt-1">
+              <h3 className="text-xs md:text-sm text-center">{action.title}</h3>
+              <p className="text-[10px] md:text-xs opacity-90 text-center mt-0.5">
                 {action.description}
               </p>
             </motion.a>

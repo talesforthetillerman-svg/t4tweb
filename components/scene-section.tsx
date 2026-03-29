@@ -12,20 +12,6 @@ interface SceneSectionProps {
   className?: string
 }
 
-/**
- * SceneSection: Núcleo de la experiencia tipo Apple
- * 
- * Estructura:
- * - Sticky wrapper con imagen dominante
- * - Contenido que aparece encima
- * - Animaciones controladas por scroll
- * - UNA sola imagen por sección (sin duplicaciones)
- * 
- * Comportamiento:
- * - Imagen: fade in/out, micro zoom, parallax leve
- * - Contenido: fade in/out, trasladoY suave
- * - Total height: 200vh (imagen ocupa 100vh, contenido 100vh)
- */
 export function SceneSection({
   id,
   imageSrc,
@@ -40,19 +26,19 @@ export function SceneSection({
     <section
       ref={sectionRef}
       id={id}
-      className={`relative min-h-screen ${className}`}
+      className={`relative min-h-screen w-full overflow-hidden ${className}`}
     >
-      {/* ===== GLOBAL BACKGROUND ALT (sin fondo por sección) ===== */}
-      <div className="absolute inset-0 -z-10 bg-black/5" />
+      {/* Global background */}
+      <div className="absolute inset-0 -z-10 bg-black/5 w-full h-full" />
 
-      {/* ===== CONTENT WRAPPER (optimizado para flujo visual) ===== */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+      {/* Content wrapper - NO max-width constraint */}
+      <div className="relative z-10 min-h-screen w-full flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         <motion.div
           style={{
             opacity: contentAnimations.opacity,
             y: contentAnimations.y,
           }}
-          className="w-full mx-auto max-w-6xl"
+          className="w-full"
         >
           {children}
         </motion.div>
