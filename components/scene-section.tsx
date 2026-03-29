@@ -28,11 +28,7 @@ export function SceneSection({
       id={id}
       className={`relative min-h-screen w-full overflow-hidden ${className}`}
     >
-      {/* Global background */}
-      <div className="absolute inset-0 -z-10 bg-black/5 w-full h-full" />
-
-      {/* Content wrapper - NO max-width constraint */}
-      <div className="relative z-10 min-h-screen w-full flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+      <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-4 py-12 sm:px-6 md:py-16 lg:px-8">
         <motion.div
           style={{
             opacity: contentAnimations.opacity,

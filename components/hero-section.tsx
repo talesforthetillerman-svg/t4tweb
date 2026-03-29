@@ -9,151 +9,245 @@ export function HeroSection() {
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
-    offset: ["start start", "end end"],
+    offset: ["start start", "end start"],
   })
 
-  // Logo animations - Parallax más lento, desaparece con botones
-  const logoOpacity = useTransform(scrollYProgress, [0, 0.92, 1], [1, 1, 0])
-  const logoY = useTransform(scrollYProgress, [0, 0.98], [0, 200])
+  const backgroundScale = useTransform(scrollYProgress, [0, 1], [1, 1.06])
+  const backgroundY = useTransform(scrollYProgress, [0, 1], [0, 70])
 
-  // Buttons opacity - Desaparecen con el logo
-  const buttonsOpacity = useTransform(scrollYProgress, [0, 0.88, 1], [1, 1, 0])
+  const logoY = useTransform(scrollYProgress, [0, 1], [0, 24])
+  const logoOpacity = useTransform(scrollYProgress, [0, 0.82, 1], [1, 1, 0.78])
 
-  // Text animations - Inicia más abajo, desaparece después
-  const textOpacity = useTransform(scrollYProgress, [0.05, 0.25, 0.75], [1, 1, 0])
-  const textY = useTransform(scrollYProgress, [0, 0.5], [40, -40])
+  const contentY = useTransform(scrollYProgress, [0, 1], [0, -24])
+  const contentOpacity = useTransform(scrollYProgress, [0, 0.84, 1], [1, 1, 0])
+
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.6, 1], [0.2, 0.12, 0.05])
+
+  const badges = ["Live Band", "Berlin", "Festivals · Clubs · Events"]
 
   return (
     <section
+      id="top"
       ref={sectionRef}
-      className="relative min-h-screen w-screen overflow-hidden"
+      className="relative flex min-h-screen w-full items-stretch overflow-hidden"
     >
-      {/* Background Image */}
-      <div className="absolute inset-0 -z-10 w-full h-full">
-        <Image
-          src="/images/t4tPics/hero-bg.jpg"
-          alt="Hero background"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover w-full h-full"
-          style={{ objectFit: "cover", objectPosition: "center -25%" }}
-        />
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/70 w-full h-full" />
-        {/* Animated accent glow */}
-        <motion.div
-          animate={{
-            opacity: [0.05, 0.15, 0.05],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-          }}
-          className="absolute inset-0 bg-gradient-to-r from-[#FF8C21]/0 via-[#FF8C21]/8 to-[#FF8C21]/0 w-full h-full"
-        />
-      </div>
-
-      {/* Hero Content */}
-      <div className="relative z-10 min-h-screen w-full flex flex-col justify-between px-4 sm:px-6 lg:px-10 pt-8 md:pt-12 pb-32 md:pb-48">
-        
-        {/* Logo - Positioned lower, larger, slower parallax */}
+      {/* Background */}
+      <div className="absolute inset-0 -z-20 overflow-hidden">
         <motion.div
           style={{
-            opacity: logoOpacity,
-            y: logoY,
+            scale: backgroundScale,
+            y: backgroundY,
           }}
-          className="flex justify-center"
+          className="relative h-full w-full"
         >
           <Image
-            src="/images/t4tPics/logo-white.png"
-            alt="Tales for the Tillerman Logo"
-            width={336}
-            height={336}
-            className="drop-shadow-2xl"
+            src="/images/t4tPics/hero-bg.jpg"
+            alt="Tales for the Tillerman live atmosphere"
+            fill
             priority
+            sizes="100vw"
+            className="object-cover"
+            style={{ objectPosition: "center 24%" }}
           />
         </motion.div>
+      </div>
 
-        {/* Text & Buttons - Bottom of page */}
+      {/* Cinematic overlays */}
+      <div className="absolute inset-0 -z-10 bg-black/38" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/42 via-black/18 to-black/82" />
+      <div className="absolute inset-y-0 left-0 -z-10 w-[26%] bg-gradient-to-r from-black/45 to-transparent" />
+      <div className="absolute inset-y-0 right-0 -z-10 w-[26%] bg-gradient-to-l from-black/35 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 -z-10 h-[46%] bg-gradient-to-t from-black/82 via-black/45 to-transparent" />
+
+      <motion.div
+        style={{ opacity: glowOpacity }}
+        className="absolute inset-0 -z-10 bg-gradient-to-r from-[#FF8C21]/0 via-[#FF8C21]/16 to-[#FF8C21]/0"
+      />
+
+      <div className="absolute left-1/2 top-[26%] -z-10 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-[#FF8C21]/10 blur-3xl" />
+
+      {/* Main layout */}
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col justify-between px-4 pt-28 pb-10 sm:px-6 sm:pt-32 lg:px-10">
+        {/* Top block: logo + kicker */}
         <motion.div
           style={{
-            opacity: textOpacity,
-            y: textY,
+            y: logoY,
+            opacity: logoOpacity,
           }}
-          className="flex flex-col items-center gap-8"
+          className="flex flex-col items-center pt-6 sm:pt-8"
         >
-          {/* Tagline */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.3 }}
-            className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-white text-center font-light tracking-wide max-w-4xl"
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.9, ease: "easeOut" }}
+            className="relative"
           >
-            World music, funk, and soul from Berlin
+            {/* logo aura */}
+            <motion.div
+              animate={{
+                opacity: [0.28, 0.42, 0.28],
+                scale: [1, 1.06, 1],
+              }}
+              transition={{
+                duration: 4.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              className="absolute left-1/2 top-1/2 h-[180px] w-[180px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FF8C21]/18 blur-3xl sm:h-[220px] sm:w-[220px] md:h-[260px] md:w-[260px]"
+            />
+
+            <motion.div
+              animate={{
+                y: [0, -6, 0],
+                filter: [
+                  "drop-shadow(0 10px 30px rgba(0,0,0,0.45))",
+                  "drop-shadow(0 14px 40px rgba(255,140,33,0.22))",
+                  "drop-shadow(0 10px 30px rgba(0,0,0,0.45))",
+                ],
+              }}
+              transition={{
+                duration: 5.2,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              className="relative"
+            >
+              <Image
+                src="/images/t4tPics/logo-white.png"
+                alt="Tales for the Tillerman logo"
+                width={172}
+                height={172}
+                priority
+                className="h-[112px] w-[112px] object-contain sm:h-[140px] sm:w-[140px] md:h-[164px] md:w-[164px]"
+              />
+            </motion.div>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.85, delay: 0.15 }}
+            className="mt-5 text-[0.78rem] font-semibold uppercase tracking-[0.32em] text-[#ffd3a3] sm:text-sm"
+          >
+            Berlin-based live collective
+          </motion.p>
+        </motion.div>
+
+        {/* Bottom block: headline + copy + CTA */}
+        <motion.div
+          style={{
+            y: contentY,
+            opacity: contentOpacity,
+          }}
+          className="mx-auto flex w-full max-w-5xl flex-col items-center text-center"
+        >
+          <motion.h1
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.95, delay: 0.22 }}
+            className="max-w-5xl text-4xl font-semibold leading-[0.98] text-white sm:text-5xl md:text-6xl lg:text-7xl"
+          >
+            A vibrant blend of
+            <span className="bg-gradient-to-r from-[#FFB15A] via-[#FF8C21] to-[#FF6C00] bg-clip-text text-transparent">
+              {" "}
+              funk, soul and world music
+            </span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.95, delay: 0.34 }}
+            className="mt-6 max-w-3xl text-base leading-relaxed text-white/88 sm:text-lg md:text-xl"
+          >
+            Tales for the Tillerman brings groove-driven live energy to festivals,
+            clubs and special events — with a warm, rhythmic sound made to move a room.
           </motion.p>
 
-          {/* CTA Buttons - Disappear with logo */}
           <motion.div
-            style={{ opacity: buttonsOpacity }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.46 }}
+            className="mt-9 flex w-full flex-col items-center justify-center gap-4 sm:w-auto sm:flex-row"
           >
             <motion.a
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.5 }}
               whileHover={{
-                scale: 1.05,
-                boxShadow: "0 20px 50px rgba(255, 140, 33, 0.4)",
+                scale: 1.04,
+                boxShadow: "0 20px 50px rgba(255, 140, 33, 0.34)",
               }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.97 }}
               href="#press-kit"
-              className="px-10 py-4 bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] text-white rounded-lg text-lg md:text-xl font-bold leading-none shadow-xl shadow-[#FF8C21]/40 hover:shadow-2xl hover:shadow-[#FF8C21]/60 transition-all duration-300 transform hover:-translate-y-1 active:scale-95"
+              className="flex min-h-[56px] min-w-[220px] items-center justify-center rounded-xl border border-[#ffb36b]/35 bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] px-8 py-4 text-center text-base font-bold text-white shadow-xl shadow-[#FF8C21]/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-[#FF8C21]/40 md:text-lg"
             >
               View Press Kit
             </motion.a>
 
             <motion.a
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.65 }}
               whileHover={{
-                scale: 1.05,
-                backgroundColor: "rgba(255, 255, 255, 0.2)",
+                scale: 1.04,
+                boxShadow: "0 20px 50px rgba(255, 140, 33, 0.26)",
               }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.97 }}
               href="#contact"
-              className="px-10 py-4 bg-white/10 text-white rounded-lg text-lg md:text-xl font-bold border border-white/40 backdrop-blur-sm hover:backdrop-blur-md transition-all duration-300 shadow-xl shadow-white/5 hover:shadow-2xl hover:shadow-white/10 transform hover:-translate-y-1 active:scale-95"
+              className="flex min-h-[56px] min-w-[220px] items-center justify-center rounded-xl border border-[#ffb36b]/35 bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] px-8 py-4 text-center text-base font-bold text-white shadow-xl shadow-[#FF8C21]/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-[#FF8C21]/40 md:text-lg"
             >
               Book the Band
             </motion.a>
           </motion.div>
 
-          {/* Scroll Indicator */}
           <motion.div
-            animate={{ y: [0, 12, 0] }}
-            transition={{ duration: 2.5, repeat: Infinity }}
-            className="mt-8 flex justify-center"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.58 }}
+            className="mt-7 flex flex-wrap items-center justify-center gap-3"
           >
-            <svg
-              className="w-6 h-6 text-white/50"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M19 14l-7 7m0 0l-7-7m7 7V3"
-              />
-            </svg>
+            {badges.map((badge) => (
+              <div
+                key={badge}
+                className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm font-medium text-white/88 backdrop-blur-sm"
+              >
+                {badge}
+              </div>
+            ))}
           </motion.div>
         </motion.div>
       </div>
 
-      {/* Bottom fade transition */}
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-b from-transparent via-black/30 to-black w-full pointer-events-none z-20" />
+      {/* Bottom fade */}
+      <div className="pointer-events-none absolute right-0 bottom-0 left-0 z-20 h-40 bg-gradient-to-b from-transparent via-black/25 to-black" />
+
+      {/* Scroll indicator */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, y: [0, 8, 0] }}
+        transition={{
+          opacity: { duration: 1, delay: 1 },
+          y: { duration: 2.4, repeat: Infinity, ease: "easeInOut" },
+        }}
+        className="absolute bottom-8 left-1/2 z-20 -translate-x-1/2"
+      >
+        <a
+          href="#about"
+          className="flex flex-col items-center gap-2 text-white/60 transition-colors hover:text-white/90"
+        >
+          <span className="text-[0.68rem] uppercase tracking-[0.28em]">
+            Scroll
+          </span>
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.7}
+              d="M19 14l-7 7m0 0l-7-7m7 7V3"
+            />
+          </svg>
+        </a>
+      </motion.div>
     </section>
   )
 }

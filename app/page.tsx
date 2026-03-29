@@ -1,6 +1,5 @@
 import Image from "next/image"
 import { HeroSection } from "@/components/hero-section"
-import { QuickActionsSection } from "@/components/quick-actions-section"
 import { SectionDivider } from "@/components/section-divider"
 import { AboutSection } from "@/components/about-section"
 import { PressKitSection } from "@/components/press-kit-section"
@@ -22,7 +21,25 @@ export default function Home() {
         <HeroSection />
       </SceneSection>
 
-      <QuickActionsSection />
+      <section className="relative -mt-12 w-full overflow-hidden bg-transparent md:-mt-16 lg:-mt-20">
+        <div className="relative h-[360px] w-full md:h-[430px] lg:h-[500px]">
+          <Image
+            src="/images/banner.gif"
+            alt="Animated boat and waves"
+            fill
+            className="object-cover object-bottom opacity-80"
+            style={{
+              clipPath: "inset(18% 0 0 0)",
+            }}
+            unoptimized
+            priority
+          />
+
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black via-black/65 via-black/30 to-transparent md:h-48 lg:h-56" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black via-black/65 via-black/30 to-transparent md:h-48 lg:h-56" />
+          <div className="pointer-events-none absolute inset-0 bg-black/20" />
+        </div>
+      </section>
 
       <LatestReleaseSection />
 
@@ -34,16 +51,23 @@ export default function Home() {
 
       <SectionDivider />
 
-      {/* Banner Section - Between About and Press Kit */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-primary/5 via-primary/3 to-black" style={{ minHeight: "200px", clipPath: "inset(47% 0 0 0)" }}>
-        <Image
-          src="/images/banner.gif"
-          alt="Tales for the Tillerman animated banner"
-          width={1200}
-          height={300}
-          className="w-full h-auto object-cover"
-          unoptimized
-        />
+      <section className="relative -mt-12 w-full overflow-hidden bg-transparent md:-mt-16 lg:-mt-20">
+        <div className="relative h-[300px] w-full md:h-[350px] lg:h-[400px]">
+          <Image
+            src="/images/banner.gif"
+            alt="Animated boat and waves"
+            fill
+            className="object-cover object-bottom opacity-80"
+            style={{
+              clipPath: "inset(18% 0 0 0)",
+            }}
+            unoptimized
+          />
+
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black via-black/65 via-black/30 to-transparent md:h-44 lg:h-52" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black via-black/65 via-black/30 to-transparent md:h-44 lg:h-52" />
+          <div className="pointer-events-none absolute inset-0 bg-black/20" />
+        </div>
       </section>
 
       <SectionDivider />
@@ -74,16 +98,23 @@ export default function Home() {
 
       <FloatingBookingBar />
 
-      {/* Banner Footer - After Footer */}
-      <section className="relative w-full overflow-hidden bg-gradient-to-b from-primary/5 via-primary/3 to-black" style={{ minHeight: "150px", clipPath: "inset(47% 0 0 0)" }}>
-        <Image
-          src="/images/banner.gif"
-          alt="Tales for the Tillerman animated banner"
-          width={1200}
-          height={200}
-          className="w-full h-auto object-cover"
-          unoptimized
-        />
+      <section className="relative -mt-10 w-full overflow-hidden bg-transparent md:-mt-12 lg:-mt-16">
+        <div className="relative h-[220px] w-full md:h-[250px] lg:h-[280px]">
+          <Image
+            src="/images/banner.gif"
+            alt="Animated boat and waves"
+            fill
+            className="object-cover object-bottom opacity-80"
+            style={{
+              clipPath: "inset(18% 0 0 0)",
+            }}
+            unoptimized
+          />
+
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black via-black/65 via-black/30 to-transparent md:h-36 lg:h-44" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black via-black/65 via-black/30 to-transparent md:h-36 lg:h-44" />
+          <div className="pointer-events-none absolute inset-0 bg-black/20" />
+        </div>
       </section>
     </main>
   )
