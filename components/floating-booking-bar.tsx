@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
+import { useCampaignUrgency } from "@/hooks/use-campaign-urgency"
 
 export function FloatingBookingBar() {
   const [dismissed, setDismissed] = useState(false)
   const [ready, setReady] = useState(false)
+  const urgencyCue = useCampaignUrgency(CAMPAIGN_CONTENT.urgencyCue)
 
   useEffect(() => {
     const isDismissed = window.sessionStorage.getItem("floating-booking-dismissed")
@@ -28,6 +30,7 @@ export function FloatingBookingBar() {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.2 }}
+      data-campaign-touchpoint="floating-booking"
       className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-1.5rem)] max-w-4xl -translate-x-1/2 rounded-2xl border border-primary/30 bg-black/80 p-3 backdrop-blur-md"
     >
       <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
@@ -36,7 +39,7 @@ export function FloatingBookingBar() {
             {CAMPAIGN_CONTENT.tag}
           </p>
           <p className="text-foreground text-sm md:text-base">
-            {CAMPAIGN_CONTENT.urgencyCue}
+            {urgencyCue}
           </p>
         </div>
         <a

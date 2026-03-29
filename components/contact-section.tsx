@@ -5,10 +5,12 @@ import { motion } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
+import { useCampaignUrgency } from "@/hooks/use-campaign-urgency"
 
 export function ContactSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const { opacity, y } = useScrollAnimation(sectionRef)
+  const urgencyCue = useCampaignUrgency(CAMPAIGN_CONTENT.urgencyCue)
 
   const contactMethods = [
     {
@@ -30,7 +32,7 @@ export function ContactSection() {
   ]
 
   return (
-    <section id="contact" ref={sectionRef} className="relative py-16 md:py-20 overflow-hidden">
+    <section id="contact" data-campaign-touchpoint="contact-booking" ref={sectionRef} className="relative py-16 md:py-20 overflow-hidden">
       <div className="absolute inset-0 -z-10">
         <Image
           src="/images/sections/contact-bg.jpg"
@@ -76,7 +78,7 @@ export function ContactSection() {
             transition={{ duration: 0.6, delay: 0.25 }}
             className="mx-auto mt-4 inline-flex items-center rounded-full border border-primary/40 bg-primary/15 px-4 py-2 text-sm text-primary"
           >
-            {CAMPAIGN_CONTENT.urgencyCue}
+            {urgencyCue}
           </motion.p>
         </motion.div>
 

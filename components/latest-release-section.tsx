@@ -2,10 +2,13 @@
 
 import { motion } from "framer-motion"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
+import { useCampaignUrgency } from "@/hooks/use-campaign-urgency"
 
 export function LatestReleaseSection() {
+  const urgencyCue = useCampaignUrgency(CAMPAIGN_CONTENT.urgencyCue)
+
   return (
-    <section id="latest-release" className="relative py-14 md:py-16 bg-black/55">
+    <section id="latest-release" data-campaign-touchpoint="latest-release" className="relative py-14 md:py-16 bg-black/55">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -23,7 +26,7 @@ export function LatestReleaseSection() {
             {CAMPAIGN_CONTENT.releaseSubtitle}
           </p>
           <p className="text-primary/90 text-sm mb-6">
-            {CAMPAIGN_CONTENT.urgencyCue}
+            {urgencyCue}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
