@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
+import { SectionHeader } from "@/components/section-header"
 
 const members = [
   {
@@ -44,62 +45,36 @@ export function BandMembersSection() {
   const { opacity, y } = useScrollAnimation(sectionRef)
 
   const memberVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 10 },
     visible: (custom: number) => ({
       opacity: 1,
       y: 0,
       transition: {
-        delay: custom * 0.05,
-        duration: 0.5,
+        delay: custom * 0.04,
+        duration: 0.42,
       },
     }),
   }
 
   return (
-    <section
-      id="band"
-      ref={sectionRef}
-      className="py-16 md:py-20 bg-background relative overflow-hidden"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div
-          style={{ opacity, y }}
-          className="text-center mb-16"
-        >
-          <motion.span
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block"
-          >
-            The Musicians
-          </motion.span>
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="font-serif text-4xl md:text-5xl lg:text-6xl text-foreground mb-4 text-balance"
-          >
-            Meet the Band
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-muted-foreground max-w-2xl mx-auto text-lg"
-          >
-            Five musicians from diverse backgrounds, united by a passion for rhythm and groove.
-          </motion.p>
+    <section ref={sectionRef} className="relative overflow-hidden bg-background py-14 md:py-16 lg:py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <motion.div style={{ opacity, y }} className="mb-12 md:mb-14">
+          <SectionHeader
+            eyebrow="The Musicians"
+            title="Meet the Band"
+            description="Five musicians from diverse backgrounds, united by a passion for rhythm and groove."
+          />
         </motion.div>
 
         {/* Interactive Member Display */}
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
           {/* Member Photo Display */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.45 }}
             className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-secondary order-2 lg:order-1"
           >
             {members.map((member, index) => (

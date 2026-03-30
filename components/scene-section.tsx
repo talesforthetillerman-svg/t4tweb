@@ -6,19 +6,11 @@ import { useContentAnimation } from "@/hooks/useScrollAnimation"
 
 interface SceneSectionProps {
   id: string
-  imageSrc: string
-  imageAlt: string
   children: React.ReactNode
   className?: string
 }
 
-export function SceneSection({
-  id,
-  imageSrc,
-  imageAlt,
-  children,
-  className = "",
-}: SceneSectionProps) {
+export function SceneSection({ id, children, className = "" }: SceneSectionProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const contentAnimations = useContentAnimation(sectionRef)
 
@@ -28,7 +20,7 @@ export function SceneSection({
       id={id}
       className={`relative min-h-screen w-full overflow-hidden ${className}`}
     >
-      <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-4 py-12 sm:px-6 md:py-16 lg:px-8">
+      <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-4 py-10 sm:px-6 sm:py-12 md:py-14 lg:px-8">
         <motion.div
           style={{
             opacity: contentAnimations.opacity,

@@ -160,30 +160,27 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 22 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.46 }}
-            className="mt-10 flex w-full flex-col items-center justify-center gap-4 sm:w-auto sm:flex-row"
+            className="mt-10 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row sm:gap-4"
           >
             <motion.a
               whileHover={{
-                scale: 1.04,
+                scale: 1.03,
                 boxShadow: "0 20px 50px rgba(255, 140, 33, 0.34)",
               }}
-              whileTap={{ scale: 0.97 }}
-              href="#press-kit"
-              className="flex min-h-[56px] min-w-[220px] items-center justify-center rounded-xl border border-[#ffb36b]/35 bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] px-8 py-4 text-center text-base font-bold text-white shadow-xl shadow-[#FF8C21]/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-[#FF8C21]/40 md:text-lg"
+              whileTap={{ scale: 0.98 }}
+              href="#contact"
+              className="flex min-h-[52px] min-w-[220px] items-center justify-center rounded-xl border border-[#ffb36b]/35 bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] px-8 py-3.5 text-center text-base font-bold text-white shadow-xl shadow-[#FF8C21]/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-[#FF8C21]/40 md:min-h-[56px] md:py-4 md:text-lg"
             >
-              View Press Kit
+              Book the Band
             </motion.a>
 
             <motion.a
-              whileHover={{
-                scale: 1.04,
-                boxShadow: "0 20px 50px rgba(255, 140, 33, 0.26)",
-              }}
-              whileTap={{ scale: 0.97 }}
-              href="#contact"
-              className="flex min-h-[56px] min-w-[220px] items-center justify-center rounded-xl border border-[#ffb36b]/35 bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] px-8 py-4 text-center text-base font-bold text-white shadow-xl shadow-[#FF8C21]/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-[#FF8C21]/40 md:text-lg"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.99 }}
+              href="#press-kit"
+              className="flex min-h-[52px] min-w-[220px] items-center justify-center rounded-xl border border-white/25 bg-white/[0.06] px-8 py-3.5 text-center text-base font-semibold text-white/95 backdrop-blur-sm transition-all duration-300 hover:border-white/40 hover:bg-white/[0.1] md:min-h-[56px] md:py-4 md:text-lg"
             >
-              Book the Band
+              View Press Kit
             </motion.a>
           </motion.div>
         </motion.div>

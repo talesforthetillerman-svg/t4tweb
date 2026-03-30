@@ -23,10 +23,14 @@ export function Navigation() {
     { href: "#contact", label: "Contact" },
   ]
 
-  const navButtonClass =
-    "inline-flex items-center justify-center min-w-[5.25rem] px-4 lg:px-5 h-11 lg:h-12 rounded-xl bg-orange-500/85 text-white text-[0.98rem] lg:text-[1.03rem] font-medium leading-none tracking-[0.01em] whitespace-nowrap hover:bg-orange-400 transition-all duration-200 shadow-lg shadow-orange-900/20"
+  const navLinkClass =
+    "inline-flex items-center rounded-lg px-3 py-2 text-[0.8125rem] font-medium tracking-wide !text-white/65 transition-colors duration-200 hover:!text-white lg:px-3.5 lg:text-[0.875rem]"
 
-  const mobileNavButtonClass = `${navButtonClass} w-full`
+  const primaryCtaClass =
+    "inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] px-5 py-2.5 text-[0.875rem] font-semibold !text-white shadow-lg shadow-[#FF8C21]/20 transition-all duration-200 hover:shadow-xl hover:shadow-[#FF8C21]/30 lg:px-6 lg:py-3 lg:text-[0.9375rem]"
+
+  const mobileLinkClass =
+    "block w-full border-b border-white/10 py-3.5 text-left text-[0.9375rem] font-medium !text-white/80 transition-colors hover:!text-white"
 
   return (
     <nav
@@ -37,12 +41,12 @@ export function Navigation() {
       }`}
       style={{ boxShadow: isScrolled ? "0 10px 30px rgba(0,0,0,0.25)" : "none" }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="h-20 md:h-[5.5rem] flex items-center">
-          <div className="w-full h-16 md:h-[4.5rem] px-3 md:px-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03]">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-20 items-center md:h-[5.5rem]">
+          <div className="flex h-16 w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-3 md:h-[4.5rem] md:px-4">
             <a
-              href="#"
-              className="h-12 w-12 md:h-14 md:w-14 shrink-0 p-0 inline-flex items-center justify-center rounded-full transition-transform duration-300 hover:-translate-y-0.5"
+              href="#top"
+              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full p-0 transition-transform duration-300 hover:-translate-y-0.5 md:h-14 md:w-14"
             >
               <Image
                 src="/images/logo-qr.png"
@@ -53,27 +57,26 @@ export function Navigation() {
               />
             </a>
 
-            <div className="hidden md:flex flex-1 items-center justify-end gap-1.5 lg:gap-2 pl-3 lg:pl-4">
+            <div className="hidden items-center gap-0.5 md:flex md:gap-1 lg:gap-2">
               {navLinks.map((link) => (
-                <a key={link.href} href={link.href} className={navButtonClass}>
+                <a key={link.href} href={link.href} className={navLinkClass}>
                   {link.label}
                 </a>
               ))}
-              <a
-                href="mailto:talesforthetillerman@gmail.com"
-                className={`${navButtonClass} ml-1 font-semibold`}
-              >
-                Book Now
+              <a href="#contact" className={`${primaryCtaClass} ml-2 shrink-0 lg:ml-3`}>
+                Book
               </a>
             </div>
 
-            <div className="md:hidden flex items-center shrink-0">
+            <div className="flex shrink-0 items-center md:hidden">
               <button
+                type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="h-10 w-10 p-0 inline-flex items-center justify-center text-foreground rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-foreground transition-colors hover:bg-white/20"
                 aria-label="Toggle menu"
+                aria-expanded={isMobileMenuOpen}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {isMobileMenuOpen ? (
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   ) : (
@@ -86,25 +89,27 @@ export function Navigation() {
         </div>
 
         {isMobileMenuOpen && (
-          <div className="md:hidden pb-4 -mt-1">
-            <div className="rounded-xl border border-white/10 bg-background/95 backdrop-blur-sm p-2.5 flex flex-col gap-1.5">
+          <div className="border-t border-white/10 pb-4 pt-1 md:hidden">
+            <div className="rounded-xl border border-white/10 bg-background/95 px-1 backdrop-blur-sm">
               {navLinks.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={mobileNavButtonClass}
+                  className={mobileLinkClass}
                 >
                   {link.label}
                 </a>
               ))}
-              <a
-                href="mailto:talesforthetillerman@gmail.com"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={`${mobileNavButtonClass} mt-1 font-semibold text-center`}
-              >
-                Book Now
-              </a>
+              <div className="px-1 pt-4 pb-2">
+                <a
+                  href="#contact"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`${primaryCtaClass} w-full justify-center py-3.5 text-center`}
+                >
+                  Book the band
+                </a>
+              </div>
             </div>
           </div>
         )}

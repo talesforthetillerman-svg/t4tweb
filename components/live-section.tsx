@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { CAMPAIGN_CONTENT } from "@/components/campaign-content"
+import { SectionHeader } from "@/components/section-header"
 
 interface Concert {
   venue: string
@@ -198,83 +199,67 @@ export function LiveSection() {
   ]
 
   return (
-    <section id="live" ref={sectionRef} className="relative py-16 md:py-20 overflow-hidden">
+    <section ref={sectionRef} className="relative overflow-hidden py-14 md:py-16">
       <div className="absolute inset-0 -z-10">
         <Image
           src="/images/sections/live-bg.jpg"
           alt="Live section background"
           fill
           className="object-cover"
+          sizes="100vw"
         />
-        <div className="absolute inset-0 bg-black/50" />
       </div>
+      <div className="section-photo-scrim" />
+      <div className="section-photo-fade-top" />
+
       <div className="relative z-10 w-full">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <motion.div
-            style={{ opacity, y }}
-            className="text-center mb-12"
-          >
-            <div className="mb-4 flex justify-center">
-              <a
-                href={CAMPAIGN_CONTENT.liveStatusHref}
-                className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors"
-              >
-                {CAMPAIGN_CONTENT.liveStatusBadge}
-              </a>
-            </div>
-            <motion.span
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block"
-            >
-              Experience
-            </motion.span>
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="font-serif text-4xl md:text-5xl lg:text-6xl text-foreground mb-6 text-balance"
-            >
-              Our Show History
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-muted-foreground max-w-2xl mx-auto text-lg"
-            >
-              From intimate club shows to festival main stages, Tales for the Tillerman 
-              delivers an unforgettable live experience.
-            </motion.p>
-
-            <div className="mt-6 mx-auto w-full max-w-3xl">
-              <a
-                href="https://www.bandsintown.com/a/15468933-tales-for-the-tillerman"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mb-3 flex items-center justify-center gap-2 rounded-full border border-border bg-black/35 px-4 py-2 text-xs sm:text-sm text-foreground hover:border-primary/40 hover:text-primary transition-colors"
-              >
-                <span className="text-primary font-semibold">{liveSnapshot.nextShow ? "Next show" : "Live updates"}</span>
-                <span>
-                  {liveSnapshot.nextShow
-                    ? `${formatDate(liveSnapshot.nextShow.date)} · ${liveSnapshot.nextShow.city}`
-                    : "New date announcement coming soon"}
-                </span>
-              </a>
-
-              <div className="grid grid-cols-2 gap-2 text-left">
-                <div className="rounded-xl border border-border bg-black/25 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Cities played</p>
-                  <p className="text-lg font-semibold text-foreground">{liveSnapshot.citiesPlayed || "—"}</p>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div style={{ opacity, y }} className="mb-10 md:mb-12">
+            <SectionHeader
+              prepend={
+                <div className="flex justify-center">
+                  <a
+                    href={CAMPAIGN_CONTENT.liveStatusHref}
+                    className="inline-flex items-center rounded-full border border-primary/28 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/18"
+                  >
+                    {CAMPAIGN_CONTENT.liveStatusBadge}
+                  </a>
                 </div>
-                <div className="rounded-xl border border-border bg-black/25 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Shows · 12 months</p>
-                  <p className="text-lg font-semibold text-foreground">{liveSnapshot.recentShows || "—"}</p>
+              }
+              eyebrow="Experience"
+              title="Our Show History"
+              description="From intimate club shows to festival main stages, Tales for the Tillerman delivers an unforgettable live experience."
+              footer={
+                <div className="mx-auto w-full max-w-3xl">
+                  <a
+                    href="https://www.bandsintown.com/a/15468933-tales-for-the-tillerman"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mb-3 flex items-center justify-center gap-2 rounded-full border border-border bg-black/30 px-4 py-2 text-xs text-foreground transition-colors hover:border-primary/35 hover:text-primary sm:text-sm"
+                  >
+                    <span className="font-semibold text-primary">
+                      {liveSnapshot.nextShow ? "Next show" : "Live updates"}
+                    </span>
+                    <span>
+                      {liveSnapshot.nextShow
+                        ? `${formatDate(liveSnapshot.nextShow.date)} · ${liveSnapshot.nextShow.city}`
+                        : "New date announcement coming soon"}
+                    </span>
+                  </a>
+
+                  <div className="grid grid-cols-2 gap-2 text-left">
+                    <div className="rounded-xl border border-border bg-black/22 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Cities played</p>
+                      <p className="text-lg font-semibold text-foreground">{liveSnapshot.citiesPlayed || "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-black/22 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Shows · 12 months</p>
+                      <p className="text-lg font-semibold text-foreground">{liveSnapshot.recentShows || "—"}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              }
+            />
           </motion.div>
 
           <div className="w-full">
@@ -295,8 +280,8 @@ export function LiveSection() {
                   <motion.a
                     initial={{ opacity: 0, scale: 0.9 }}
                     whileInView={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.05, y: -4 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    transition={{ type: "spring", stiffness: 320, damping: 22 }}
                     href="https://www.bandsintown.com/a/15468933-tales-for-the-tillerman"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -318,8 +303,8 @@ export function LiveSection() {
                         key={platform.name}
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        whileHover={{ y: -4, scale: 1.05 }}
-                        transition={{ duration: 0.4, delay: index * 0.05, type: "spring", stiffness: 300, damping: 20 }}
+                        whileHover={{ y: -2, scale: 1.02 }}
+                        transition={{ duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
                         href={platform.href}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -345,8 +330,8 @@ export function LiveSection() {
                         key={platform.name}
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        whileHover={{ y: -4, scale: 1.05 }}
-                        transition={{ duration: 0.4, delay: index * 0.05, type: "spring", stiffness: 300, damping: 20 }}
+                        whileHover={{ y: -2, scale: 1.02 }}
+                        transition={{ duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
                         href={platform.href}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -515,6 +500,8 @@ export function LiveSection() {
           </div>
         </div>
       </div>
+
+      <div className="section-photo-fade-bottom" />
     </section>
   )
 }

@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
 import { useCampaignUrgency } from "@/hooks/use-campaign-urgency"
+import { SectionHeader } from "@/components/section-header"
 
 export function ContactSection() {
   const sectionRef = useRef<HTMLElement>(null)
@@ -32,54 +33,35 @@ export function ContactSection() {
   ]
 
   return (
-    <section id="contact" data-campaign-touchpoint="contact-booking" ref={sectionRef} className="relative py-16 md:py-20 overflow-hidden">
+    <section
+      ref={sectionRef}
+      data-campaign-touchpoint="contact-booking"
+      className="relative overflow-hidden py-14 md:py-16"
+    >
       <div className="absolute inset-0 -z-10">
         <Image
           src="/images/sections/contact-bg.jpg"
           alt="Contact section background"
           fill
           className="object-cover"
+          sizes="100vw"
         />
-        <div className="absolute inset-0 bg-black/55" />
       </div>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-        {/* Header */}
-        <motion.div
-          style={{ opacity, y }}
-          className="text-center mb-8"
-        >
-          <motion.span
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block"
-          >
-            {CAMPAIGN_CONTENT.tag}
-          </motion.span>
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="font-serif text-3xl md:text-4xl lg:text-5xl text-foreground mb-4 text-balance"
-          >
-            {CAMPAIGN_CONTENT.primaryCtaLabel}
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-muted-foreground max-w-2xl mx-auto text-base md:text-lg"
-          >
-            {CAMPAIGN_CONTENT.description}
-          </motion.p>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.25 }}
-            className="mx-auto mt-4 inline-flex items-center rounded-full border border-primary/40 bg-primary/15 px-4 py-2 text-sm text-primary"
-          >
-            {urgencyCue}
-          </motion.p>
+      <div className="section-photo-scrim" />
+      <div className="section-photo-fade-top" />
+
+      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">
+        <motion.div style={{ opacity, y }} className="mb-10 md:mb-12">
+          <SectionHeader
+            eyebrow={CAMPAIGN_CONTENT.tag}
+            title={CAMPAIGN_CONTENT.primaryCtaLabel}
+            description={CAMPAIGN_CONTENT.description}
+            footer={
+              <p className="inline-flex items-center rounded-full border border-primary/35 bg-primary/12 px-4 py-2 text-[length:var(--text-small)] text-primary">
+                {urgencyCue}
+              </p>
+            }
+          />
         </motion.div>
 
         {/* Contact Options */}
@@ -89,15 +71,15 @@ export function ContactSection() {
               key={method.title}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -4, scale: 1.02 }}
-              transition={{ duration: 0.6, delay: 0.1 + index * 0.1, type: "spring", stiffness: 300, damping: 20 }}
+              whileHover={{ y: -2, scale: 1.01 }}
+              transition={{ duration: 0.45, delay: 0.06 + index * 0.06, type: "spring", stiffness: 320, damping: 22 }}
               href={method.href}
               target={method.internal ? undefined : "_blank"}
               rel={method.internal ? undefined : "noopener noreferrer"}
-              className="group p-10 bg-card/90 backdrop-blur-sm rounded-2xl border border-border hover:border-primary/50 transition-all duration-300 text-center shadow-lg hover:shadow-xl"
+              className="group rounded-2xl border border-border bg-card/90 p-8 text-center shadow-md backdrop-blur-sm transition-all duration-300 hover:border-primary/45 hover:shadow-lg md:p-10"
             >
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-                <method.icon className="w-10 h-10 text-primary" />
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-xl bg-primary/18 group-hover:bg-primary/26 md:mb-6 md:h-20 md:w-20">
+                <method.icon className="h-9 w-9 text-primary md:h-10 md:w-10" />
               </div>
               <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-3">
                 {method.title}
@@ -124,9 +106,9 @@ export function ContactSection() {
             </motion.a>
           ))}
         </div>
-
-
       </div>
+
+      <div className="section-photo-fade-bottom" />
     </section>
   )
 }

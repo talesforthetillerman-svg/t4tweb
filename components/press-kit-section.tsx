@@ -4,6 +4,7 @@ import { useRef } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
+import { SectionHeader } from "@/components/section-header"
 
 export function PressKitSection() {
   const sectionRef = useRef<HTMLElement>(null)
@@ -26,98 +27,70 @@ export function PressKitSection() {
   ]
 
   const resourceVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 12 },
     visible: (custom: number) => ({
       opacity: 1,
       y: 0,
       transition: {
-        delay: custom * 0.1,
-        duration: 0.5,
+        delay: custom * 0.08,
+        duration: 0.42,
       },
     }),
   }
 
   return (
-    <section id="press-kit" ref={sectionRef} className="relative w-full overflow-hidden">
-      <div className="absolute inset-0 top-0 w-screen h-full -z-10 bg-cover bg-center bg-no-repeat" style={{ 
-        backgroundImage: "url('/images/sections/press-bg.jpg')",
-        width: "100vw",
-        marginLeft: "calc(-50vw + 50%)"
-      }}>
+    <section ref={sectionRef} className="relative w-full overflow-hidden">
+      <div
+        className="absolute inset-0 top-0 -z-10 h-full w-screen"
+        style={{
+          width: "100vw",
+          marginLeft: "calc(-50vw + 50%)",
+        }}
+      >
         <Image
           src="/images/sections/press-bg.jpg"
           alt="Press kit background"
           fill
-          className="object-cover w-full h-full"
-          style={{ objectFit: "cover" }}
+          className="object-cover"
+          sizes="100vw"
         />
       </div>
-      <div className="absolute inset-0 w-full h-full bg-black/50 -z-10" />
+      <div className="section-photo-scrim" />
+      <div className="section-photo-fade-top" />
 
-      {/* Top fade in */}
-      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent w-full pointer-events-none z-10" />
-
-      <div className="relative py-16 md:py-20 overflow-hidden z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          {/* Header */}
-          <motion.div
-            style={{ opacity, y }}
-            className="text-center mb-12"
-          >
-            <motion.span
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="text-[#FF8C21] text-sm font-medium tracking-wider uppercase mb-4 block"
-            >
-              Media Resources
-            </motion.span>
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="font-serif text-4xl md:text-5xl lg:text-6xl text-foreground mb-6 text-balance"
-            >
-              Professional Press Materials
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-muted-foreground max-w-2xl mx-auto text-lg"
-            >
-              Everything you need for press coverage, event promotion, and booking information.
-            </motion.p>
+      <div className="relative z-20 overflow-hidden py-14 md:py-16">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div style={{ opacity, y }} className="mb-10 md:mb-12">
+            <SectionHeader
+              eyebrow="Media Resources"
+              title="Professional Press Materials"
+              description="Everything you need for press coverage, event promotion, and booking information."
+            />
           </motion.div>
 
-          {/* Main Download CTA */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="mb-12"
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.45 }}
+            className="mb-10 md:mb-12"
           >
-            <div className="bg-card/33 border border-border rounded-3xl p-8 md:p-12 text-center backdrop-blur-sm">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[#FF8C21]/20 flex items-center justify-center">
-                <FolderIcon className="w-10 h-10 text-[#FF8C21]" />
+            <div className="rounded-2xl border border-border bg-card/35 p-7 text-center shadow-md backdrop-blur-sm md:p-10">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-xl bg-[#FF8C21]/18 md:mb-6 md:h-20 md:w-20">
+                <FolderIcon className="h-9 w-9 text-[#FF8C21] md:h-10 md:w-10" />
               </div>
-              <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-3">
+              <h3 className="mb-2 font-serif text-[length:var(--text-h3)] leading-tight text-foreground md:mb-3">
                 Complete Press Kit
               </h3>
-              <p className="text-muted-foreground max-w-lg mx-auto mb-8">
+              <p className="mx-auto mb-6 max-w-lg text-[length:var(--text-body)] text-muted-foreground md:mb-8">
                 Download our full press kit including high-quality photos, biography, technical rider, and more.
               </p>
               <a
                 href="/PressKit T40 2025.26_compressed.pdf"
                 download="PressKit T40 2025.26_compressed.pdf"
-                className="inline-flex items-center gap-3 px-10 py-5 bg-[#FF8C21] text-white rounded-xl font-semibold text-lg hover:bg-[#FF7C00] transition-all shadow-lg shadow-[#FF8C21]/25"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#FF8C21] px-8 py-4 text-base font-semibold text-white shadow-md shadow-[#FF8C21]/22 transition-all hover:bg-[#FF7C00] md:text-lg"
               >
-                <motion.span
-                  whileHover={{ scale: 1.1, rotate: 20 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                >
-                  <DownloadIcon className="w-6 h-6" />
-                </motion.span>
+                <DownloadIcon className="h-6 w-6" />
                 Press Kit
               </a>
             </div>
@@ -135,13 +108,13 @@ export function PressKitSection() {
                   initial="hidden"
                   whileInView="visible"
                   variants={resourceVariants}
-                  whileHover={{ y: -4, scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  whileHover={{ y: -2 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 22 }}
                   href={resources[0].href}
                   target={resources[0].download ? undefined : "_blank"}
                   rel={resources[0].download ? undefined : "noopener noreferrer"}
                   download={resources[0].download}
-                  className="group p-6 bg-card/33 rounded-2xl border border-border hover:border-[#FF8C21]/50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl"
+                  className="group rounded-2xl border border-border bg-card/35 p-6 shadow-md backdrop-blur-sm transition-all duration-300 hover:border-[#FF8C21]/45 hover:shadow-lg"
                 >
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-secondary text-muted-foreground group-hover:text-foreground transition-colors">
                     <BandLogoIcon />
@@ -155,11 +128,11 @@ export function PressKitSection() {
             {/* Manager Card - Second */}
             <motion.a
               href="mailto:talesforthetillerman@gmail.com"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -4, scale: 1.02 }}
-              transition={{ duration: 0.6, delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
-              className="group p-6 bg-card/33 rounded-2xl border border-border hover:border-[#FF8C21]/50 transition-all duration-300 overflow-hidden backdrop-blur-sm shadow-lg hover:shadow-xl cursor-pointer"
+              whileHover={{ y: -2 }}
+              transition={{ duration: 0.45, delay: 0.06, type: "spring", stiffness: 320, damping: 22 }}
+              className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card/35 p-6 shadow-md backdrop-blur-sm transition-all duration-300 hover:border-[#FF8C21]/45 hover:shadow-lg"
             >
               <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden">
                 <img
@@ -182,13 +155,13 @@ export function PressKitSection() {
                   initial="hidden"
                   whileInView="visible"
                   variants={resourceVariants}
-                  whileHover={{ y: -4, scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  whileHover={{ y: -2 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 22 }}
                   href={resources[1].href}
                   target={resources[1].download ? undefined : "_blank"}
                   rel={resources[1].download ? undefined : "noopener noreferrer"}
                   download={resources[1].download}
-                  className="group p-6 bg-card/33 rounded-2xl border border-border hover:border-[#FF8C21]/50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl"
+                  className="group rounded-2xl border border-border bg-card/35 p-6 shadow-md backdrop-blur-sm transition-all duration-300 hover:border-[#FF8C21]/45 hover:shadow-lg"
                 >
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-secondary text-muted-foreground group-hover:text-foreground transition-colors">
                     <LinktreeIcon />
@@ -202,8 +175,7 @@ export function PressKitSection() {
         </div>
       </div>
 
-      {/* Bottom fade out */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent via-black/20 to-black w-full pointer-events-none z-10" />
+      <div className="section-photo-fade-bottom" />
     </section>
   )
 }

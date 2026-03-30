@@ -17,7 +17,7 @@ export default function Home() {
     <main className="relative bg-black">
       <Navigation />
 
-      <SceneSection id="hero" imageSrc="/images/t4t-1.jpg" imageAlt="Band hero scene">
+      <SceneSection id="hero">
         <HeroSection />
       </SceneSection>
 
@@ -45,52 +45,31 @@ export default function Home() {
 
       <SectionDivider />
 
-      <SceneSection id="about" imageSrc="/images/t4t-2.jpg" imageAlt="About band scene">
+      <SceneSection id="about">
         <AboutSection />
       </SceneSection>
 
       <SectionDivider />
 
-      <section className="relative -mt-12 w-full overflow-hidden bg-transparent md:-mt-16 lg:-mt-20">
-        <div className="relative h-[300px] w-full md:h-[350px] lg:h-[400px]">
-          <Image
-            src="/images/banner.gif"
-            alt="Animated boat and waves"
-            fill
-            className="object-cover object-bottom opacity-80"
-            style={{
-              clipPath: "inset(18% 0 0 0)",
-            }}
-            unoptimized
-          />
-
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black via-black/65 via-black/30 to-transparent md:h-44 lg:h-52" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black via-black/65 via-black/30 to-transparent md:h-44 lg:h-52" />
-          <div className="pointer-events-none absolute inset-0 bg-black/20" />
-        </div>
-      </section>
-
-      <SectionDivider />
-
-      <SceneSection id="press-kit" imageSrc="/images/t4t-3.jpg" imageAlt="Press kit scene">
+      <SceneSection id="press-kit">
         <PressKitSection />
       </SceneSection>
 
       <SectionDivider />
 
-      <SceneSection id="band" imageSrc="/images/t4t-4.jpg" imageAlt="Band members scene">
+      <SceneSection id="band">
         <BandMembersSection />
       </SceneSection>
 
       <SectionDivider />
 
-      <SceneSection id="live" imageSrc="/images/band-live.jpg" imageAlt="Live show scene">
+      <SceneSection id="live">
         <LiveSection />
       </SceneSection>
 
       <SectionDivider />
 
-      <SceneSection id="contact" imageSrc="/images/DSC_4710.JPG" imageAlt="Contact scene">
+      <SceneSection id="contact">
         <ContactSection />
       </SceneSection>
 
@@ -98,24 +77,7 @@ export default function Home() {
 
       <FloatingBookingBar />
 
-      <section className="relative -mt-10 w-full overflow-hidden bg-transparent md:-mt-12 lg:-mt-16">
-        <div className="relative h-[220px] w-full md:h-[250px] lg:h-[280px]">
-          <Image
-            src="/images/banner.gif"
-            alt="Animated boat and waves"
-            fill
-            className="object-cover object-bottom opacity-80"
-            style={{
-              clipPath: "inset(18% 0 0 0)",
-            }}
-            unoptimized
-          />
-
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black via-black/65 via-black/30 to-transparent md:h-36 lg:h-44" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black via-black/65 via-black/30 to-transparent md:h-36 lg:h-44" />
-          <div className="pointer-events-none absolute inset-0 bg-black/20" />
-        </div>
-      </section>
+      <div className="h-12 w-full bg-gradient-to-b from-black to-transparent md:h-16" aria-hidden />
     </main>
   )
 }
