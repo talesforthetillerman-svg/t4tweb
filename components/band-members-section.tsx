@@ -1,7 +1,7 @@
 "use client"
 
-import { useRef, useState } from "react"
-import { motion } from "framer-motion"
+import { useRef, useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { SectionHeader } from "@/components/section-header"
@@ -17,7 +17,23 @@ const members = [
 export function BandMembersSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const [activeIndex, setActiveIndex] = useState<number>(0)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const { opacity, y } = useScrollAnimation(sectionRef)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+
+  const handleMemberClick = (index: number) => {
+    setActiveIndex(index)
+    if (isMobile) {
+      setModalOpen(true)
+    }
+  }
 
   return (
     <section
@@ -41,7 +57,6 @@ export function BandMembersSection() {
 
       <div className="section-photo-scrim" />
 
-      {/* Un solo barco: parallax izquierda→derecha + balanceo, centrado entre secciones */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
           style={{ opacity, y }}
@@ -55,7 +70,8 @@ export function BandMembersSection() {
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
-          <div className="relative aspect-[4/5] lg:aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-950 order-2 lg:order-1 shadow-2xl">
+          {/* Desktop photo - hidden on mobile */}
+          <div className="hidden lg:block relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-950 shadow-2xl">
             {members.map((member, index) => (
               <motion.div
                 key={member.id}
@@ -87,12 +103,12 @@ export function BandMembersSection() {
             ))}
           </div>
 
-          <div className="space-y-4 order-1 lg:order-2">
+          <div className="space-y-4">
             {members.map((member, index) => (
               <motion.button
                 key={member.id}
-                onClick={() => setActiveIndex(index)}
-                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => handleMemberClick(index)}
+                onMouseEnter={() => !isMobile && setActiveIndex(index)}
                 whileHover={{ scale: 1.02, x: 8 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 className={`group w-full text-left p-6 rounded-2xl border transition-all duration-300 flex justify-between items-center
@@ -133,6 +149,57 @@ export function BandMembersSection() {
           </div>
         </div>
       </div>
+
+      {/* Mobile modal */}
+      <AnimatePresence>
+        {modalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:hidden"
+            onClick={() => setModalOpen(false)}
+          >
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-md aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Image
+                src={members[activeIndex].image}
+                alt={members[activeIndex].fullName}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-8">
+                <h3 className="text-2xl font-serif text-white mb-2">
+                  {members[activeIndex].fullName}
+                </h3>
+                <p className="text-lg text-orange-400 font-medium">
+                  {members[activeIndex].role}
+                </p>
+              </div>
+              
+              <button
+                onClick={() => setModalOpen(false)}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/70 transition-colors"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }
