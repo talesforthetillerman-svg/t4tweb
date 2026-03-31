@@ -2,15 +2,11 @@
 
 import { motion } from "framer-motion"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
-import { useCampaignUrgency } from "@/hooks/use-campaign-urgency"
 
 export function LatestReleaseSection() {
-  const urgencyCue = useCampaignUrgency(CAMPAIGN_CONTENT.urgencyCue)
-
   return (
     <section
       id="latest-release"
-      data-campaign-touchpoint="latest-release"
       className="relative overflow-hidden bg-black py-0"
     >
       <div className="absolute inset-0 z-0">
@@ -44,20 +40,12 @@ export function LatestReleaseSection() {
             transition={{ duration: 0.45 }}
             className="flex w-full max-w-4xl flex-col items-center rounded-2xl border border-primary/28 bg-black/24 p-6 text-center shadow-md backdrop-blur-sm md:p-8"
           >
-            <p className="mb-[var(--spacing-sm)] w-full text-center text-[length:var(--text-small)] font-semibold uppercase tracking-[0.18em] text-primary">
-              {CAMPAIGN_CONTENT.tag}
-            </p>
-
             <h2 className="mb-[var(--spacing-sm)] w-full text-center font-serif text-[length:var(--text-h2)] leading-[var(--line-height-tight)] text-foreground">
               {CAMPAIGN_CONTENT.releaseTitle}
             </h2>
 
-            <p className="mb-1 w-full text-center text-[length:var(--text-body)] text-muted-foreground">
+            <p className="mb-6 w-full text-center text-[length:var(--text-body)] text-muted-foreground">
               {CAMPAIGN_CONTENT.releaseSubtitle}
-            </p>
-
-            <p className="mb-[var(--spacing-md)] w-full text-center text-[length:var(--text-small)] text-primary/90">
-              {urgencyCue}
             </p>
 
             <div className="flex w-full flex-col items-center gap-3 sm:flex-row sm:justify-center">

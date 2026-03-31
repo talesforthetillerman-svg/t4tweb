@@ -9,7 +9,6 @@ import { Footer } from "@/components/footer"
 import { Navigation } from "@/components/navigation"
 import { SceneSection } from "@/components/scene-section"
 import { LatestReleaseSection } from "@/components/latest-release-section"
-import { FloatingBookingBar } from "@/components/floating-booking-bar"
 
 export default function Home() {
   return (
@@ -63,8 +62,6 @@ export default function Home() {
       </SceneSection>
 
       <Footer />
-
-      <FloatingBookingBar />
     </main>
   )
 }

@@ -4,14 +4,12 @@ import { useRef } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
-import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
-import { useCampaignUrgency } from "@/hooks/use-campaign-urgency"
+import { CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
 import { SectionHeader } from "@/components/section-header"
 
 export function ContactSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const { opacity, y } = useScrollAnimation(sectionRef)
-  const urgencyCue = useCampaignUrgency(CAMPAIGN_CONTENT.urgencyCue)
 
   const contactMethods = [
     {
@@ -54,14 +52,9 @@ export function ContactSection() {
       <div className="relative z-10 mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">
         <motion.div style={{ opacity, y }} className="mb-10 md:mb-12">
           <SectionHeader
-            eyebrow={CAMPAIGN_CONTENT.tag}
-            title={CAMPAIGN_CONTENT.primaryCtaLabel}
-            description={CAMPAIGN_CONTENT.description}
-            footer={
-              <p className="inline-flex items-center rounded-full border border-primary/35 bg-primary/12 px-4 py-2 text-[length:var(--text-small)] text-primary">
-                {urgencyCue}
-              </p>
-            }
+            eyebrow="Contact"
+            title="Book the Band"
+            description="Get in touch for booking inquiries and event collaborations."
           />
         </motion.div>
 
