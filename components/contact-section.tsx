@@ -77,7 +77,7 @@ export function ContactSection() {
               href={method.href}
               target={method.internal ? undefined : "_blank"}
               rel={method.internal ? undefined : "noopener noreferrer"}
-              className="group rounded-2xl border border-border bg-card/90 p-8 text-center shadow-md backdrop-blur-sm transition-all duration-300 hover:border-primary/45 hover:shadow-lg md:p-10"
+              className="group rounded-2xl border border-border bg-card/90 p-6 md:p-8 text-center shadow-md backdrop-blur-sm transition-all duration-300 hover:border-primary/45 hover:shadow-lg lg:p-10"
             >
               <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-xl bg-primary/18 group-hover:bg-primary/26 md:mb-6 md:h-20 md:w-20">
                 <method.icon className="h-9 w-9 text-primary md:h-10 md:w-10" />
@@ -85,11 +85,11 @@ export function ContactSection() {
               <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-3">
                 {method.title}
               </h3>
-              <p className="text-muted-foreground text-lg mb-5">
+              <p className="text-muted-foreground text-base md:text-lg mb-4 md:mb-5">
                 {method.description}
               </p>
-              <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-lg ${CAMPAIGN_PRIMARY_CTA_CLASS}`}>
-                {method.label}
+              <span className={`inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium text-sm md:text-lg max-w-full ${CAMPAIGN_PRIMARY_CTA_CLASS}`}>
+                <span className="truncate">{method.label}</span>
                 <svg
                   className="w-5 h-5 group-hover:translate-x-1 transition-transform"
                   fill="none"

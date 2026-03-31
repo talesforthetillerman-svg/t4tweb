@@ -50,7 +50,7 @@ export function FloatingBookingBar() {
           type="button"
           onClick={dismissBar}
           aria-label="Dismiss booking bar"
-          className="inline-flex items-center justify-center rounded-lg border border-primary/40 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors min-h-[44px]"
+          className="hidden md:inline-flex items-center justify-center rounded-lg border border-primary/40 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors min-h-[44px]"
         >
           Dismiss
         </button>
