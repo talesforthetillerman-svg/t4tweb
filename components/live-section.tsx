@@ -18,24 +18,6 @@ interface Concert {
   price: string
 }
 
-function parseCSV(csv: string): Concert[] {
-  const lines = csv.trim().split("\n")
-  return lines.slice(1).map((line) => {
-    const values = line.split(",")
-    return {
-      venue: values[0] || "",
-      city: values[1] || "",
-      country: values[2] || "",
-      date: values[3] || "",
-      time: values[4] || "",
-      status: values[5] || "",
-      genre: values[6] || "",
-      capacity: values[7] || "",
-      price: values[8] || "",
-    }
-  })
-}
-
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleDateString("en-GB", {
@@ -55,10 +37,9 @@ export function LiveSection() {
   useEffect(() => {
     async function fetchConcerts() {
       try {
-        const response = await fetch("/data/concerts.csv")
+        const response = await fetch("/api/concerts")
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const csv = await response.text()
-        const parsed = parseCSV(csv)
+        const parsed = (await response.json()) as Concert[]
         const sorted = parsed.sort((a, b) =>
           new Date(b.date).getTime() - new Date(a.date).getTime()
         )
