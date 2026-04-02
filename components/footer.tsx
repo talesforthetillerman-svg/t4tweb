@@ -62,12 +62,22 @@ export function Footer() {
   ]
 
   return (
-    <footer className="bg-black">
+    <footer 
+      data-edit-id="footer"
+      data-edit-type="section"
+      data-edit-label="Pie de página"
+      className="bg-black"
+    >
       <div className="h-8 bg-gradient-to-b from-black/40 to-black" />
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 text-center">
         
-        <div className="mb-6">
+        <div 
+          data-edit-id="footer-logo"
+          data-edit-type="image"
+          data-edit-label="Logo del pie de página"
+          className="mb-6"
+        >
           <Image
             src="/images/t4tPics/logo-white.png"
             alt="Tales for the Tillerman"
@@ -77,12 +87,20 @@ export function Footer() {
           />
         </div>
 
-        <p className="text-lg text-white/70 mb-6 max-w-2xl mx-auto">
+        <p 
+          data-edit-id="footer-description"
+          data-edit-type="text"
+          data-edit-label="Descripción del pie de página"
+          className="text-lg text-white/70 mb-6 max-w-2xl mx-auto"
+        >
           Berlin-based world music collective blending funk, soul, and reggae.
         </p>
 
         <div className="mb-8">
           <a
+            data-edit-id="footer-cta"
+            data-edit-type="link"
+            data-edit-label="Botón de contacto"
             href="#contact"
             className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-8 py-3 text-base font-bold text-white shadow-lg shadow-[#FF8C21]/30 hover:shadow-xl hover:shadow-[#FF8C21]/40 transition-all"
           >
@@ -106,7 +124,12 @@ export function Footer() {
         </div>
 
         <div className="border-t border-white/10 pt-6">
-          <p className="text-white/40 text-sm text-center">
+          <p 
+            data-edit-id="footer-copyright"
+            data-edit-type="text"
+            data-edit-label="Texto de derechos de autor"
+            className="text-white/40 text-sm text-center"
+          >
             &copy; {currentYear} Tales for the Tillerman
           </p>
         </div>

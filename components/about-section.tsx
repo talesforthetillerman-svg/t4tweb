@@ -29,9 +29,17 @@ Their performances balance musical depth with danceable power, bringing together
   return (
     <section 
       ref={sectionRef} 
+      data-edit-id="about-section"
+      data-edit-type="section"
+      data-edit-label="Sección Sobre Nosotros"
       className={`relative min-h-screen w-full overflow-hidden bg-black ${className}`}
     >
-      <div className="absolute inset-0 -z-10">
+      <div 
+        data-edit-id="about-bg-image"
+        data-edit-type="image"
+        data-edit-label="Imagen de fondo"
+        className="absolute inset-0 -z-10"
+      >
         <img 
           src="/images/about-bg-main.jpg"
           alt="Band members background"
@@ -55,6 +63,9 @@ Their performances balance musical depth with danceable power, bringing together
             title="A Journey Through Sound"
             titleClassName="text-white"
             className="mb-10 max-w-4xl md:mb-12"
+            data-edit-id="about-header"
+            data-edit-type="text"
+            data-edit-label="Sección Sobre Nosotros"
           />
 
           {/* Box de texto reducido ~20% */}
@@ -66,21 +77,36 @@ Their performances balance musical depth with danceable power, bringing together
             className="w-full rounded-3xl border border-white/10 bg-black/50 px-6 py-8 md:px-10 md:py-12 lg:px-12 lg:py-14 shadow-2xl backdrop-blur-md"
           >
             <div className="space-y-6 text-white md:space-y-8">
-              <p className="mb-0 max-w-none text-base leading-relaxed text-white/95 md:text-lg">
+              <p 
+                data-edit-id="about-text-1"
+                data-edit-type="text"
+                data-edit-label="Descripción 1"
+                className="mb-0 max-w-none text-base leading-relaxed text-white/95 md:text-lg"
+              >
                 Tales for the Tillerman is a Berlin-based collective blending world music, 
                 funk, soul, and reggae into a vibrant live experience. With roots spanning 
                 across continents, the band creates a sound that moves between groove, 
                 warmth, rhythm, and energy.
               </p>
 
-              <p className="mb-0 max-w-none text-base leading-relaxed text-white/90 md:text-lg">
+              <p 
+                data-edit-id="about-text-2"
+                data-edit-type="text"
+                data-edit-label="Descripción 2"
+                className="mb-0 max-w-none text-base leading-relaxed text-white/90 md:text-lg"
+              >
                 Their performances balance musical depth with danceable power, bringing 
                 together five musicians into one fluid, dynamic live act. Based in Berlin, 
                 the project brings together world music fusion, stage energy, and a strong 
                 collective identity.
               </p>
 
-              <p className="mb-0 max-w-none pt-2 text-sm leading-relaxed md:text-base text-[#FF8C21]">
+              <p 
+                data-edit-id="about-tags"
+                data-edit-type="text"
+                data-edit-label="Etiquetas"
+                className="mb-0 max-w-none pt-2 text-sm leading-relaxed md:text-base text-[#FF8C21]"
+              >
                 5 musicians • Berlin-based • World music fusion • Live experience
               </p>
             </div>

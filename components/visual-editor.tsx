@@ -1,7 +1,8 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { createPortal } from 'react-dom'
 
 interface EditableElement {
   id: string
@@ -9,6 +10,17 @@ interface EditableElement {
   label: string
   value?: string
   element: HTMLElement
+}
+
+interface ResizeState {
+  isResizing: boolean
+  handle: string | null
+  startX: number
+  startY: number
+  startWidth: number
+  startHeight: number
+  startLeft: number
+  startTop: number
 }
 
 interface VisualEditorContextType {
@@ -39,7 +51,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   const [openPanel, setOpenPanel] = useState(false)
 
   useEffect(() => {
-    // Check URL params for edit mode
     const params = new URLSearchParams(window.location.search)
     if (params.get('editMode') === 'true' || window.location.pathname === '/editor') {
       setIsEditing(true)
@@ -48,17 +59,324 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
   return (
     <VisualEditorContext.Provider
-      value={{
-        isEditing,
-        setIsEditing,
-        selectedElement,
-        setSelectedElement,
-        openPanel,
-        setOpenPanel,
-      }}
+      value={{ isEditing, setIsEditing, selectedElement, setSelectedElement, openPanel, setOpenPanel }}
     >
       {children}
     </VisualEditorContext.Provider>
+  )
+}
+
+// Image Selection Overlay Component - Canva/Figma style
+function ImageSelectionOverlay({
+  element,
+  onClose,
+}: {
+  element: HTMLElement
+  onClose: () => void
+}) {
+  const [rect, setRect] = useState({ x: 0, y: 0, width: 0, height: 0 })
+  const [resizeState, setResizeState] = useState<ResizeState>({
+    isResizing: false,
+    handle: null,
+    startX: 0,
+    startY: 0,
+    startWidth: 0,
+    startHeight: 0,
+    startLeft: 0,
+    startTop: 0,
+  })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const rafRef = useRef<number>(0)
+
+  // Update position when element scrolls or resizes
+  const updateRect = useCallback(() => {
+    if (!element) return
+    const newRect = element.getBoundingClientRect()
+    setRect({
+      x: newRect.left,
+      y: newRect.top,
+      width: newRect.width,
+      height: newRect.height,
+    })
+  }, [element])
+
+  useEffect(() => {
+    updateRect()
+    
+    const handleScroll = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(updateRect)
+    }
+    
+    const handleResize = () => {
+      updateRect()
+    }
+
+    window.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleResize)
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleResize)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [element, updateRect])
+
+  // Handle resize from corners
+  const handleResizeStart = useCallback((e: React.MouseEvent, handle: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const img = element.querySelector('img')
+    const computedStyle = window.getComputedStyle(element)
+    const currentWidth = element.offsetWidth
+    const currentHeight = element.offsetHeight
+    
+    // Get the actual visual position
+    const actualRect = element.getBoundingClientRect()
+    
+    setResizeState({
+      isResizing: true,
+      handle,
+      startX: e.clientX,
+      startY: e.clientY,
+      startWidth: currentWidth,
+      startHeight: currentHeight,
+      startLeft: actualRect.left,
+      startTop: actualRect.top,
+    })
+  }, [element])
+
+  // Handle mouse move for resizing
+  useEffect(() => {
+    if (!resizeState.isResizing) return
+
+    const aspectRatio = resizeState.startWidth / resizeState.startHeight
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - resizeState.startX
+      const deltaY = e.clientY - resizeState.startY
+
+      let newWidth = resizeState.startWidth
+      let newHeight = resizeState.startHeight
+
+      // Calculate new dimensions based on which handle is being dragged
+      switch (resizeState.handle) {
+        case 'se':
+          newWidth = Math.max(50, resizeState.startWidth + deltaX)
+          newHeight = newWidth / aspectRatio
+          break
+        case 'sw':
+          newWidth = Math.max(50, resizeState.startWidth - deltaX)
+          newHeight = newWidth / aspectRatio
+          break
+        case 'ne':
+          newWidth = Math.max(50, resizeState.startWidth + deltaX)
+          newHeight = newWidth / aspectRatio
+          break
+        case 'nw':
+          newWidth = Math.max(50, resizeState.startWidth - deltaX)
+          newHeight = newWidth / aspectRatio
+          break
+      }
+
+      // Apply new dimensions
+      element.style.width = `${newWidth}px`
+      element.style.height = `${newHeight}px`
+      element.style.maxWidth = 'none'
+      element.style.maxHeight = 'none'
+      element.style.minWidth = '0'
+      element.style.minHeight = '0'
+
+      // Update the overlay position
+      updateRect()
+    }
+
+    const handleMouseUp = () => {
+      setResizeState(prev => ({ ...prev, isResizing: false, handle: null }))
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    document.body.style.cursor = getCursorForHandle(resizeState.handle || '')
+    document.body.style.userSelect = 'none'
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [resizeState, element, updateRect])
+
+  // Handle drag (move) functionality
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).classList.contains('resize-handle')) return
+    e.preventDefault()
+    setIsDragging(true)
+    setDragStart({ x: e.clientX, y: e.clientY })
+  }, [])
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const startX = dragStart.x
+    const startY = dragStart.y
+    const startLeft = rect.x
+    const startTop = rect.y
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startX
+      const deltaY = e.clientY - startY
+      
+      // Use transform for smooth movement
+      element.style.transform = `translate(${deltaX}px, ${deltaY}px)`
+      element.style.position = 'relative'
+      
+      // Update the overlay position
+      setRect(prev => ({
+        ...prev,
+        x: startLeft + deltaX,
+        y: startTop + deltaY,
+      }))
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    document.body.style.cursor = 'move'
+    document.body.style.userSelect = 'none'
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isDragging, dragStart, element, rect])
+
+  const handles = [
+    { id: 'nw', cursor: 'nwse-resize', x: -6, y: -6 },
+    { id: 'ne', cursor: 'nesw-resize', x: 1, y: -6 },
+    { id: 'sw', cursor: 'nesw-resize', x: -6, y: 1 },
+    { id: 'se', cursor: 'nwse-resize', x: 1, y: 1 },
+  ]
+
+  const getCursorForHandle = (handle: string) => {
+    switch (handle) {
+      case 'nw': return 'nwse-resize'
+      case 'ne': return 'nesw-resize'
+      case 'sw': return 'nesw-resize'
+      case 'se': return 'nwse-resize'
+      default: return 'default'
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9990] pointer-events-none">
+      {/* Selection border */}
+      <div
+        className={`absolute border-2 ${isDragging ? 'border-[#FF8C21]' : 'border-[#FF8C21]'} pointer-events-none transition-all duration-75`}
+        style={{
+          left: rect.x - 2,
+          top: rect.y - 2,
+          width: rect.width + 4,
+          height: rect.height + 4,
+          boxShadow: '0 0 0 1px rgba(255, 140, 33, 0.3), 0 0 20px rgba(255, 140, 33, 0.15)',
+        }}
+      />
+
+      {/* Drag area */}
+      <div
+        className={`absolute pointer-events-auto ${isDragging ? 'cursor-move' : 'cursor-move'}`}
+        style={{
+          left: rect.x,
+          top: rect.y,
+          width: rect.width,
+          height: rect.height,
+        }}
+        onMouseDown={handleDragStart}
+      />
+
+      {/* Resize handles */}
+      {handles.map((handle) => (
+        <div
+          key={handle.id}
+          className="resize-handle absolute w-4 h-4 bg-white border-2 border-[#FF8C21] rounded-sm pointer-events-auto shadow-md hover:scale-110 transition-transform"
+          style={{
+            left: handle.id.includes('e') ? rect.x + rect.width + handle.x : rect.x + handle.x,
+            top: handle.id.includes('s') ? rect.y + rect.height + handle.y : rect.y + handle.y,
+            cursor: handle.cursor,
+            transform: 'translate(-50%, -50%)',
+          }}
+          onMouseDown={(e) => handleResizeStart(e, handle.id)}
+        />
+      ))}
+
+      {/* Edge handles for width/height adjustment */}
+      {/* Top edge */}
+      <div
+        className="resize-handle absolute w-20 h-3 pointer-events-auto"
+        style={{
+          left: rect.x + rect.width / 2 - 40,
+          top: rect.y - 6,
+          cursor: 'ns-resize',
+        }}
+        onMouseDown={(e) => handleResizeStart(e, 'n')}
+      />
+      {/* Bottom edge */}
+      <div
+        className="resize-handle absolute w-20 h-3 pointer-events-auto"
+        style={{
+          left: rect.x + rect.width / 2 - 40,
+          top: rect.y + rect.height + 3,
+          cursor: 'ns-resize',
+        }}
+        onMouseDown={(e) => handleResizeStart(e, 's')}
+      />
+      {/* Left edge */}
+      <div
+        className="resize-handle absolute w-3 h-20 pointer-events-auto"
+        style={{
+          left: rect.x - 6,
+          top: rect.y + rect.height / 2 - 40,
+          cursor: 'ew-resize',
+        }}
+        onMouseDown={(e) => handleResizeStart(e, 'w')}
+      />
+      {/* Right edge */}
+      <div
+        className="resize-handle absolute w-3 h-20 pointer-events-auto"
+        style={{
+          left: rect.x + rect.width + 3,
+          top: rect.y + rect.height / 2 - 40,
+          cursor: 'ew-resize',
+        }}
+        onMouseDown={(e) => handleResizeStart(e, 'e')}
+      />
+
+      {/* Dimension label */}
+      <div
+        className="absolute pointer-events-none px-2 py-1 bg-gray-800/90 text-white text-[10px] font-mono rounded"
+        style={{
+          left: rect.x + rect.width / 2 - 35,
+          top: rect.y + rect.height + 20,
+        }}
+      >
+        {Math.round(rect.width)} × {Math.round(rect.height)}
+      </div>
+    </div>,
+    document.body
   )
 }
 
@@ -74,6 +392,15 @@ export function VisualEditorOverlay() {
     if (!isEditing) return
     
     const target = e.target as HTMLElement
+    
+    // Check if clicking on editor UI elements
+    if (target.closest('[data-edit-panel]') || 
+        target.closest('[data-edit-toolbar]') || 
+        target.closest('[data-edit-modal]') ||
+        target.closest('.resize-handle')) {
+      return
+    }
+    
     const editable = target.closest('[data-edit-id]') as HTMLElement
     
     if (editable) {
@@ -84,32 +411,21 @@ export function VisualEditorOverlay() {
       const type = editable.getAttribute('data-edit-type') || 'text'
       const label = editable.getAttribute('data-edit-label') || id
       
-      // Get current value based on type
       let value = ''
       if (type === 'text') {
         value = editable.textContent?.trim() || ''
       } else if (type === 'image') {
         const img = editable.querySelector('img')
-        value = img?.getAttribute('src') || ''
+        value = img?.getAttribute('src') || editable.style.backgroundImage?.match(/url\("?([^"]+)"?\)/)?.[1] || ''
       } else if (type === 'link') {
         value = editable.getAttribute('href') || ''
       }
       
       setSelectedElement({ id, type, label, value, element: editable })
       setOpenPanel(true)
-      
-      // Add visual selection
-      document.querySelectorAll('[data-edit-selected]').forEach(el => {
-        el.removeAttribute('data-edit-selected')
-      })
-      editable.setAttribute('data-edit-selected', 'true')
-    } else if (!target.closest('[data-edit-panel]') && !target.closest('[data-edit-toolbar]')) {
-      // Click outside - close panel
+    } else if (!target.closest('[data-edit-panel]') && !target.closest('[data-edit-toolbar]') && !target.closest('.resize-handle')) {
       setOpenPanel(false)
       setSelectedElement(null)
-      document.querySelectorAll('[data-edit-selected]').forEach(el => {
-        el.removeAttribute('data-edit-selected')
-      })
     }
   }, [isEditing, setSelectedElement, setOpenPanel])
 
@@ -135,7 +451,7 @@ export function VisualEditorOverlay() {
     const link = target.closest('a[href]')
     const editable = target.closest('[data-edit-id]')
     
-    if (link && !editable) {
+    if (link && !editable && !target.closest('[data-edit-modal]')) {
       e.preventDefault()
     }
   }, [isEditing])
@@ -148,20 +464,22 @@ export function VisualEditorOverlay() {
         setIsEditing(!isEditing)
       }
       if (e.key === 'Escape') {
-        if (openPanel) {
+        if (showSaveModal) {
+          setShowSaveModal(false)
+        } else if (openPanel) {
           setOpenPanel(false)
           setSelectedElement(null)
-          document.querySelectorAll('[data-edit-selected]').forEach(el => {
-            el.removeAttribute('data-edit-selected')
-          })
         } else if (isEditing) {
           setIsEditing(false)
         }
       }
+      if (e.key === 'Delete' && selectedElement && !showSaveModal) {
+        // Don't delete on Delete key for now
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isEditing, setIsEditing, openPanel, setOpenPanel])
+  }, [isEditing, setIsEditing, openPanel, setOpenPanel, selectedElement, showSaveModal])
 
   // Add event listeners when editing
   useEffect(() => {
@@ -171,7 +489,6 @@ export function VisualEditorOverlay() {
     document.addEventListener('mouseover', handleElementHover)
     document.addEventListener('click', handleLinkClick, true)
     
-    // Disable button/link functionality
     document.body.setAttribute('data-edit-mode', 'true')
     
     return () => {
@@ -184,7 +501,6 @@ export function VisualEditorOverlay() {
 
   const handleSave = async () => {
     setSaveStatus('saving')
-    // Simulate save
     await new Promise(resolve => setTimeout(resolve, 1500))
     setSaveStatus('saved')
     setTimeout(() => {
@@ -195,7 +511,7 @@ export function VisualEditorOverlay() {
 
   return (
     <>
-      {/* Edit Mode Indicator - Top Bar */}
+      {/* Toolbar */}
       <AnimatePresence>
         {isEditing && (
           <motion.div
@@ -214,8 +530,12 @@ export function VisualEditorOverlay() {
                     </svg>
                   </div>
                   <div>
-                    <span className="text-white font-bold text-lg">Modo Edición Visual</span>
-                    <p className="text-white/70 text-xs hidden sm:block">Haz clic en cualquier elemento para editarlo • ESC para salir</p>
+                    <span className="text-white font-bold text-lg">Edición Visual</span>
+                    <p className="text-white/70 text-xs hidden sm:block">
+                      {selectedElement?.type === 'image' 
+                        ? 'Arrastra para mover • Usa las esquinas para redimensionar' 
+                        : 'Haz clic en cualquier elemento para editarlo'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -257,26 +577,53 @@ export function VisualEditorOverlay() {
       </AnimatePresence>
 
       {/* Hover Indicator */}
-      {isEditing && hoveredElement && (
+      {isEditing && hoveredElement && hoveredElement !== selectedElement?.element && (
         <div
-          className="fixed pointer-events-none z-[9998]"
+          className="fixed pointer-events-none z-[9989] transition-all duration-75"
           style={{
-            top: hoveredElement.getBoundingClientRect().top - 4,
-            left: hoveredElement.getBoundingClientRect().left - 4,
-            width: hoveredElement.getBoundingClientRect().width + 8,
-            height: hoveredElement.getBoundingClientRect().height + 8,
+            top: hoveredElement.getBoundingClientRect().top - 2,
+            left: hoveredElement.getBoundingClientRect().left - 2,
+            width: hoveredElement.getBoundingClientRect().width + 4,
+            height: hoveredElement.getBoundingClientRect().height + 4,
             border: '2px dashed #FF8C21',
             borderRadius: '4px',
-            transition: 'all 0.15s ease-out',
+            background: 'rgba(255, 140, 33, 0.05)',
           }}
         >
-          <div className="absolute -top-6 left-0 px-2 py-0.5 text-[10px] font-medium text-white bg-[#FF8C21] rounded-t whitespace-nowrap">
+          <div className="absolute -top-6 left-0 px-2 py-0.5 text-[10px] font-medium text-white bg-[#FF8C21] rounded whitespace-nowrap">
             {hoveredElement.getAttribute('data-edit-label') || hoveredElement.getAttribute('data-edit-id')}
           </div>
         </div>
       )}
 
-      {/* Edit Panel - Contextual */}
+      {/* Image Selection Overlay - Canva/Figma style */}
+      {isEditing && selectedElement?.type === 'image' && (
+        <ImageSelectionOverlay
+          element={selectedElement.element}
+          onClose={() => {
+            setSelectedElement(null)
+            setOpenPanel(false)
+          }}
+        />
+      )}
+
+      {/* Text/Other Selection Indicator */}
+      {isEditing && selectedElement && selectedElement.type !== 'image' && (
+        <div
+          className="fixed pointer-events-none z-[9989]"
+          style={{
+            top: selectedElement.element.getBoundingClientRect().top - 2,
+            left: selectedElement.element.getBoundingClientRect().left - 2,
+            width: selectedElement.element.getBoundingClientRect().width + 4,
+            height: selectedElement.element.getBoundingClientRect().height + 4,
+            border: '2px solid #FF8C21',
+            borderRadius: '4px',
+            boxShadow: '0 0 0 3px rgba(255, 140, 33, 0.2)',
+          }}
+        />
+      )}
+
+      {/* Edit Panel */}
       <AnimatePresence>
         {isEditing && openPanel && selectedElement && (
           <motion.div
@@ -299,9 +646,6 @@ export function VisualEditorOverlay() {
                   onClick={() => {
                     setOpenPanel(false)
                     setSelectedElement(null)
-                    document.querySelectorAll('[data-edit-selected]').forEach(el => {
-                      el.removeAttribute('data-edit-selected')
-                    })
                   }}
                   className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
                 >
@@ -322,7 +666,6 @@ export function VisualEditorOverlay() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF8C21] focus:border-transparent text-gray-800 resize-none"
                     rows={4}
                     onChange={(e) => {
-                      // Update element in real-time
                       if (selectedElement.element) {
                         selectedElement.element.textContent = e.target.value
                       }
@@ -334,7 +677,15 @@ export function VisualEditorOverlay() {
 
               {selectedElement.type === 'image' && (
                 <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-gray-700">Imagen actual</label>
+                  <label className="block text-sm font-semibold text-gray-700">Imagen seleccionada</label>
+                  <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-xl">
+                    <p className="font-medium text-gray-700 mb-1">Cómo redimensionar:</p>
+                    <ul className="space-y-1">
+                      <li>• Arrastra las <strong>esquinas</strong> para cambiar tamaño</li>
+                      <li>• Arrastra el <strong>centro</strong> para mover</li>
+                      <li>• La relación de aspecto se mantiene automáticamente</li>
+                    </ul>
+                  </div>
                   <div className="aspect-video bg-gray-100 rounded-xl overflow-hidden">
                     {selectedElement.value && (
                       <img src={selectedElement.value} alt="Preview" className="w-full h-full object-cover" />
@@ -395,7 +746,7 @@ export function VisualEditorOverlay() {
         )}
       </AnimatePresence>
 
-      {/* Floating Action Button (when not editing) */}
+      {/* Floating Action Button */}
       {!isEditing && (
         <motion.button
           initial={{ scale: 0, rotate: -180 }}
@@ -489,4 +840,14 @@ export function VisualEditorOverlay() {
       {isEditing && <div className="h-16" />}
     </>
   )
+}
+
+function getCursorForHandle(handle: string) {
+  switch (handle) {
+    case 'nw': case 'se': return 'nwse-resize'
+    case 'ne': case 'sw': return 'nesw-resize'
+    case 'n': case 's': return 'ns-resize'
+    case 'e': case 'w': return 'ew-resize'
+    default: return 'default'
+  }
 }

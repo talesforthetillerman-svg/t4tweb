@@ -34,9 +34,17 @@ export function ContactSection() {
     <section
       ref={sectionRef}
       data-campaign-touchpoint="contact-booking"
+      data-edit-id="contact-section"
+      data-edit-type="section"
+      data-edit-label="Sección de Contacto"
       className="relative min-h-screen overflow-hidden"
     >
-      <div className="absolute inset-0 -z-10">
+      <div 
+        data-edit-id="contact-bg-image"
+        data-edit-type="image"
+        data-edit-label="Imagen de fondo contacto"
+        className="absolute inset-0 -z-10"
+      >
         <Image
           src="/images/sections/contact-bg.jpg"
           alt="Contact section background"
@@ -56,12 +64,18 @@ export function ContactSection() {
             eyebrow="Contact"
             title="Book the Band"
             description="Get in touch for booking inquiries and event collaborations."
+            data-edit-id="contact-header"
+            data-edit-type="text"
+            data-edit-label="Encabezado Contacto"
           />
         </motion.div>
 
         {/* Contact Options */}
         <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8">
           <motion.a
+            data-edit-id="contact-email"
+            data-edit-type="link"
+            data-edit-label="Contacto Email"
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             whileHover={{ y: -2, scale: 1.01 }}
@@ -72,14 +86,31 @@ export function ContactSection() {
             <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/18 group-hover:bg-primary/26 md:mb-4 md:h-14 md:w-14">
               <EmailIcon className="h-6 w-6 text-primary md:h-7 md:w-7" />
             </div>
-            <h3 className="font-serif text-lg md:text-xl text-foreground mb-2">
+            <h3 
+              data-edit-id="contact-email-title"
+              data-edit-type="text"
+              data-edit-label="Título Email"
+              className="font-serif text-lg md:text-xl text-foreground mb-2"
+            >
               Email Us
             </h3>
-            <p className="text-muted-foreground text-sm md:text-base mb-3 md:mb-4">
+            <p 
+              data-edit-id="contact-email-description"
+              data-edit-type="text"
+              data-edit-label="Descripción Email"
+              className="text-muted-foreground text-sm md:text-base mb-3 md:mb-4"
+            >
               Momo Garcia - Management
             </p>
             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs md:text-sm max-w-full ${CAMPAIGN_PRIMARY_CTA_CLASS}`}>
-              <span className="truncate">talesforthetillerman@gmail.com</span>
+              <span 
+                data-edit-id="contact-email-address"
+                data-edit-type="text"
+                data-edit-label="Dirección Email"
+                className="truncate"
+              >
+                talesforthetillerman@gmail.com
+              </span>
             </span>
           </motion.a>
 
@@ -91,6 +122,9 @@ export function ContactSection() {
           </div>
 
           <motion.a
+            data-edit-id="contact-telegram"
+            data-edit-type="link"
+            data-edit-label="Contacto Telegram"
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             whileHover={{ y: -2, scale: 1.01 }}
@@ -103,14 +137,31 @@ export function ContactSection() {
             <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/18 group-hover:bg-primary/26 md:mb-4 md:h-14 md:w-14">
               <TelegramIcon className="h-6 w-6 text-primary md:h-7 md:w-7" />
             </div>
-            <h3 className="font-serif text-lg md:text-xl text-foreground mb-2">
+            <h3 
+              data-edit-id="contact-telegram-title"
+              data-edit-type="text"
+              data-edit-label="Título Telegram"
+              className="font-serif text-lg md:text-xl text-foreground mb-2"
+            >
               Telegram
             </h3>
-            <p className="text-muted-foreground text-sm md:text-base mb-3 md:mb-4">
+            <p 
+              data-edit-id="contact-telegram-description"
+              data-edit-type="text"
+              data-edit-label="Descripción Telegram"
+              className="text-muted-foreground text-sm md:text-base mb-3 md:mb-4"
+            >
               Janosch Puhe - Quick response
             </p>
             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs md:text-sm max-w-full ${CAMPAIGN_PRIMARY_CTA_CLASS}`}>
-              <span className="truncate">@Janoschpuhe</span>
+              <span 
+                data-edit-id="contact-telegram-handle"
+                data-edit-type="text"
+                data-edit-label="Handle Telegram"
+                className="truncate"
+              >
+                @Janoschpuhe
+              </span>
             </span>
           </motion.a>
         </div>

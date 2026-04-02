@@ -7,9 +7,17 @@ export function LatestReleaseSection() {
   return (
     <section
       id="latest-release"
+      data-edit-id="latest-release-section"
+      data-edit-type="section"
+      data-edit-label="Sección Último Lanzamiento"
       className="relative overflow-hidden bg-black"
     >
-      <div className="absolute inset-0 z-0">
+      <div 
+        data-edit-id="latest-release-bg"
+        data-edit-type="image"
+        data-edit-label="Fondo Video YouTube"
+        className="absolute inset-0 z-0"
+      >
         <img
           src="/images/sections/hero-bg.jpg"
           alt=""
@@ -37,11 +45,21 @@ export function LatestReleaseSection() {
             transition={{ duration: 0.45 }}
             className="flex w-full max-w-4xl flex-col items-center rounded-2xl border border-primary/28 bg-black/24 p-6 text-center shadow-md backdrop-blur-sm md:p-8"
           >
-            <h2 className="mb-[var(--spacing-sm)] w-full text-center font-serif text-[length:var(--text-h2)] leading-[var(--line-height-tight)] text-foreground">
+            <h2 
+              data-edit-id="latest-release-title"
+              data-edit-type="text"
+              data-edit-label="Título del Lanzamiento"
+              className="mb-[var(--spacing-sm)] w-full text-center font-serif text-[length:var(--text-h2)] leading-[var(--line-height-tight)] text-foreground"
+            >
               {CAMPAIGN_CONTENT.releaseTitle}
             </h2>
 
-            <p className="mb-6 w-full text-center text-[length:var(--text-body)] text-muted-foreground">
+            <p 
+              data-edit-id="latest-release-subtitle"
+              data-edit-type="text"
+              data-edit-label="Subtítulo del Lanzamiento"
+              className="mb-6 w-full text-center text-[length:var(--text-body)] text-muted-foreground"
+            >
               {CAMPAIGN_CONTENT.releaseSubtitle}
             </p>
 

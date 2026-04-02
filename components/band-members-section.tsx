@@ -55,22 +55,22 @@ export function BandMembersSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative min-h-screen w-full overflow-hidden bg-black"
-      data-editable
+      data-edit-id="band-members-section"
       data-edit-type="section"
-      data-edit-field="bandMembers"
-      data-edit-label="Band Members Section"
+      data-edit-label="Sección Miembros de la Banda"
+      className="relative min-h-screen w-full overflow-hidden bg-black"
     >
       {/* Fondo full width */}
-      <div className="absolute inset-0 -z-10">
+      <div 
+        data-edit-id="band-members-bg"
+        data-edit-type="image"
+        data-edit-label="Imagen de fondo banda"
+        className="absolute inset-0 -z-10"
+      >
         <img 
           src="/images/t4t-2.jpg"
           alt="Band background"
           className="h-full w-full object-cover"
-          data-editable
-          data-edit-type="image"
-          data-edit-field="bandMembers.backgroundImage"
-          data-edit-label="Background Image"
         />
       </div>
 
@@ -91,6 +91,9 @@ export function BandMembersSection() {
             eyebrow="The Musicians"
             title="Meet the Band"
             description="Five musicians from diverse backgrounds, united by a passion for rhythm and groove."
+            data-edit-id="band-members-header"
+            data-edit-type="text"
+            data-edit-label="Encabezado Miembros"
           />
         </motion.div>
 
@@ -108,34 +111,35 @@ export function BandMembersSection() {
                 transition={{ duration: 0.6, ease: "easeInOut" }}
                 className="absolute inset-0"
               >
-                <Image
-                  src={member.image}
-                  alt={member.fullName}
-                  fill
-                  className="object-cover"
-                  priority={index === 0}
-                  data-editable
+                <div 
+                  data-edit-id={`member-photo-${index}`}
                   data-edit-type="image"
-                  data-edit-field={`bandMembers.members.${index}.image`}
-                  data-edit-label={`${member.fullName} Photo`}
-                />
+                  data-edit-label={`Foto ${member.fullName}`}
+                  className="absolute inset-0"
+                >
+                  <Image
+                    src={member.image}
+                    alt={member.fullName}
+                    fill
+                    className="object-cover"
+                    priority={index === 0}
+                  />
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
                   <h3 
-                    className="text-2xl md:text-3xl lg:text-4xl font-serif text-white mb-2 tracking-tight"
-                    data-editable
+                    data-edit-id={`member-name-${index}`}
                     data-edit-type="text"
-                    data-edit-field={`bandMembers.members.${index}.fullName`}
-                    data-edit-label="Member Name"
+                    data-edit-label={`Nombre ${member.fullName}`}
+                    className="text-2xl md:text-3xl lg:text-4xl font-serif text-white mb-2 tracking-tight"
                   >
                     {member.fullName}
                   </h3>
                   <p 
-                    className="text-xl text-orange-400 font-medium"
-                    data-editable
+                    data-edit-id={`member-role-${index}`}
                     data-edit-type="text"
-                    data-edit-field={`bandMembers.members.${index}.role`}
-                    data-edit-label="Member Role"
+                    data-edit-label={`Rol ${member.fullName}`}
+                    className="text-xl text-orange-400 font-medium"
                   >
                     {member.role}
                   </p>
@@ -152,19 +156,21 @@ export function BandMembersSection() {
                 onMouseEnter={() => !isMobile && setActiveIndex(index)}
                 whileHover={{ scale: 1.02, x: 8 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                data-edit-id={`member-item-${index}`}
+                data-edit-type="object"
+                data-edit-label={member.fullName}
                 className={`group w-full text-left p-4 md:p-6 rounded-xl md:rounded-2xl border transition-all duration-300 flex justify-between items-center min-h-[64px] md:min-h-[88px]
                   ${
                     activeIndex === index
                       ? "border-orange-500 bg-zinc-900/80"
                       : "border-white/10 hover:border-white/20 bg-black/40 hover:bg-zinc-950"
                   }`}
-                data-editable
-                data-edit-type="object"
-                data-edit-field={`bandMembers.members.${index}`}
-                data-edit-label={member.fullName}
               >
                 <div className="min-w-0 flex-1">
                   <h4
+                    data-edit-id={`member-list-name-${index}`}
+                    data-edit-type="text"
+                    data-edit-label={`Nombre en lista ${member.fullName}`}
                     className={`text-base md:text-xl font-medium transition-colors truncate ${
                       activeIndex === index ? "text-white" : "text-white/80 group-hover:text-white"
                     }`}
@@ -172,6 +178,9 @@ export function BandMembersSection() {
                     {member.fullName}
                   </h4>
                   <p
+                    data-edit-id={`member-list-role-${index}`}
+                    data-edit-type="text"
+                    data-edit-label={`Rol en lista ${member.fullName}`}
                     className={`text-xs md:text-sm mt-0.5 md:mt-1 transition-colors ${
                       activeIndex === index ? "text-orange-400" : "text-white/50"
                     }`}
