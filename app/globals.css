@@ -8,7 +8,7 @@
   /* ============================================================================
      COLOR TOKENS - Semantic color system
      ============================================================================ */
-  --background: 0 0% 4%;
+  --background: 0 0% 0%;
   --foreground: 0 0% 95%;
   --card: 0 0% 8%;
   --card-foreground: 0 0% 95%;
@@ -807,9 +807,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
-  background: black;
-}
+/* body background now uses bg-background token from layer base */
 
 main,
 section {
@@ -968,10 +966,10 @@ section {
   }
 
   .section-photo-fade-top {
-    @apply pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black via-black/45 to-transparent;
+    @apply pointer-events-none absolute inset-x-0 top-0 z-10 h-24 md:h-32 bg-gradient-to-b from-black via-black/25 to-transparent;
   }
 
   .section-photo-fade-bottom {
-    @apply pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t from-black via-black/25 to-transparent;
+    @apply pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 md:h-32 bg-gradient-to-t from-black via-black/25 to-transparent;
   }
 }

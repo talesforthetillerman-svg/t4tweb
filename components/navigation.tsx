@@ -15,6 +15,17 @@ export function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [isMobileMenuOpen])
+
   const navLinks = [
     { href: "#about", label: "About" },
     { href: "#press-kit", label: "Press" },
@@ -36,7 +47,7 @@ export function Navigation() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${
         isScrolled
-          ? "bg-background/80 backdrop-blur-2xl border-b border-white/10 shadow-xl shadow-black/25"
+          ? "bg-black/80 backdrop-blur-2xl border-b border-white/10 shadow-xl shadow-black/25"
           : "bg-transparent"
       }`}
       style={{ boxShadow: isScrolled ? "0 10px 30px rgba(0,0,0,0.25)" : "none" }}
@@ -72,13 +83,14 @@ export function Navigation() {
             </div>
 
             <div className="flex shrink-0 items-center md:hidden">
-              <button
-                type="button"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-white/10 text-foreground transition-colors hover:bg-white/20"
-                aria-label="Toggle menu"
-                aria-expanded={isMobileMenuOpen}
-              >
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-white/10 text-foreground transition-colors hover:bg-white/20"
+              aria-label="Toggle menu"
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-nav-panel"
+            >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {isMobileMenuOpen ? (
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -92,8 +104,8 @@ export function Navigation() {
         </div>
 
         {isMobileMenuOpen && (
-          <div className="border-t border-white/10 pb-6 pt-3 md:hidden">
-            <div className="rounded-xl border border-white/10 bg-background/95 px-2 backdrop-blur-sm">
+          <div id="mobile-nav-panel" className="border-t border-white/10 pb-6 pt-3 md:hidden">
+            <div className="rounded-xl border border-white/10 bg-black/95 px-2 backdrop-blur-sm">
               {navLinks.map((link) => (
                 <a
                   key={link.href}

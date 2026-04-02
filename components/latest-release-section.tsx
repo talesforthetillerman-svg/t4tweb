@@ -7,7 +7,7 @@ export function LatestReleaseSection() {
   return (
     <section
       id="latest-release"
-      className="relative overflow-hidden bg-black py-0"
+      className="relative overflow-hidden bg-black"
     >
       <div className="absolute inset-0 z-0">
         <img
@@ -20,19 +20,16 @@ export function LatestReleaseSection() {
           src="https://www.youtube.com/embed/xofflmVqYGs?autoplay=1&mute=1&loop=1&playlist=xofflmVqYGs&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"
           title=""
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-1/2 h-[120%] w-[120%] -translate-x-1/2 -translate-y-1/2 opacity-40 hidden md:block"
+          className="pointer-events-none absolute top-1/2 left-1/2 h-[125%] w-[125%] -translate-x-1/2 -translate-y-[40%]"
           allow="autoplay; encrypted-media"
           allowFullScreen={false}
         />
-
-        <div className="absolute inset-0 bg-black/48" />
-        <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-black via-black/82 to-transparent md:h-56 lg:h-64" />
-        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black via-black/82 to-transparent md:h-56 lg:h-64" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/28 via-transparent to-black/20" />
+        <div className="section-photo-fade-top" />
+        <div className="section-photo-fade-bottom" />
       </div>
 
       <div className="relative z-10 flex min-h-screen items-center justify-center">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+        <div className="mx-auto max-w-6xl">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}

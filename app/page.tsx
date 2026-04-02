@@ -15,21 +15,44 @@ export default function Home() {
     <main className="relative bg-black">
       <Navigation />
 
-      <SceneSection id="hero">
-        <HeroSection />
-      </SceneSection>
+      <HeroSection />
 
-      <div className="relative h-[350px] w-full overflow-hidden md:h-[450px] lg:h-[520px]">
+      <SectionDivider />
+
+      <div className="relative flex flex-col items-center justify-center gap-4 px-2 pt-8 pb-12 sm:px-4 sm:pt-12 sm:pb-16">
         <img
-          src="/images/t4tPics/banner-crop.gif"
-          alt="Animated boat and waves"
-          className="h-full w-full object-cover"
+          src="/images/t4tPics/banner-crop-ezgif.com-gif-maker.gif"
+          alt="Animated banner"
+          className="absolute inset-0 h-full w-full object-cover opacity-30"
         />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black via-black/60 to-transparent md:h-32" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/60 to-transparent md:h-32" />
+        <div className="relative z-10 flex flex-col items-center justify-center gap-4">
+          <p className="max-w-2xl text-center text-base leading-relaxed text-white/90 sm:text-lg md:text-xl px-4">
+            Tales for the Tillerman brings groove-driven live energy to festivals, 
+            clubs and special events — with a warm, rhythmic sound made to move a room.
+          </p>
+          <div className="flex flex-col items-center justify-center gap-6 sm:flex-row sm:gap-10">
+            <a
+              href="#contact"
+              className="w-full sm:w-auto rounded-2xl bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-10 py-7 text-lg font-bold text-white shadow-xl shadow-[#FF8C21]/50 transition-all min-h-[80px]"
+            >
+              Book the Band
+            </a>
+
+            <a
+              href="#press-kit"
+              className="w-full sm:w-auto rounded-2xl border border-white/40 bg-white/5 px-10 py-7 text-lg font-semibold text-white backdrop-blur-sm hover:border-white/65 hover:bg-white/15 transition-all min-h-[80px]"
+            >
+              View Press Kit
+            </a>
+          </div>
+        </div>
       </div>
 
-      <LatestReleaseSection />
+      <SectionDivider />
+
+      <SceneSection id="latest-release">
+        <LatestReleaseSection />
+      </SceneSection>
 
       <SectionDivider />
 
@@ -60,6 +83,8 @@ export default function Home() {
       <SceneSection id="contact">
         <ContactSection />
       </SceneSection>
+
+      <SectionDivider />
 
       <Footer />
     </main>

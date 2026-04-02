@@ -5,6 +5,8 @@ import { motion } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { SectionHeader } from "@/components/section-header"
+import { client } from "@/lib/sanity/client"
+import { concertsQuery } from "@/lib/sanity/queries"
 
 interface Concert {
   venue: string
@@ -55,6 +57,23 @@ export function LiveSection() {
   useEffect(() => {
     async function fetchConcerts() {
       try {
+        const sanityData = await client.fetch(concertsQuery).catch(() => null)
+        if (sanityData && sanityData.length > 0) {
+          setConcerts(sanityData.map((c: any) => ({
+            venue: c.venue,
+            city: c.city,
+            country: c.country,
+            date: c.date,
+            time: c.time,
+            status: c.status,
+            genre: c.genre,
+            capacity: c.capacity,
+            price: c.price === 0 ? "Free" : String(c.price),
+          })))
+          setError(false)
+          setLoading(false)
+          return
+        }
         const response = await fetch("/data/concerts.csv")
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const csv = await response.text()
@@ -90,7 +109,7 @@ export function LiveSection() {
   ]
 
   return (
-    <section ref={sectionRef} className="relative overflow-hidden py-14 md:py-16">
+    <section ref={sectionRef} className="relative overflow-hidden">
       <div className="absolute inset-0 -z-10">
         <Image
           src="/images/sections/live-bg.jpg"
@@ -119,10 +138,10 @@ export function LiveSection() {
             <motion.a
               whileHover={{ scale: 1.02, y: -2 }}
               transition={{ type: "spring", stiffness: 320, damping: 22 }}
-              href="https://www.bandsintown.com/a/15468933-tales-for-the-tillerman"
+              href="https://www.bandsintown.com/e/108124718-tales-for-the-tillerman-at-mauerpark?came_from=250&utm_medium=web&utm_source=artist_page&utm_campaign=search_bar"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl"
+              className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl min-h-[48px]"
             >
               <BandsinTownIcon />
               Bandsintown
@@ -204,7 +223,7 @@ export function LiveSection() {
               className="mb-12 min-h-[440px]"
             >
               <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-6 text-center">
-                Upcoming Shows
+                History
               </h3>
 
               {loading && (
@@ -223,7 +242,7 @@ export function LiveSection() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <p className="text-muted-foreground mb-6">Unable to load shows at the moment.</p>
-                  <motion.a whileHover={{ scale: 1.05 }} href="https://www.bandsintown.com/a/15468933-tales-for-the-tillerman" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all">
+                  <motion.a whileHover={{ scale: 1.05 }} href="https://www.bandsintown.com/e/108124718-tales-for-the-tillerman-at-mauerpark?came_from=250&utm_medium=web&utm_source=artist_page&utm_campaign=search_bar" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all">
                     Check Shows on Bandsintown
                   </motion.a>
                 </div>
@@ -236,7 +255,7 @@ export function LiveSection() {
                   </svg>
                   <p className="text-muted-foreground mb-2">No shows scheduled at the moment.</p>
                   <p className="text-muted-foreground text-sm mb-6">Follow us for exciting tour announcements coming soon!</p>
-                  <motion.a whileHover={{ scale: 1.05 }} href="https://www.bandsintown.com/a/15468933-tales-for-the-tillerman" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all">
+                  <motion.a whileHover={{ scale: 1.05 }} href="https://www.bandsintown.com/e/108124718-tales-for-the-tillerman-at-mauerpark?came_from=250&utm_medium=web&utm_source=artist_page&utm_campaign=search_bar" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all">
                     <BandsinTownIcon />
                     See All Shows on Bandsintown
                   </motion.a>
@@ -260,7 +279,7 @@ export function LiveSection() {
                           <div className="font-serif text-lg text-foreground group-hover:text-primary transition-colors">{concert.venue}</div>
                           <div className="text-muted-foreground text-sm">{concert.city}, {concert.country}</div>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground sm:ml-auto">
                           <span className="px-3 py-1 bg-primary/10 rounded-full text-primary text-xs">{concert.genre}</span>
                           <span>{concert.price === "Free" ? "Free" : `€${concert.price}`}</span>
                         </div>

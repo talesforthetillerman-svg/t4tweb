@@ -1,18 +1,18 @@
 Venue,City,Country,Date,Time,Status,Genre,Capacity,Price
 Auster Club,Berlin,Germany,2026-03-15,21:00,Upcoming,Funk Soul,500,15
-Rockpalast,Cologne,Germany,2026-02-28,20:30,Upcoming,World Music,800,18
-Jazz Cafe,London,UK,2026-02-14,20:00,Upcoming,Funk Soul,250,22
-Paradiso,Amsterdam,Netherlands,2026-01-25,21:30,Upcoming,Reggae,1500,25
+Rockpalast,Cologne,Germany,2026-02-28,20:30,Upcoming,World Music,800,15
+Jazz Cafe,London,UK,2026-02-14,20:00,Upcoming,Funk Soul,250,15
+Paradiso,Amsterdam,Netherlands,2026-01-25,21:30,Upcoming,Reggae,1500,15
 Cassiopeia,Berlin,Germany,2026-01-10,22:00,Upcoming,World Music,400,12
 Privatclub,Berlin,Germany,2025-12-20,21:00,Completed,Funk Soul,300,14
-Lido,Berlin,Germany,2025-11-30,20:30,Completed,World Music,800,16
+Lido,Berlin,Germany,2025-11-30,20:30,Completed,World Music,800,15
 Bi Nuu,Berlin,Germany,2025-11-15,21:00,Completed,Reggae,350,12
 Maschinenhaus,Berlin,Germany,2025-10-25,20:00,Completed,Funk Soul,600,15
-SO36,Berlin,Germany,2025-10-10,22:00,Completed,World Music,500,18
-Festsaal Kreuzberg,Berlin,Germany,2025-09-20,20:30,Completed,Funk Soul,800,20
-Kantine am Berghain,Berlin,Germany,2025-09-05,21:00,Completed,Reggae,400,25
+SO36,Berlin,Germany,2025-10-10,22:00,Completed,World Music,500,15
+Festsaal Kreuzberg,Berlin,Germany,2025-09-20,20:30,Completed,Funk Soul,800,15
+Kantine am Berghain,Berlin,Germany,2025-09-05,21:00,Completed,Reggae,400,15
 Badehaus,Berlin,Germany,2025-08-15,20:00,Completed,World Music,300,12
-Columbia Theater,Berlin,Germany,2025-07-28,20:30,Completed,Funk Soul,1500,22
+Columbia Theater,Berlin,Germany,2025-07-28,20:30,Completed,Funk Soul,1500,15
 Gretchen,Berlin,Germany,2025-07-10,21:00,Completed,World Music,450,15
 Yaam,Berlin,Germany,2025-06-21,19:00,Completed,Reggae,1000,Free
 Urban Spree,Berlin,Germany,2025-05-17,20:00,Completed,Funk Soul,400,14

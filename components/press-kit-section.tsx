@@ -53,8 +53,8 @@ export function PressKitSection() {
       <div className="section-photo-fade-top" />
       <div className="section-photo-fade-bottom" />
 
-      <div className="relative z-20 py-16 md:py-20">
-        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="relative z-20">
+        <div className="relative z-10 mx-auto max-w-7xl">
           <motion.div style={{ opacity, y }} className="mb-10 md:mb-12">
             <SectionHeader
               eyebrow="Media Resources"

@@ -90,7 +90,7 @@ export function Footer() {
           </a>
         </div>
 
-        <div className="flex items-center justify-center gap-3 mb-8">
+        <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
           {socialLinks.map((link) => (
             <a
               key={link.name}
@@ -99,22 +99,6 @@ export function Footer() {
               rel="noopener noreferrer"
               aria-label={link.name}
               className="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-primary transition-colors"
-            >
-              <link.icon />
-            </a>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {streamingPlatforms.map((link) => (
-            <a
-              key={link.name}
-              href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Stream on ${link.name}`}
-              title={link.name}
-              className="w-11 h-11 flex items-center justify-center rounded-full bg-white/5 text-white hover:bg-primary transition-colors"
             >
               <link.icon />
             </a>

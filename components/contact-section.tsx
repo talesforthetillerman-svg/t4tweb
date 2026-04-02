@@ -43,13 +43,14 @@ export function ContactSection() {
           fill
           className="object-cover"
           sizes="100vw"
+          style={{ objectPosition: "center center" }}
         />
       </div>
-      <div className="section-photo-scrim" />
+      <div className="absolute inset-0 -z-10 bg-black/20" />
       <div className="section-photo-fade-top" />
       <div className="section-photo-fade-bottom" />
 
-      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-16 md:py-24 min-h-screen flex flex-col justify-end">
+      <div className="relative z-10 mx-auto w-full max-w-5xl min-h-screen flex flex-col justify-end">
         <motion.div style={{ opacity, y }} className="mb-10 md:mb-12">
           <SectionHeader
             eyebrow="Contact"
@@ -59,7 +60,49 @@ export function ContactSection() {
         </motion.div>
 
         {/* Contact Options */}
-        <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8">
+        <div className="grid sm:grid-cols-2 gap-6 mb-0">
+          {contactMethods.map((method, index) => (
+            <motion.a
+              key={method.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -2, scale: 1.01 }}
+              transition={{ duration: 0.45, delay: 0.06 + index * 0.06, type: "spring", stiffness: 320, damping: 22 }}
+              href={method.href}
+              target={method.internal ? undefined : "_blank"}
+              rel={method.internal ? undefined : "noopener noreferrer"}
+              className="group rounded-2xl border border-border bg-card/90 p-6 md:p-8 text-center shadow-md backdrop-blur-sm transition-all duration-300 hover:border-primary/45 hover:shadow-lg lg:p-10"
+            >
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-xl bg-primary/18 group-hover:bg-primary/26 md:mb-6 md:h-20 md:w-20">
+                <method.icon className="h-9 w-9 text-primary md:h-10 md:w-10" />
+              </div>
+              <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-3">
+                {method.title}
+              </h3>
+              <p className="text-muted-foreground text-base md:text-lg mb-4 md:mb-5">
+                {method.description}
+              </p>
+              <span className={`inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium text-sm md:text-lg max-w-full ${CAMPAIGN_PRIMARY_CTA_CLASS}`}>
+                <span className="truncate">{method.label}</span>
+                <svg
+                  className="w-5 h-5 group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
+                </svg>
+              </span>
+            </motion.a>
+          ))}
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 mt-8">
           <motion.a
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}

@@ -6,7 +6,10 @@ import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { SectionHeader } from "@/components/section-header"
 
-const members = [
+import { client } from "@/lib/sanity/client"
+import { bandMembersQuery } from "@/lib/sanity/queries"
+
+const FALLBACK_MEMBERS = [
   { id: 1, fullName: "Janosch Puhe", role: "Main Vocals", image: "/images/members/Janosch Puhe2.JPG" },
   { id: 2, fullName: "J.Ma Garcia Lopez", role: "Keys and Synth", image: "/images/members/J.Ma Garcia Lopez2.JPG" },
   { id: 3, fullName: "Otto Lorenz Contreras", role: "Drums", image: "/images/members/Otto Lorenz Contreras.JPG" },
@@ -19,6 +22,7 @@ export function BandMembersSection() {
   const [activeIndex, setActiveIndex] = useState<number>(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [members, setMembers] = useState(FALLBACK_MEMBERS)
   const { opacity, y } = useScrollAnimation(sectionRef)
 
   useEffect(() => {
@@ -26,6 +30,19 @@ export function BandMembersSection() {
     checkMobile()
     window.addEventListener("resize", checkMobile)
     return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+
+  useEffect(() => {
+    client.fetch(bandMembersQuery).then((data) => {
+      if (data && data.length > 0) {
+        setMembers(data.map((m: any, i: number) => ({
+          id: i + 1,
+          fullName: m.fullName,
+          role: m.role,
+          image: m.imageUrl || FALLBACK_MEMBERS[i]?.image || "",
+        })))
+      }
+    }).catch(() => {})
   }, [])
 
   const handleMemberClick = (index: number) => {
@@ -38,7 +55,7 @@ export function BandMembersSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative min-h-screen w-full overflow-hidden bg-black pt-[12vh] md:pt-[20vh]"
+      className="relative min-h-screen w-full overflow-hidden bg-black"
     >
       {/* Fondo full width */}
       <div className="absolute inset-0 -z-10">
@@ -50,10 +67,10 @@ export function BandMembersSection() {
       </div>
 
       {/* Gradiente superior */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-48 bg-gradient-to-b from-black via-black/90 to-transparent" />
+      <div className="section-photo-fade-top" />
 
       {/* Gradiente inferior */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-48 bg-gradient-to-t from-black via-black/90 to-transparent" />
+      <div className="section-photo-fade-bottom" />
 
       <div className="section-photo-scrim" />
 
