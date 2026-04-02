@@ -975,83 +975,34 @@ section {
 }
 
 /* ============================================================================
-   VISUAL EDITOR - Professional Canva/Figma-like editing experience
+   VISUAL EDITOR
    ============================================================================ */
 
-/* Editable Elements */
-[data-edit-id] {
-  position: relative;
-  transition: background-color 0.15s ease;
-}
-
-/* Hover state in edit mode - dashed outline */
-body[data-edit-mode="true"] [data-edit-id]:hover {
-  outline: 2px dashed #FF8C21 !important;
-  outline-offset: 3px;
-  background-color: rgba(255, 140, 33, 0.03) !important;
-}
-
-/* Cursor styles */
-body[data-edit-mode="true"] {
-  cursor: default !important;
-}
-
+/* Editable elements cursor */
 body[data-edit-mode="true"] [data-edit-id] {
   cursor: move !important;
 }
 
-body[data-edit-mode="true"] a:not([data-edit-id]):not([data-edit-toolbar] a):not([data-edit-modal] a) {
-  pointer-events: none !important;
-  cursor: default !important;
+/* Hover state */
+body[data-edit-mode="true"] [data-edit-id]:hover {
+  outline: 2px dashed #FF8C21 !important;
+  outline-offset: 2px;
 }
 
-/* Override pointer-events for editor UI elements - CRITICAL for buttons */
+/* Block navigation links */
+body[data-edit-mode="true"] a:not([data-edit-id]):not([data-edit-toolbar]):not([data-edit-modal]) {
+  pointer-events: none !important;
+}
+
+/* Editor UI always interactive */
 [data-edit-panel],
 [data-edit-panel] *,
 [data-edit-toolbar],
 [data-edit-toolbar] *,
 [data-edit-modal],
 [data-edit-modal] *,
-.resize-handle,
-.dimension-label {
-  pointer-events: auto !important;
-}
-
-/* Resize handle styles */
 .resize-handle {
-  z-index: 9991;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
-}
-
-.resize-handle:hover {
-  transform: translate(-50%, -50%) scale(1.3) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* Ensure smooth resize cursor */
-body[data-resize-cursor="nwse-resize"],
-body[data-resize-cursor="nwse-resize"] * {
-  cursor: nwse-resize !important;
-}
-
-body[data-resize-cursor="nesw-resize"],
-body[data-resize-cursor="nesw-resize"] * {
-  cursor: nesw-resize !important;
-}
-
-body[data-resize-cursor="ns-resize"],
-body[data-resize-cursor="ns-resize"] * {
-  cursor: ns-resize !important;
-}
-
-body[data-resize-cursor="ew-resize"],
-body[data-resize-cursor="ew-resize"] * {
-  cursor: ew-resize !important;
-}
-
-body[data-resize-cursor="move"],
-body[data-resize-cursor="move"] * {
-  cursor: move !important;
+  pointer-events: auto !important;
 }
 
 
