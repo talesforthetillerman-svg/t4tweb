@@ -1,4 +1,5 @@
 "use client"
+
 import { useRef, useEffect, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
 import Image from "next/image"
@@ -47,10 +48,10 @@ export function HeroSection() {
     <section
       id="top"
       ref={sectionRef}
-      className="relative flex min-h-screen w-full items-stretch overflow-hidden bg-black"
-      data-edit-id="heroSection"
+      data-edit-id="hero-section"
       data-edit-type="section"
-      data-edit-label="Hero Section"
+      data-edit-label="Sección Principal"
+      className="relative flex min-h-screen w-full items-stretch overflow-hidden bg-black"
     >
       <div className="absolute inset-0 z-0">
         <motion.div
@@ -62,12 +63,10 @@ export function HeroSection() {
             alt="Tales for the Tillerman live atmosphere"
             fill
             priority
+            unoptimized
             sizes="100vw"
             className="object-cover"
             style={{ objectPosition: "center center" }}
-            data-edit-id="heroSection.backgroundImage"
-            data-edit-type="image"
-            data-edit-label="Imagen de fondo"
           />
         </motion.div>
       </div>
@@ -85,19 +84,15 @@ export function HeroSection() {
       <div className="relative z-10 flex min-h-screen w-full flex-col justify-end px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center text-center pb-8 pt-16">
           <h1 
+            data-edit-id="hero-title"
+            data-edit-type="text"
+            data-edit-label="Título Principal"
             className="max-w-[880px] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.9rem] mb-6"
           >
-            <span 
-              data-edit-id="heroSection.title"
-              data-edit-type="text"
-              data-edit-label="Título principal"
-            >{content.title}</span>{" "}
-            <span 
-              className="bg-gradient-to-r from-[#FFB15A] via-[#FF8C21] to-[#FF6C00] bg-clip-text text-transparent"
-              data-edit-id="heroSection.titleHighlight"
-              data-edit-type="text"
-              data-edit-label="Texto destacado"
-            >{content.titleHighlight}</span>
+            {content.title}{" "}
+            <span className="bg-gradient-to-r from-[#FFB15A] via-[#FF8C21] to-[#FF6C00] bg-clip-text text-transparent">
+              {content.titleHighlight}
+            </span>
           </h1>
 
           <div className="flex flex-col items-center">
@@ -108,16 +103,15 @@ export function HeroSection() {
               height={290}
               priority
               className="h-[141px] w-[141px] object-contain drop-shadow-2xl sm:h-[177px] sm:w-[177px] md:h-[213px] md:w-[213px]"
-              data-edit-id="heroSection.logo"
-              data-edit-type="image"
-              data-edit-label="Logo de la banda"
             />
             <p 
-              className="mt-3 text-sm font-semibold uppercase tracking-[0.38em] text-[#ffd3a3]"
-              data-edit-id="heroSection.subtitle"
+              data-edit-id="hero-subtitle"
               data-edit-type="text"
               data-edit-label="Subtítulo"
-            >{content.subtitle}</p>
+              className="mt-3 text-sm font-semibold uppercase tracking-[0.38em] text-[#ffd3a3]"
+            >
+              {content.subtitle}
+            </p>
           </div>
         </div>
       </div>

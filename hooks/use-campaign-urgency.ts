@@ -5,18 +5,28 @@ import { useEffect, useState } from "react"
 let cachedUrgency: string | null = null
 let cachedUrgencyPromise: Promise<string | null> | null = null
 
-function buildUrgencyFromCsv(csv: string): string | null {
-  const lines = csv.trim().split("\n")
-  if (lines.length < 2) return null
+interface Concert {
+  venue: string
+  city: string
+  country: string
+  date: string
+  time: string
+  status: string
+  genre: string
+  capacity: string
+  price: string
+}
+
+function buildUrgencyFromConcerts(concerts: Concert[]): string | null {
+  if (!concerts.length) return null
 
   const today = new Date()
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
-  const rows = lines.slice(1).map((line) => line.split(","))
-  const futureShows = rows
-    .map((row) => ({
-      venue: row[0] || "",
-      city: row[1] || "",
-      date: row[3] || "",
+  const futureShows = concerts
+    .map((show) => ({
+      venue: show.venue || "",
+      city: show.city || "",
+      date: show.date || "",
     }))
     .filter((show) => show.date && new Date(show.date).getTime() >= startOfToday)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -44,12 +54,12 @@ export function useCampaignUrgency(fallback: string) {
     async function loadUrgency() {
       try {
         if (!cachedUrgencyPromise) {
-          cachedUrgencyPromise = fetch("/data/concerts.csv")
+          cachedUrgencyPromise = fetch("/api/concerts")
             .then((response) => {
-              if (!response.ok) throw new Error("Failed to load concerts CSV")
-              return response.text()
+              if (!response.ok) throw new Error("Failed to load concerts")
+              return response.json() as Promise<Concert[]>
             })
-            .then((csv) => buildUrgencyFromCsv(csv))
+            .then((concerts) => buildUrgencyFromConcerts(concerts))
             .catch(() => null)
         }
 
