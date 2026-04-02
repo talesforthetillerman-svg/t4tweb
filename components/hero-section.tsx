@@ -1,10 +1,11 @@
 "use client"
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
 import Image from "next/image"
 
 export function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null)
+  const [heroImageSrc, setHeroImageSrc] = useState<string>("/images/t4tPics/hero-bg.jpg")
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -26,11 +27,17 @@ export function HeroSection() {
           className="relative h-full w-full"
         >
           <Image
-            src="/images/t4tPics/hero-bg.jpg"
+            src={heroImageSrc}
             alt="Tales for the Tillerman live atmosphere"
             fill
             priority
+            unoptimized
             sizes="100vw"
+            onError={() => {
+              if (heroImageSrc !== "/images/sections/hero-bg.jpg") {
+                setHeroImageSrc("/images/sections/hero-bg.jpg")
+              }
+            }}
             className="object-cover"
             style={{ objectPosition: "center 58%" }}
           />
