@@ -42,44 +42,7 @@ async function readLocalConcerts(): Promise<Concert[]> {
   return sortConcerts(parseCsv(csv))
 }
 
-async function readSanityConcerts(): Promise<Concert[] | null> {
-  const projectId = process.env.SANITY_PROJECT_ID?.trim()
-  const dataset = process.env.SANITY_DATASET?.trim() || "production"
-  const apiVersion = process.env.SANITY_API_VERSION?.trim() || "2024-01-01"
-
-  if (!projectId) {
-    return null
-  }
-
-  const query = '*[_type == "concert"] | order(date desc){ venue, city, country, date, time, status, genre, capacity, price }'
-  const url = `https://${projectId}.apicdn.sanity.io/v${apiVersion}/data/query/${dataset}?query=${encodeURIComponent(query)}&returnQuery=false`
-
-  try {
-    const response = await fetch(url, {
-      next: { revalidate: 300 },
-    })
-
-    if (!response.ok) {
-      return null
-    }
-
-    const data = (await response.json()) as { result?: Concert[] }
-    if (!Array.isArray(data.result)) {
-      return null
-    }
-
-    return sortConcerts(data.result)
-  } catch {
-    return null
-  }
-}
-
 export async function GET() {
-  const sanityConcerts = await readSanityConcerts()
-  if (sanityConcerts) {
-    return NextResponse.json(sanityConcerts)
-  }
-
   try {
     const localConcerts = await readLocalConcerts()
     return NextResponse.json(localConcerts)
