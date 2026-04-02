@@ -974,145 +974,85 @@ section {
   }
 }
 
-/* Visual Editor - Editable Elements */
+/* ============================================================================
+   VISUAL EDITOR - Professional Canva/Figma-like editing experience
+   ============================================================================ */
+
+/* Editable Elements */
 [data-edit-id] {
   position: relative;
-  transition: outline 0.2s ease, box-shadow 0.2s ease;
+  transition: background-color 0.15s ease;
 }
 
-/* Selected state for editable elements */
-[data-edit-selected] {
-  outline: 2px solid #FF8C21 !important;
-  outline-offset: 4px;
-  box-shadow: 0 0 0 6px rgba(255, 140, 33, 0.2), 0 4px 20px rgba(255, 140, 33, 0.3);
+/* Hover state in edit mode - dashed outline */
+body[data-edit-mode="true"] [data-edit-id]:hover {
+  outline: 2px dashed #FF8C21 !important;
+  outline-offset: 3px;
+  background-color: rgba(255, 140, 33, 0.03) !important;
 }
 
-/* Visual Editor Panel */
-.visual-editor-panel {
-  position: fixed;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05);
-  z-index: 9998;
-  min-width: 320px;
-  max-width: 400px;
-  overflow: hidden;
-}
-
-/* Edit mode styles */
+/* Cursor styles */
 body[data-edit-mode="true"] {
   cursor: default !important;
 }
 
-body[data-edit-mode="true"] a:not([data-edit-id]):not([data-edit-toolbar] a) {
+body[data-edit-mode="true"] [data-edit-id] {
+  cursor: move !important;
+}
+
+body[data-edit-mode="true"] a:not([data-edit-id]):not([data-edit-toolbar] a):not([data-edit-modal] a) {
   pointer-events: none !important;
   cursor: default !important;
 }
 
-body[data-edit-mode="true"] [data-edit-id] {
-  cursor: pointer !important;
-}
-
-body[data-edit-mode="true"] [data-edit-id]:hover {
-  outline: 2px dashed #FF8C21 !important;
-  outline-offset: 2px;
-}
-
-/* Override pointer-events for editor UI elements */
+/* Override pointer-events for editor UI elements - CRITICAL for buttons */
 [data-edit-panel],
 [data-edit-panel] *,
 [data-edit-toolbar],
 [data-edit-toolbar] *,
 [data-edit-modal],
-[data-edit-modal] * {
+[data-edit-modal] *,
+.resize-handle,
+.dimension-label {
   pointer-events: auto !important;
-  cursor: pointer !important;
 }
 
-/* Edit mode indicator */
-.edit-mode-indicator {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 9999;
-  background: linear-gradient(135deg, #FF8C21, #FF6C00);
-  color: white;
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 4px 20px rgba(255, 140, 33, 0.4);
+/* Resize handle styles */
+.resize-handle {
+  z-index: 9991;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
-/* Floating action button for edit mode */
-.edit-mode-fab {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999;
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(135deg, #FF8C21, #FF6C00);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 30px rgba(255, 140, 33, 0.5);
-  cursor: pointer;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  border: none;
+.resize-handle:hover {
+  transform: translate(-50%, -50%) scale(1.3) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
 }
 
-.edit-mode-fab:hover {
-  transform: scale(1.1);
-  box-shadow: 0 12px 40px rgba(255, 140, 33, 0.6);
+/* Ensure smooth resize cursor */
+body[data-resize-cursor="nwse-resize"],
+body[data-resize-cursor="nwse-resize"] * {
+  cursor: nwse-resize !important;
 }
 
-.edit-mode-fab svg {
-  color: white;
-  width: 28px;
-  height: 28px;
+body[data-resize-cursor="nesw-resize"],
+body[data-resize-cursor="nesw-resize"] * {
+  cursor: nesw-resize !important;
 }
 
-/* Save modal overlay */
-.save-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+body[data-resize-cursor="ns-resize"],
+body[data-resize-cursor="ns-resize"] * {
+  cursor: ns-resize !important;
 }
 
-.save-modal {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  max-width: 420px;
-  width: 90%;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+body[data-resize-cursor="ew-resize"],
+body[data-resize-cursor="ew-resize"] * {
+  cursor: ew-resize !important;
 }
 
-/* Toast notifications for visual editor */
-.visual-editor-toast {
-  position: fixed;
-  bottom: 100px;
-  right: 24px;
-  z-index: 9998;
-  background: white;
-  padding: 16px 24px;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transform: translateX(120%);
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+body[data-resize-cursor="move"],
+body[data-resize-cursor="move"] * {
+  cursor: move !important;
 }
 
-.visual-editor-toast.visible {
-  transform: translateX(0);
-}
+
+
