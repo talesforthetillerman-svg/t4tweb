@@ -151,6 +151,7 @@ export function BandMembersSection() {
           <div className="space-y-3 md:space-y-4">
             {members.map((member, index) => (
               <motion.button
+                type="button"
                 key={member.id}
                 onClick={() => handleMemberClick(index)}
                 onMouseEnter={() => !isMobile && setActiveIndex(index)}
@@ -159,7 +160,7 @@ export function BandMembersSection() {
                 data-edit-id={`member-item-${index}`}
                 data-edit-type="object"
                 data-edit-label={member.fullName}
-                className={`group w-full text-left p-4 md:p-6 rounded-xl md:rounded-2xl border transition-all duration-300 flex justify-between items-center min-h-[64px] md:min-h-[88px]
+                className={`group w-full text-left p-4 md:p-6 rounded-xl md:rounded-2xl border transition-all duration-300 flex justify-between items-center min-h-[64px] md:min-h-[88px] touch-manipulation
                   ${
                     activeIndex === index
                       ? "border-orange-500 bg-zinc-900/80"
@@ -242,7 +243,8 @@ export function BandMembersSection() {
               </div>
               
               <button
-                onClick={() => setModalOpen(false)}
+                type="button"
+                onPointerDown={() => setModalOpen(false)}
                 className="absolute top-3 right-3 w-9 h-9 md:w-10 md:h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/70 transition-colors"
                 aria-label="Close"
               >

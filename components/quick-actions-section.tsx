@@ -41,7 +41,14 @@ export function QuickActionsSection() {
   ]
 
   return (
-    <section id="quick-actions" ref={sectionRef} className="relative py-8 md:py-10 overflow-hidden bg-black/50">
+    <section 
+      id="quick-actions" 
+      ref={sectionRef} 
+      className="relative py-8 md:py-10 overflow-hidden bg-black/50"
+      data-edit-id="quick-actions-section"
+      data-edit-type="section"
+      data-edit-label="Quick Actions"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <motion.div
           style={{ opacity, y }}
@@ -64,6 +71,9 @@ export function QuickActionsSection() {
               target={action.external ? "_blank" : undefined}
               rel={action.external ? "noopener noreferrer" : undefined}
               className={`group flex flex-col items-center justify-center p-4 md:p-5 rounded-xl text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-xl ${action.color}`}
+              data-edit-id={`quick-action-${index}`}
+              data-edit-type="button"
+              data-edit-label={action.title}
             >
               <div className="mb-2">
                 <action.icon />

@@ -1,80 +1,53 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
 
-// ==================== TYPES ====================
+// ==================== EDITABLE ELEMENT MODEL ====================
 
-interface EditableElement {
+interface EditableElementData {
   id: string
-  type: string
+  type: 'button' | 'link' | 'image' | 'box' | 'section' | 'logo' | 'text' | 'video'
   label: string
-  value?: string
-  element: HTMLElement
-}
-
-interface ElementRect {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
-interface TransformOffset {
-  x: number
-  y: number
-}
-
-interface DragState {
-  isDragging: boolean
-  startMouseX: number
-  startMouseY: number
-  startOffsetX: number
-  startOffsetY: number
-}
-
-interface ResizeState {
-  isResizing: boolean
-  handle: string | null
-  startMouseX: number
-  startMouseY: number
-  startWidth: number
-  startHeight: number
-  startOffsetX: number
-  startOffsetY: number
-  aspectRatio: number
-}
-
-interface SnapGuide {
-  type: 'vertical' | 'horizontal'
-  position: number
-  start: number
-  end: number
+  parentId: string | null
+  element: HTMLElement | null
+  originalRect: DOMRect | null
+  transform: { x: number; y: number }
+  dimensions: { width: number; height: number }
 }
 
 interface VisualEditorContextType {
   isEditing: boolean
   setIsEditing: (value: boolean) => void
-  selectedElement: EditableElement | null
-  setSelectedElement: (element: EditableElement | null) => void
+  selectedId: string | null
+  setSelectedId: (id: string | null) => void
   openPanel: boolean
   setOpenPanel: (open: boolean) => void
   snapEnabled: boolean
   setSnapEnabled: (value: boolean) => void
+  editableElements: Map<string, EditableElementData>
+  registerEditable: (data: EditableElementData) => void
+  unregisterEditable: (id: string) => void
+  getElementById: (id: string) => EditableElementData | undefined
+  getEditableAtPosition: (x: number, y: number) => EditableElementData | null
 }
 
 // ==================== CONSTANTS ====================
 
-const HANDLE_SIZE = 10
-const SNAP_THRESHOLD = 8
 const MIN_SIZE = 40
-
+const SNAP_THRESHOLD = 8
 const CORNER_HANDLES = [
   { handle: 'nw', cursor: 'nwse-resize' },
   { handle: 'ne', cursor: 'nesw-resize' },
   { handle: 'se', cursor: 'nwse-resize' },
   { handle: 'sw', cursor: 'nesw-resize' },
+]
+const SIDE_HANDLES = [
+  { handle: 'n', cursor: 'ns-resize' },
+  { handle: 's', cursor: 'ns-resize' },
+  { handle: 'e', cursor: 'ew-resize' },
+  { handle: 'w', cursor: 'ew-resize' },
 ]
 
 // ==================== CONTEXT ====================
@@ -82,12 +55,17 @@ const CORNER_HANDLES = [
 const VisualEditorContext = createContext<VisualEditorContextType>({
   isEditing: false,
   setIsEditing: () => {},
-  selectedElement: null,
-  setSelectedElement: () => {},
+  selectedId: null,
+  setSelectedId: () => {},
   openPanel: false,
   setOpenPanel: () => {},
   snapEnabled: true,
   setSnapEnabled: () => {},
+  editableElements: new Map(),
+  registerEditable: () => {},
+  unregisterEditable: () => {},
+  getElementById: () => undefined,
+  getEditableAtPosition: () => null,
 })
 
 export function useVisualEditor() {
@@ -95,324 +73,226 @@ export function useVisualEditor() {
 }
 
 export function VisualEditorProvider({ children }: { children: ReactNode }) {
-  const [isEditing, setIsEditing] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    const params = new URLSearchParams(window.location.search)
-    return params.get('editMode') === 'true' || window.location.pathname === '/editor'
-  })
-  const [selectedElement, setSelectedElement] = useState<EditableElement | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [openPanel, setOpenPanel] = useState(false)
   const [snapEnabled, setSnapEnabled] = useState(true)
+  const [editableElements, setEditableElements] = useState<Map<string, EditableElementData>>(new Map())
+
+  // Register an editable element
+  const registerEditable = useCallback((data: EditableElementData) => {
+    setEditableElements(prev => {
+      const next = new Map(prev)
+      next.set(data.id, data)
+      return next
+    })
+  }, [])
+
+  // Unregister an editable element
+  const unregisterEditable = useCallback((id: string) => {
+    setEditableElements(prev => {
+      const next = new Map(prev)
+      next.delete(id)
+      return next
+    })
+  }, [])
+
+  // Get element by ID
+  const getElementById = useCallback((id: string) => {
+    return editableElements.get(id)
+  }, [editableElements])
+
+  // FALLBACK: Get editable from DOM when no registered elements found
+  function getEditableFromDOM(x: number, y: number): EditableElementData | null {
+    // First check the direct target at the point (most reliable)
+    const directTarget = document.elementFromPoint(x, y)
+    if (directTarget instanceof HTMLElement) {
+      const el = directTarget
+      const id = el.getAttribute('data-edit-id') || el.getAttribute('data-editable') || ''
+      const rawType = el.getAttribute('data-edit-type') || el.getAttribute('data-editable-type') || 'text'
+      const label = el.getAttribute('data-edit-label') || el.getAttribute('data-editable-label') || id
+      
+      if (id) {
+        let typeCategory: string = rawType
+        if (rawType === 'link') typeCategory = 'link'
+        else if (rawType === 'button') typeCategory = 'button'
+        else if (rawType === 'image') typeCategory = 'image'
+        else if (rawType === 'section') typeCategory = 'section'
+        else typeCategory = 'text'
+        
+        return {
+          id,
+          type: typeCategory as EditableElementData['type'],
+          label,
+          parentId: null,
+          element: el,
+          originalRect: el.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: el.offsetWidth, height: el.offsetHeight },
+        }
+      }
+    }
+    
+    // Then check all elements at point (for overlapping elements)
+    const point = document.elementsFromPoint(x, y)
+    
+    for (const el of point) {
+      if (el instanceof HTMLElement) {
+        const id = el.getAttribute('data-edit-id') || el.getAttribute('data-editable') || ''
+        const rawType = el.getAttribute('data-edit-type') || el.getAttribute('data-editable-type') || 'text'
+        const label = el.getAttribute('data-edit-label') || el.getAttribute('data-editable-label') || id
+        
+        if (id) {
+          let typeCategory: string = rawType
+          if (rawType === 'link') typeCategory = 'link'
+          else if (rawType === 'button') typeCategory = 'button'
+          else if (rawType === 'image') typeCategory = 'image'
+          else if (rawType === 'section') typeCategory = 'section'
+          else typeCategory = 'text'
+          
+          return {
+            id,
+            type: typeCategory as EditableElementData['type'],
+            label,
+            parentId: null,
+            element: el,
+            originalRect: el.getBoundingClientRect(),
+            transform: { x: 0, y: 0 },
+            dimensions: { width: el.offsetWidth, height: el.offsetHeight },
+          }
+        }
+      }
+    }
+    
+    return null
+  }
+
+  // Get the topmost editable element at a position
+  const getEditableAtPosition = useCallback((x: number, y: number): EditableElementData | null => {
+    // First try registered elements
+    const elements = Array.from(editableElements.values())
+    
+    // Find all elements that contain the point
+    const elementsAtPoint = elements.filter(el => {
+      if (!el.element) return false
+      const rect = el.element.getBoundingClientRect()
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
+    })
+
+    // If registered elements found, use them (sorted by specificity)
+    if (elementsAtPoint.length > 0) {
+      // Sort by "specificity" - more specific types first
+      const typePriority: Record<string, number> = {
+        button: 1,
+        link: 2,
+        text: 3,
+        box: 4,
+        image: 5,
+        video: 6,
+        logo: 7,
+        section: 8,
+      }
+
+      elementsAtPoint.sort((a, b) => {
+        const typeDiff = (typePriority[a.type] || 99) - (typePriority[b.type] || 99)
+        if (typeDiff !== 0) return typeDiff
+        
+        const depthA = getDepth(a.element)
+        const depthB = getDepth(b.element)
+        return depthB - depthA
+      })
+
+      return elementsAtPoint[0]
+    }
+
+    // FALLBACK: Check DOM hierarchy if no registered elements found
+    // This handles elements that weren't registered with useEditable
+    return getEditableFromDOM(x, y)
+  }, [editableElements, getEditableFromDOM])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('editMode') === 'true' || window.location.pathname === '/editor') {
+      setIsEditing(true)
+    }
+  }, [])
 
   return (
     <VisualEditorContext.Provider
-      value={{ isEditing, setIsEditing, selectedElement, setSelectedElement, openPanel, setOpenPanel, snapEnabled, setSnapEnabled }}
+      value={{
+        isEditing,
+        setIsEditing,
+        selectedId,
+        setSelectedId,
+        openPanel,
+        setOpenPanel,
+        snapEnabled,
+        setSnapEnabled,
+        editableElements,
+        registerEditable,
+        unregisterEditable,
+        getElementById,
+        getEditableAtPosition,
+      }}
     >
       {children}
     </VisualEditorContext.Provider>
   )
 }
 
-// ==================== ELEMENT SELECTION OVERLAY ====================
-
-function ElementSelectionOverlay({
-  element,
-}: {
-  element: HTMLElement
-}) {
-  const { snapEnabled } = useVisualEditor()
-  const initialRect = element.getBoundingClientRect()
-  
-  // Store the ORIGINAL rect when element was selected (before any transforms)
-  const [originalRect] = useState<ElementRect>({
-    x: initialRect.left,
-    y: initialRect.top,
-    width: initialRect.width,
-    height: initialRect.height,
-  })
-  
-  // Track current transform offset separately
-  const [offset, setOffset] = useState<TransformOffset>({ x: 0, y: 0 })
-  
-  // Track current dimensions (may change during resize)
-  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
-    width: initialRect.width,
-    height: initialRect.height,
-  })
-  
-  // Snap guides
-  const [guides, setGuides] = useState<SnapGuide[]>([])
-  
-  // Drag state
-  const [dragState, setDragState] = useState<DragState>({
-    isDragging: false,
-    startMouseX: 0,
-    startMouseY: 0,
-    startOffsetX: 0,
-    startOffsetY: 0,
-  })
-  
-  // Resize state
-  const [resizeState, setResizeState] = useState<ResizeState>({
-    isResizing: false,
-    handle: null,
-    startMouseX: 0,
-    startMouseY: 0,
-    startWidth: 0,
-    startHeight: 0,
-    startOffsetX: 0,
-    startOffsetY: 0,
-    aspectRatio: 1,
-  })
-
-  // Calculate current visual rect = original + offset
-  const visualRect: ElementRect = {
-    x: originalRect.x + offset.x,
-    y: originalRect.y + offset.y,
-    width: dimensions.width,
-    height: dimensions.height,
+// Helper: get DOM depth
+function getDepth(element: HTMLElement | null): number {
+  if (!element) return 0
+  let depth = 0
+  let current: Node | null = element
+  while (current && current !== document.body) {
+    depth++
+    current = current.parentNode
   }
+  return depth
+}
 
-  // Calculate snap guides
-  const calculateSnapGuides = useCallback((x: number, y: number, w: number, h: number): SnapGuide[] => {
-    if (!snapEnabled) return []
-    
-    const guides: SnapGuide[] = []
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-    
-    // Center guides
-    const centerX = viewportWidth / 2
-    const centerY = viewportHeight / 2
-    const elementCenterX = x + w / 2
-    const elementCenterY = y + h / 2
-    
-    // Snap to horizontal center
-    if (Math.abs(elementCenterX - centerX) < SNAP_THRESHOLD) {
-      guides.push({
-        type: 'vertical',
-        position: centerX,
-        start: y,
-        end: y + h,
-      })
-    }
-    
-    // Snap to vertical center
-    if (Math.abs(elementCenterY - centerY) < SNAP_THRESHOLD) {
-      guides.push({
-        type: 'horizontal',
-        position: centerY,
-        start: x,
-        end: x + w,
-      })
-    }
-    
-    // Edge snaps
-    if (Math.abs(x) < SNAP_THRESHOLD) {
-      guides.push({ type: 'vertical', position: 0, start: y, end: y + h })
-    }
-    if (Math.abs(x + w - viewportWidth) < SNAP_THRESHOLD) {
-      guides.push({ type: 'vertical', position: viewportWidth, start: y, end: y + h })
-    }
-    if (Math.abs(y) < SNAP_THRESHOLD) {
-      guides.push({ type: 'horizontal', position: 0, start: x, end: x + w })
-    }
-    
-    return guides
-  }, [snapEnabled])
+// ==================== UTILITY FUNCTIONS ====================
 
-  // ==================== DRAG HANDLING ====================
+function isEditorUI(element: HTMLElement): boolean {
+  return !!(
+    element.closest('[data-edit-panel]') ||
+    element.closest('[data-edit-toolbar]') ||
+    element.closest('[data-edit-modal]') ||
+    element.closest('[data-ve-overlay]')
+  )
+}
 
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).classList.contains('resize-handle')) return
-    
-    e.preventDefault()
-    e.stopPropagation()
-    
-    setDragState({
-      isDragging: true,
-      startMouseX: e.clientX,
-      startMouseY: e.clientY,
-      startOffsetX: offset.x,
-      startOffsetY: offset.y,
-    })
-  }, [offset])
+// ==================== SELECTION OVERLAY ====================
 
-  // Drag effect
-  useEffect(() => {
-    if (!dragState.isDragging) return
+interface SelectionOverlayProps {
+  element: EditableElementData
+  onDragStart: (e: React.PointerEvent) => void
+  onResizeStart: (e: React.PointerEvent, handle: string) => void
+}
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - dragState.startMouseX
-      const deltaY = e.clientY - dragState.startMouseY
-      
-      let newX = dragState.startOffsetX + deltaX
-      let newY = dragState.startOffsetY + deltaY
-      
-      // Calculate snap
-      const visualX = originalRect.x + newX
-      const visualY = originalRect.y + newY
-      const newGuides = calculateSnapGuides(visualX, visualY, dimensions.width, dimensions.height)
-      setGuides(newGuides)
-      
-      // Apply snap
-      if (newGuides.length > 0) {
-        for (const guide of newGuides) {
-          if (guide.type === 'vertical') {
-            if (guide.position === 0 || guide.position === window.innerWidth) {
-              newX = guide.position - originalRect.x + (guide.position === window.innerWidth ? -dimensions.width : 0)
-            } else {
-              newX = guide.position - dimensions.width / 2 - originalRect.x
-            }
-          } else {
-            if (guide.position === 0) {
-              newY = guide.position - originalRect.y
-            } else {
-              newY = guide.position - dimensions.height / 2 - originalRect.y
-            }
-          }
-        }
-      }
-      
-      // Update offset
-      setOffset({ x: newX, y: newY })
-      
-      // Apply transform to element
-      element.style.transform = `translate(${newX}px, ${newY}px)`
-      element.style.position = 'relative'
-    }
+function SelectionOverlay({ element, onDragStart, onResizeStart }: SelectionOverlayProps) {
+  const rect = element.element?.getBoundingClientRect() || null
+  
+  if (!rect) return null
 
-    const handleMouseUp = () => {
-      setDragState(prev => ({ ...prev, isDragging: false }))
-      setGuides([])
-      document.body.style.userSelect = ''
-    }
-
-    document.body.style.userSelect = 'none'
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      document.body.style.userSelect = ''
-    }
-  }, [dragState, element, dimensions, calculateSnapGuides])
-
-  // ==================== RESIZE HANDLING ====================
-
-  const handleResizeStart = useCallback((e: React.MouseEvent, handle: string) => {
-    e.preventDefault()
-    e.stopPropagation()
-    
-    const aspectRatio = dimensions.width / dimensions.height
-    
-    setResizeState({
-      isResizing: true,
-      handle,
-      startMouseX: e.clientX,
-      startMouseY: e.clientY,
-      startWidth: dimensions.width,
-      startHeight: dimensions.height,
-      startOffsetX: offset.x,
-      startOffsetY: offset.y,
-      aspectRatio,
-    })
-  }, [dimensions, offset])
-
-  // Resize effect
-  useEffect(() => {
-    if (!resizeState.isResizing) return
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - resizeState.startMouseX
-      const deltaY = e.clientY - resizeState.startMouseY
-      
-      let newWidth = resizeState.startWidth
-      let newHeight = resizeState.startHeight
-      let newOffsetX = resizeState.startOffsetX
-      let newOffsetY = resizeState.startOffsetY
-      
-      // Calculate new dimensions based on handle
-      const h = resizeState.handle || ''
-      
-      if (h.includes('e')) {
-        newWidth = Math.max(MIN_SIZE, resizeState.startWidth + deltaX)
-      } else if (h.includes('w')) {
-        newWidth = Math.max(MIN_SIZE, resizeState.startWidth - deltaX)
-      }
-      
-      if (h.includes('s')) {
-        newHeight = Math.max(MIN_SIZE, resizeState.startHeight + deltaY)
-      } else if (h.includes('n')) {
-        newHeight = Math.max(MIN_SIZE, resizeState.startHeight - deltaY)
-      }
-      
-      // Preserve aspect ratio for corner handles
-      if (h.length === 2) { // Corner handles (nw, ne, sw, se)
-        const widthBasedHeight = newWidth / resizeState.aspectRatio
-        const heightBasedWidth = newHeight * resizeState.aspectRatio
-        
-        if (Math.abs(deltaX) > Math.abs(deltaY)) {
-          newHeight = widthBasedHeight
-        } else {
-          newWidth = heightBasedWidth
-        }
-      }
-      
-      // Adjust offset if resizing from left/top
-      if (h.includes('w')) {
-        const widthDiff = newWidth - resizeState.startWidth
-        newOffsetX = resizeState.startOffsetX - widthDiff
-      }
-      if (h.includes('n')) {
-        const heightDiff = newHeight - resizeState.startHeight
-        newOffsetY = resizeState.startOffsetY - heightDiff
-      }
-      
-      // Apply to element
-      element.style.width = `${newWidth}px`
-      element.style.height = `${newHeight}px`
-      element.style.transform = `translate(${newOffsetX}px, ${newOffsetY}px)`
-      element.style.position = 'relative'
-      element.style.maxWidth = 'none'
-      element.style.maxHeight = 'none'
-      
-      // Update state
-      setDimensions({ width: newWidth, height: newHeight })
-      setOffset({ x: newOffsetX, y: newOffsetY })
-    }
-
-    const handleMouseUp = () => {
-      setResizeState(prev => ({ ...prev, isResizing: false, handle: null }))
-      document.body.style.userSelect = ''
-    }
-
-    const handle = resizeState.handle || ''
-    const cursor = handle.includes('e') || handle.includes('w') 
-      ? (handle === 'e' || handle === 'w' ? 'ew-resize' : 'nwse-resize')
-      : (handle === 'n' || handle === 's' ? 'ns-resize' : 'nwse-resize')
-    
-    document.body.style.userSelect = 'none'
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-      document.body.style.userSelect = ''
-    }
-  }, [resizeState, element])
-
-  // ==================== RENDER ====================
-
-  const { x, y, width, height } = visualRect
+  const x = rect.left + element.transform.x
+  const y = rect.top + element.transform.y
+  const width = element.dimensions.width || rect.width
+  const height = element.dimensions.height || rect.height
 
   return createPortal(
-    <div className="fixed inset-0 z-[9990] pointer-events-none">
-      {/* Selection border - ALWAYS perfectly aligned */}
+    <div data-ve-overlay className="ve-overlay fixed inset-0 pointer-events-none z-[9990]">
+      {/* Drag surface */}
       <div
-        className="absolute"
+        className="absolute pointer-events-auto cursor-move"
+        style={{ left: x, top: y, width, height, touchAction: 'none' }}
+        onPointerDown={onDragStart}
+      />
+      
+      {/* Selection border */}
+      <div
+        className="absolute pointer-events-none"
         style={{
           left: x,
           top: y,
@@ -422,19 +302,7 @@ function ElementSelectionOverlay({
           boxShadow: '0 0 0 1px rgba(255,140,33,0.3), 0 0 12px rgba(255,140,33,0.15)',
         }}
       />
-
-      {/* Drag area */}
-      <div
-        className="absolute cursor-move"
-        style={{
-          left: x,
-          top: y,
-          width,
-          height,
-        }}
-        onMouseDown={handleDragStart}
-      />
-
+      
       {/* Corner handles */}
       {CORNER_HANDLES.map(({ handle, cursor }) => {
         const isRight = handle.includes('e')
@@ -442,42 +310,67 @@ function ElementSelectionOverlay({
         return (
           <div
             key={handle}
-            className="resize-handle absolute w-4 h-4 bg-white border-2 border-[#FF8C21] rounded-sm cursor-pointer"
+            className="absolute w-4 h-4 bg-white border-2 border-[#FF8C21] rounded-sm pointer-events-auto"
             style={{
               left: isRight ? x + width : x,
               top: isBottom ? y + height : y,
-              transform: 'translate(-50%, -50%)',
+              transform: `translate(${isRight ? '-50%' : '50%'}, ${isBottom ? '-50%' : '50%'})`,
               cursor,
             }}
-            onMouseDown={(e) => handleResizeStart(e, handle)}
+            onPointerDown={(e) => onResizeStart(e, handle)}
           />
         )
       })}
 
-      {/* Size label */}
+      {/* Side handles */}
+      {SIDE_HANDLES.map(({ handle, cursor }) => {
+        const isTop = handle === 'n'
+        const isBottom = handle === 's'
+        const isLeft = handle === 'w'
+        const isRight = handle === 'e'
+        
+        if (isTop || isBottom) {
+          return (
+            <div
+              key={handle}
+              className="absolute w-8 h-4 bg-white border-2 border-[#FF8C21] rounded-sm pointer-events-auto"
+              style={{
+                left: x + width / 2,
+                top: isTop ? y : y + height,
+                transform: 'translate(-50%, -50%)',
+                cursor,
+              }}
+              onPointerDown={(e) => onResizeStart(e, handle)}
+            />
+          )
+        }
+        
+        if (isLeft || isRight) {
+          return (
+            <div
+              key={handle}
+              className="absolute w-4 h-8 bg-white border-2 border-[#FF8C21] rounded-sm pointer-events-auto"
+              style={{
+                left: isLeft ? x : x + width,
+                top: y + height / 2,
+                transform: 'translate(-50%, -50%)',
+                cursor,
+              }}
+              onPointerDown={(e) => onResizeStart(e, handle)}
+            />
+          )
+        }
+        
+        return null
+      })}
+
+      {/* Dimensions label */}
       <div
         className="absolute pointer-events-none px-2 py-1 bg-[#FF8C21] text-white text-[11px] font-medium rounded"
-        style={{
-          left: x + width / 2,
-          top: y + height + 10,
-          transform: 'translateX(-50%)',
-        }}
+        style={{ left: x + width / 2, top: y + height + 10, transform: 'translateX(-50%)' }}
       >
         {Math.round(width)} × {Math.round(height)}
       </div>
-
-      {/* Snap guides */}
-      {guides.map((guide, i) => (
-        <div
-          key={i}
-          className="absolute bg-[#FF8C21] pointer-events-none"
-          style={
-            guide.type === 'vertical'
-              ? { left: guide.position - 0.5, top: guide.start, width: 1, height: guide.end - guide.start }
-              : { top: guide.position - 0.5, left: guide.start, height: 1, width: guide.end - guide.start }
-          }
-        />
-      ))}
     </div>,
     document.body
   )
@@ -485,18 +378,20 @@ function ElementSelectionOverlay({
 
 // ==================== HOVER INDICATOR ====================
 
-function HoverIndicator({ element }: { element: HTMLElement }) {
-  const [rect, setRect] = useState<ElementRect>({ x: 0, y: 0, width: 0, height: 0 })
+function HoverIndicator({ element }: { element: EditableElementData }) {
+  const [rect, setRect] = useState({ x: 0, y: 0, width: 0, height: 0 })
 
   useEffect(() => {
+    if (!element.element) return
+    
     const update = () => {
-      const r = element.getBoundingClientRect()
+      const r = element.element!.getBoundingClientRect()
       setRect({ x: r.left, y: r.top, width: r.width, height: r.height })
     }
     update()
     
-    const observer = new MutationObserver(update)
-    observer.observe(element, { attributes: true, subtree: true })
+    const observer = new ResizeObserver(update)
+    observer.observe(element.element)
     
     window.addEventListener('scroll', update, true)
     window.addEventListener('resize', update)
@@ -506,13 +401,12 @@ function HoverIndicator({ element }: { element: HTMLElement }) {
       window.removeEventListener('scroll', update, true)
       window.removeEventListener('resize', update)
     }
-  }, [element])
-
-  const label = element.getAttribute('data-edit-label') || element.getAttribute('data-edit-id') || ''
+  }, [element.element])
 
   return createPortal(
     <div
-      className="fixed pointer-events-none z-[9989]"
+      data-ve-overlay
+      className="ve-overlay fixed pointer-events-none z-[9989]"
       style={{
         left: rect.x - 2,
         top: rect.y - 2,
@@ -526,7 +420,7 @@ function HoverIndicator({ element }: { element: HTMLElement }) {
         className="absolute px-2 py-0.5 text-[10px] font-medium text-white bg-[#FF8C21] rounded whitespace-nowrap"
         style={{ transform: 'translateY(-100%)', marginTop: -4 }}
       >
-        {label}
+        {element.label}
       </div>
     </div>,
     document.body
@@ -541,107 +435,271 @@ function checkAuthCookie(): boolean {
 }
 
 export function VisualEditorOverlay() {
-  const { isEditing, setIsEditing, selectedElement, setSelectedElement, openPanel, setOpenPanel, snapEnabled, setSnapEnabled } = useVisualEditor()
+  const {
+    isEditing,
+    setIsEditing,
+    selectedId,
+    setSelectedId,
+    openPanel,
+    setOpenPanel,
+    snapEnabled,
+    setSnapEnabled,
+    editableElements,
+    registerEditable,
+    getElementById,
+    getEditableAtPosition,
+  } = useVisualEditor()
+
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
-  const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null)
-  const [isAuthenticated] = useState<boolean>(() => checkAuthCookie())
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  
+  const [guides, setGuides] = useState<{ type: 'vertical' | 'horizontal'; position: number; start: number; end: number }[]>([])
+  const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const [deployStatus, setDeployStatus] = useState<'idle' | 'deploying' | 'deployed'>('idle')
+  
+  const dragStartRef = useRef({ mouseX: 0, mouseY: 0, startX: 0, startY: 0 })
+  const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0, startX: 0, startY: 0, handle: '' })
 
-  // Click handler - select elements
-  const handleClick = useCallback((e: MouseEvent) => {
+  const selectedElement = useMemo(() => {
+    return selectedId ? getElementById(selectedId) : null
+  }, [selectedId, getElementById])
+
+  const hoveredElement = useMemo(() => {
+    return hoveredId ? getElementById(hoveredId) : null
+  }, [hoveredId, getElementById])
+
+  useEffect(() => {
+    setIsAuthenticated(checkAuthCookie())
+  }, [])
+
+  // Calculate snap guides
+  const calculateSnapGuides = useCallback((x: number, y: number, w: number, h: number): { type: 'vertical' | 'horizontal'; position: number; start: number; end: number }[] => {
+    if (!snapEnabled) return []
+    
+    const guideList: { type: 'vertical' | 'horizontal'; position: number; start: number; end: number }[] = []
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const centerX = viewportWidth / 2
+    const centerY = viewportHeight / 2
+    const elementCenterX = x + w / 2
+    const elementCenterY = y + h / 2
+    
+    if (Math.abs(elementCenterX - centerX) < SNAP_THRESHOLD) {
+      guideList.push({ type: 'vertical', position: centerX, start: y, end: y + h })
+    }
+    if (Math.abs(elementCenterY - centerY) < SNAP_THRESHOLD) {
+      guideList.push({ type: 'horizontal', position: centerY, start: x, end: x + w })
+    }
+    if (Math.abs(x) < SNAP_THRESHOLD) {
+      guideList.push({ type: 'vertical', position: 0, start: y, end: y + h })
+    }
+    if (Math.abs(x + w - viewportWidth) < SNAP_THRESHOLD) {
+      guideList.push({ type: 'vertical', position: viewportWidth, start: y, end: y + h })
+    }
+    if (Math.abs(y) < SNAP_THRESHOLD) {
+      guideList.push({ type: 'horizontal', position: 0, start: x, end: x + w })
+    }
+    
+    return guideList
+  }, [snapEnabled])
+
+  // Handle drag start
+  const handleDragStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!selectedElement?.element) return
+    
+    const rect = selectedElement.element.getBoundingClientRect()
+    dragStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      startX: selectedElement.transform.x,
+      startY: selectedElement.transform.y,
+    }
+    setIsDragging(true)
+  }, [selectedElement])
+
+  // Handle resize start
+  const handleResizeStart = useCallback((e: React.PointerEvent, handle: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!selectedElement?.element) return
+    
+    const rect = selectedElement.element.getBoundingClientRect()
+    resizeStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      width: selectedElement.dimensions.width || rect.width,
+      height: selectedElement.dimensions.height || rect.height,
+      startX: selectedElement.transform.x,
+      startY: selectedElement.transform.y,
+      handle,
+    }
+    setIsResizing(true)
+  }, [selectedElement])
+
+  // Unified pointer handler
+  const handlePointerDown = useCallback((e: PointerEvent) => {
     if (!isEditing) return
     
     const target = e.target as HTMLElement
-    
-    // Ignore clicks on editor UI
-    if (target.closest('[data-edit-panel]') ||
-        target.closest('[data-edit-toolbar]') ||
-        target.closest('[data-edit-modal]') ||
-        target.closest('.resize-handle')) {
-      return
-    }
-    
-    // Find editable element - traverse UP to find data-edit-id
-    let editable: HTMLElement | null = null
-    let current: Node | null = target
-    
-    while (current && current !== document.body) {
-      if (current instanceof HTMLElement && current.hasAttribute('data-edit-id')) {
-        editable = current
-        break
-      }
-      current = current.parentNode
-    }
+    if (isEditorUI(target)) return
+
+    // Get editable at position
+    const editable = getEditableAtPosition(e.clientX, e.clientY)
     
     if (editable) {
       e.preventDefault()
       e.stopPropagation()
       
-      const id = editable.getAttribute('data-edit-id') || ''
-      const type = editable.getAttribute('data-edit-type') || 'text'
-      const label = editable.getAttribute('data-edit-label') || id
+      // Select the element
+      setSelectedId(editable.id)
+      setOpenPanel(true)
+    } else {
+      // Clicked on empty space - deselect
+      setSelectedId(null)
+      setOpenPanel(false)
+    }
+  }, [isEditing, getEditableAtPosition, setSelectedId, setOpenPanel])
+
+  // Handle pointer move
+  const handlePointerMove = useCallback((e: PointerEvent) => {
+    if (!selectedElement || !selectedElement.element) return
+    
+    const el = selectedElement.element
+    const orig = el.getBoundingClientRect()
+    
+    if (isDragging) {
+      const deltaX = e.clientX - dragStartRef.current.mouseX
+      const deltaY = e.clientY - dragStartRef.current.mouseY
       
-      let value = ''
-      if (type === 'text') {
-        value = editable.textContent?.trim() || ''
-      } else if (type === 'image') {
-        const img = editable.querySelector('img')
-        value = img?.src || ''
-      } else if (type === 'link') {
-        value = editable.getAttribute('href') || ''
+      let newX = dragStartRef.current.startX + deltaX
+      let newY = dragStartRef.current.startY + deltaY
+      
+      const visualX = orig.left + newX
+      const visualY = orig.top + newY
+      const w = selectedElement.dimensions.width || orig.width
+      const h = selectedElement.dimensions.height || orig.height
+      
+      const newGuides = calculateSnapGuides(visualX, visualY, w, h)
+      setGuides(newGuides)
+      
+      // Apply transform for visual feedback during drag
+      el.style.transform = `translate(${newX}px, ${newY}px)`
+      el.style.position = 'relative'
+      
+      // Update element in registry
+      registerEditable({
+        ...selectedElement,
+        transform: { x: newX, y: newY },
+      })
+    }
+    
+    if (isResizing) {
+      const deltaX = e.clientX - resizeStartRef.current.mouseX
+      const deltaY = e.clientY - resizeStartRef.current.mouseY
+      
+      let newWidth = resizeStartRef.current.width
+      let newHeight = resizeStartRef.current.height
+      let newX = resizeStartRef.current.startX
+      let newY = resizeStartRef.current.startY
+      const h = resizeStartRef.current.handle
+      const aspectRatio = resizeStartRef.current.width / resizeStartRef.current.height
+      
+      if (h.includes('e')) {
+        newWidth = Math.max(MIN_SIZE, resizeStartRef.current.width + deltaX)
+      } else if (h.includes('w')) {
+        newWidth = Math.max(MIN_SIZE, resizeStartRef.current.width - deltaX)
       }
       
-      setSelectedElement({ id, type, label, value, element: editable })
-      setOpenPanel(true)
-    } else if (!target.closest('[data-edit-panel]') && !target.closest('[data-edit-toolbar]')) {
-      setOpenPanel(false)
-      setSelectedElement(null)
+      if (h.includes('s')) {
+        newHeight = Math.max(MIN_SIZE, resizeStartRef.current.height + deltaY)
+      } else if (h.includes('n')) {
+        newHeight = Math.max(MIN_SIZE, resizeStartRef.current.height - deltaY)
+      }
+      
+      if (h.length === 2) {
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          newHeight = newWidth / aspectRatio
+        } else {
+          newWidth = newHeight * aspectRatio
+        }
+      }
+      
+      if (h.includes('w')) {
+        const widthDiff = newWidth - resizeStartRef.current.width
+        newX = resizeStartRef.current.startX - widthDiff
+      }
+      if (h.includes('n')) {
+        const heightDiff = newHeight - resizeStartRef.current.height
+        newY = resizeStartRef.current.startY - heightDiff
+      }
+      
+      // Preserve absolute positioning
+      const wasAbsolute = el.style.position === 'absolute' || getComputedStyle(el).position === 'absolute'
+      el.style.width = `${newWidth}px`
+      el.style.height = `${newHeight}px`
+      el.style.transform = `translate(${newX}px, ${newY}px)`
+      el.style.position = wasAbsolute ? 'absolute' : 'relative'
+      el.style.maxWidth = 'none'
+      el.style.maxHeight = 'none'
+      
+      registerEditable({
+        ...selectedElement,
+        transform: { x: newX, y: newY },
+        dimensions: { width: newWidth, height: newHeight },
+      })
     }
-  }, [isEditing, setSelectedElement, setOpenPanel])
+  }, [selectedElement, isDragging, isResizing, calculateSnapGuides, registerEditable])
 
-  // Hover handler
+  // Handle pointer up
+  const handlePointerUp = useCallback(() => {
+    if (selectedElement && selectedElement.element) {
+      const el = selectedElement.element
+      const currentTransform = {
+        x: parseFloat(el.style.transform?.match(/translate\(([-\d.]+)px/)?.[1] || '0'),
+        y: parseFloat(el.style.transform?.match(/translate\([^,]+,\s*([-\d.]+)px/)?.[1] || '0'),
+      }
+      if (currentTransform.x !== 0 || currentTransform.y !== 0) {
+        // Persist the position using margin
+        const currentMarginLeft = parseFloat(el.style.marginLeft) || 0
+        const currentMarginTop = parseFloat(el.style.marginTop) || 0
+        el.style.marginLeft = `${currentMarginLeft + currentTransform.x}px`
+        el.style.marginTop = `${currentMarginTop + currentTransform.y}px`
+        el.style.transform = 'translate(0px, 0px)'
+        
+        registerEditable({
+          ...selectedElement,
+          transform: { x: 0, y: 0 },
+        })
+      }
+    }
+    setIsDragging(false)
+    setIsResizing(false)
+    setGuides([])
+  }, [selectedElement, registerEditable])
+
+  // Hover detection
   const handleMouseOver = useCallback((e: MouseEvent) => {
     if (!isEditing) return
     
     const target = e.target as HTMLElement
-    let editable: HTMLElement | null = null
-    let current: Node | null = target
-    
-    while (current && current !== document.body) {
-      if (current instanceof HTMLElement && current.hasAttribute('data-edit-id')) {
-        editable = current
-        break
-      }
-      current = current.parentNode
-    }
-    
-    setHoveredElement(editable)
-  }, [isEditing])
-
-  // Prevent navigation on links
-  const handleLinkClick = useCallback((e: MouseEvent) => {
-    if (!isEditing) return
-    
-    const target = e.target as HTMLElement
-    const link = target.closest('a')
-    
-    if (link && !target.closest('[data-edit-id]') && !target.closest('[data-edit-modal]')) {
-      e.preventDefault()
-    }
-  }, [isEditing])
+    const editable = getEditableAtPosition(e.clientX, e.clientY)
+    setHoveredId(editable?.id || null)
+  }, [isEditing, getEditableAtPosition])
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (showSaveModal) {
-          setShowSaveModal(false)
-        } else if (openPanel) {
-          setOpenPanel(false)
-          setSelectedElement(null)
-        } else if (isEditing) {
-          setIsEditing(false)
-        }
+        if (showSaveModal) setShowSaveModal(false)
+        else if (openPanel) { setOpenPanel(false); setSelectedId(null) }
+        else if (isEditing) setIsEditing(false)
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
@@ -650,24 +708,61 @@ export function VisualEditorOverlay() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isEditing, showSaveModal, openPanel])
+  }, [isEditing, showSaveModal, openPanel, setSelectedId, setOpenPanel])
+
+  // Global click/link interceptor to prevent navigation in editor mode
+  const handleGlobalClick = useCallback((e: MouseEvent) => {
+    if (!isEditing) return
+    
+    const target = e.target as HTMLElement
+    
+    // Allow clicks on editor UI elements (toolbar, panel, close buttons)
+    if (
+      target.closest('[data-edit-toolbar]') ||
+      target.closest('[data-edit-panel]') ||
+      target.closest('[data-edit-modal]') ||
+      target.closest('.resize-handle')
+    ) {
+      return // Let these clicks pass through
+    }
+    
+    // Check if it's a link or button
+    const isLink = target.tagName === 'A' || target.closest('a')
+    const isButton = target.tagName === 'BUTTON' || target.closest('button')
+    
+    // Prevent link navigation and button actions in editor mode
+    if (isLink || isButton) {
+      e.preventDefault()
+      e.stopPropagation()
+      return false
+    }
+  }, [isEditing])
 
   // Attach event listeners
   useEffect(() => {
     if (!isEditing) return
     
-    document.addEventListener('click', handleClick, true)
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    document.addEventListener('pointermove', handlePointerMove)
+    document.addEventListener('pointerup', handlePointerUp)
     document.addEventListener('mouseover', handleMouseOver)
-    document.addEventListener('click', handleLinkClick, true)
+    document.addEventListener('click', handleGlobalClick, true)
+    
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'default'
     document.body.setAttribute('data-edit-mode', 'true')
     
     return () => {
-      document.removeEventListener('click', handleClick, true)
+      document.removeEventListener('pointerdown', handlePointerDown, true)
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerup', handlePointerUp)
       document.removeEventListener('mouseover', handleMouseOver)
-      document.removeEventListener('click', handleLinkClick, true)
+      document.removeEventListener('click', handleGlobalClick, true)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
       document.body.removeAttribute('data-edit-mode')
     }
-  }, [isEditing, handleClick, handleMouseOver, handleLinkClick])
+  }, [isEditing, handlePointerDown, handlePointerMove, handlePointerUp, handleMouseOver, handleGlobalClick])
 
   const handleSave = async () => {
     setSaveStatus('saving')
@@ -675,13 +770,55 @@ export function VisualEditorOverlay() {
     setSaveStatus('saved')
     setTimeout(() => {
       setShowSaveModal(false)
+      setOpenPanel(false)
+      setSelectedId(null)
       setSaveStatus('idle')
     }, 1000)
   }
 
+  const handleDeploy = async () => {
+    setDeployStatus('deploying')
+    try {
+      const res = await fetch('/api/deploy', { method: 'POST' })
+      if (res.ok) {
+        setDeployStatus('deployed')
+      } else {
+        setDeployStatus('idle')
+      }
+    } catch {
+      setDeployStatus('idle')
+    }
+    setTimeout(() => setDeployStatus('idle'), 3000)
+  }
+
+  // Also close panel when clicking outside or pressing escape
+  const handleClosePanel = useCallback(() => {
+    setOpenPanel(false)
+    setSelectedId(null)
+  }, [setOpenPanel, setSelectedId])
+
+  // Get value for edit panel
+  const getElementValue = (el: EditableElementData) => {
+    if (!el.element) return ''
+    const type = el.type
+    
+    if (type === 'text' || type === 'button') {
+      return el.element.textContent?.trim() || ''
+    }
+    if (type === 'image') {
+      const img = el.element.querySelector('img') || el.element
+      return (img as HTMLImageElement).src || el.element.style.backgroundImage?.match(/url\("?([^"]+)"?\)/)?.[1] || ''
+    }
+    if (type === 'link') {
+      return el.element.getAttribute('href') || ''
+    }
+    return ''
+  }
+
+  // Make toolbar smaller and unobtrusive
   return (
     <>
-      {/* Toolbar */}
+      {/* Toolbar - compact floating badge */}
       <AnimatePresence>
         {isEditing && (
           <motion.div
@@ -689,83 +826,89 @@ export function VisualEditorOverlay() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
             data-edit-toolbar
-            className="fixed top-0 left-0 right-0 z-[9999] bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] shadow-xl"
+            className="fixed top-3 left-3 z-[9999] flex items-center gap-2 bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] rounded-full shadow-xl px-3 py-2"
           >
-            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <div>
-                  <span className="text-white font-bold text-lg">Visual Editor</span>
-                  <p className="text-white/70 text-xs hidden sm:block">Click to select • Drag to move • Corners to resize</p>
-                </div>
-              </div>
+            <button
+              onClick={() => setSnapEnabled(!snapEnabled)}
+              className={`p-1.5 rounded-full text-white/80 hover:text-white transition ${snapEnabled ? 'bg-white/30' : 'bg-white/10'}`}
+              title={snapEnabled ? 'Snap On' : 'Snap Off'}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+              </svg>
+            </button>
 
-              <div className="flex items-center gap-2">
-                {/* Snap toggle */}
-                <button
-                  onClick={() => setSnapEnabled(!snapEnabled)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-1.5 ${
-                    snapEnabled ? 'bg-white/30 text-white' : 'bg-white/10 text-white/70'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                  </svg>
-                  <span className="hidden sm:inline">{snapEnabled ? 'Snap On' : 'Snap Off'}</span>
-                </button>
+            <button
+              onClick={() => setShowSaveModal(true)}
+              className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition"
+              title="Save Changes"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+            </button>
 
-                {/* Save button */}
-                <button
-                  onClick={() => setShowSaveModal(true)}
-                  className="px-4 py-1.5 bg-white text-[#FF8C21] hover:bg-white/95 rounded-lg text-sm font-bold transition flex items-center gap-1.5"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                  </svg>
-                  <span className="hidden sm:inline">Save</span>
-                </button>
+            <button
+              onClick={() => { setOpenPanel(false); setSelectedId(null) }}
+              className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition"
+              title="Deselect"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
-                {/* Logout */}
-                <button
-                  onClick={async () => {
-                    await fetch('/api/editor-auth/logout', { method: 'POST' })
-                    window.location.href = '/'
-                  }}
-                  className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm transition flex items-center gap-1.5"
-                  title="Logout"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                </button>
+            <button
+              onClick={handleDeploy}
+              disabled={deployStatus === 'deploying'}
+              className={`p-1.5 rounded-full text-white transition ${
+                deployStatus === 'deployed' ? 'bg-green-500' : 'bg-white/20 hover:bg-white/30'
+              }`}
+              title={deployStatus === 'deployed' ? 'Deployed!' : 'Deploy to Live Site'}
+            >
+              {deployStatus === 'deploying' ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              ) : deployStatus === 'deployed' ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              )}
+            </button>
 
-                {/* Close */}
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 bg-red-500/90 hover:bg-red-600 text-white rounded-lg transition"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+            <button
+              onClick={async () => {
+                await fetch('/api/editor-auth/logout', { method: 'POST' })
+                window.location.href = '/'
+              }}
+              className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition"
+              title="Exit Editor"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Hover indicator */}
-      {isEditing && hoveredElement && hoveredElement !== selectedElement?.element && (
+      {isEditing && hoveredElement && hoveredElement.id !== selectedId && (
         <HoverIndicator element={hoveredElement} />
       )}
 
       {/* Selection overlay */}
       {isEditing && selectedElement && (
-        <ElementSelectionOverlay element={selectedElement.element} />
+        <SelectionOverlay
+          element={selectedElement}
+          onDragStart={handleDragStart}
+          onResizeStart={handleResizeStart}
+        />
       )}
 
       {/* Edit Panel */}
@@ -777,7 +920,15 @@ export function VisualEditorOverlay() {
             exit={{ x: 320, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             data-edit-panel
-            className="fixed right-4 top-20 z-[9997] w-80 bg-white rounded-2xl shadow-2xl overflow-hidden"
+            className={`fixed top-20 z-[9997] w-72 bg-white rounded-2xl shadow-2xl overflow-hidden ${
+              (() => {
+                const rect = selectedElement.element?.getBoundingClientRect()
+                if (!rect) return 'right-4'
+                const centerX = rect.left + rect.width / 2
+                const screenCenter = window.innerWidth / 2
+                return centerX > screenCenter ? 'left-4' : 'right-4'
+              })()
+            }`}
           >
             <div className="bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-5 py-4">
               <div className="flex items-center justify-between">
@@ -787,7 +938,7 @@ export function VisualEditorOverlay() {
                 </div>
                 <button
                   data-edit-modal
-                  onClick={() => { setOpenPanel(false); setSelectedElement(null) }}
+                  onClick={() => { setOpenPanel(false); setSelectedId(null) }}
                   className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -798,21 +949,37 @@ export function VisualEditorOverlay() {
             </div>
 
             <div className="p-5">
-              {selectedElement.type === 'text' && (
+              {(selectedElement.type === 'text' || selectedElement.type === 'button') && (
                 <div className="space-y-3">
                   <label className="block text-sm font-semibold text-gray-700">Text Content</label>
                   <textarea
-                    defaultValue={selectedElement.value}
+                    defaultValue={getElementValue(selectedElement)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF8C21] focus:border-transparent text-gray-800 resize-none"
                     rows={4}
                     onChange={(e) => {
-                      const editableElement = document.querySelector<HTMLElement>(`[data-edit-id="${selectedElement.id}"]`)
-                      if (editableElement) {
-                        editableElement.textContent = e.target.value
+                      if (selectedElement.element) {
+                        selectedElement.element.textContent = e.target.value
                       }
                     }}
                   />
                   <p className="text-xs text-gray-500">Changes apply immediately</p>
+                </div>
+              )}
+
+              {selectedElement.type === 'button' && (
+                <div className="space-y-3 mt-4 pt-4 border-t border-gray-100">
+                  <label className="block text-sm font-semibold text-gray-700">Button Link (href)</label>
+                  <input
+                    type="url"
+                    defaultValue={selectedElement.element?.getAttribute('href') || ''}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF8C21] focus:border-transparent text-gray-800"
+                    onChange={(e) => {
+                      if (selectedElement.element) {
+                        selectedElement.element.setAttribute('href', e.target.value)
+                      }
+                    }}
+                    placeholder="#contact"
+                  />
                 </div>
               )}
 
@@ -822,11 +989,10 @@ export function VisualEditorOverlay() {
                   <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-xl space-y-1">
                     <p><strong>Drag corners</strong> to resize proportionally</p>
                     <p><strong>Drag center</strong> to move</p>
-                    <p><strong>Toggle Snap</strong> for alignment guides</p>
                   </div>
                   <div className="aspect-video bg-gray-100 rounded-xl overflow-hidden">
-                    {selectedElement.value && (
-                      <img src={selectedElement.value} alt="" className="w-full h-full object-cover" />
+                    {getElementValue(selectedElement) && (
+                      <img src={getElementValue(selectedElement)} alt="" className="w-full h-full object-cover" />
                     )}
                   </div>
                 </div>
@@ -837,20 +1003,15 @@ export function VisualEditorOverlay() {
                   <label className="block text-sm font-semibold text-gray-700">Link URL</label>
                   <input
                     type="url"
-                    defaultValue={selectedElement.value}
+                    defaultValue={getElementValue(selectedElement)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF8C21] focus:border-transparent text-gray-800"
                     onChange={(e) => {
-                      const editableElement = document.querySelector<HTMLElement>(`[data-edit-id="${selectedElement.id}"]`)
-                      if (editableElement) {
-                        editableElement.setAttribute('href', e.target.value)
+                      if (selectedElement.element) {
+                        selectedElement.element.setAttribute('href', e.target.value)
                       }
                     }}
                   />
                 </div>
-              )}
-
-              {selectedElement.type === 'section' && (
-                <p className="text-gray-600 text-sm">Click on elements inside this section to edit them.</p>
               )}
             </div>
 
@@ -867,7 +1028,7 @@ export function VisualEditorOverlay() {
         )}
       </AnimatePresence>
 
-      {/* FAB - only for authenticated users */}
+      {/* FAB */}
       {!isEditing && isAuthenticated && (
         <motion.button
           initial={{ scale: 0 }}
@@ -922,13 +1083,11 @@ export function VisualEditorOverlay() {
               </div>
 
               <h3 className="text-xl font-bold text-center mb-2">
-                {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save & Publish'}
+                {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Changes'}
               </h3>
               
               <p className="text-gray-600 text-center mb-6">
-                {saveStatus === 'saved' 
-                  ? 'Changes published successfully.' 
-                  : 'Save changes to the CMS.'}
+                {saveStatus === 'saved' ? 'Changes saved to editor.' : 'Save changes to editor. Use Deploy button to publish.'}
               </p>
 
               {saveStatus === 'idle' && (
@@ -938,7 +1097,7 @@ export function VisualEditorOverlay() {
                     onClick={handleSave}
                     className="w-full py-3 bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] text-white rounded-xl font-bold"
                   >
-                    Save & Publish
+                    Save
                   </button>
                   <button
                     data-edit-modal

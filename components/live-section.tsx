@@ -105,21 +105,24 @@ export function LiveSection() {
   ]
 
   return (
-    <section ref={sectionRef} className="relative overflow-hidden">
-      <div className="absolute inset-0 -z-10">
-        <Image
-          src="/images/sections/live-bg.jpg"
-          alt="Live section background"
-          fill
-          className="object-cover"
-          sizes="100vw"
-        />
-      </div>
+    <section ref={sectionRef} data-edit-id="live-section-background" data-edit-type="section" data-edit-label="Live Section Background" className="relative overflow-hidden">
+<div className="absolute inset-0 -z-10">
+  <Image
+    src="/images/sections/live-bg.jpg"
+    alt="Live section background"
+    fill
+    data-edit-id="live-section-bg-image"
+    data-edit-type="image"
+    data-edit-label="Live Section Background Image"
+    className="object-cover"
+    sizes="100vw"
+  />
+</div>
       <div className="section-photo-scrim" />
       <div className="section-photo-fade-top" />
 
       <div className="relative z-10 w-full">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" data-edit-id="live-section-content" data-edit-type="section" data-edit-label="Live Section Content">
 
           {/* ── SEE ALL SHOWS ── */}
           <motion.div
@@ -131,17 +134,20 @@ export function LiveSection() {
               title="See All Shows"
               description="From intimate club shows to festival main stages, Tales for the Tillerman delivers an unforgettable live experience."
             />
-            <motion.a
-              whileHover={{ scale: 1.02, y: -2 }}
-              transition={{ type: "spring", stiffness: 320, damping: 22 }}
-              href="https://www.bandsintown.com/e/108124718-tales-for-the-tillerman-at-mauerpark?came_from=250&utm_medium=web&utm_source=artist_page&utm_campaign=search_bar"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl min-h-[48px]"
-            >
-              <BandsinTownIcon />
-              Bandsintown
-            </motion.a>
+<motion.a
+  data-edit-id="live-section-see-shows-button"
+  data-edit-type="button"
+  data-edit-label="See All Shows Button"
+  whileHover={{ scale: 1.02, y: -2 }}
+  transition={{ type: "spring", stiffness: 320, damping: 22 }}
+  href="https://www.bandsintown.com/e/108124718-tales-for-the-tillerman-at-mauerpark?came_from=250&utm_medium=web&utm_source=artist_page&utm_campaign=search_bar"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl min-h-[48px]"
+>
+  <BandsinTownIcon />
+  Bandsintown
+</motion.a>
           </motion.div>
 
           <div className="w-full">
@@ -164,24 +170,27 @@ export function LiveSection() {
                   Spotify, Apple Music & More
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                  {platforms.filter(p => p.category === "streaming").map((platform, index) => (
-                    <motion.a
-                      key={platform.name}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      whileHover={{ y: -2, scale: 1.02 }}
-                      transition={{ duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
-                      href={platform.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`Listen on ${platform.name}`}
-                      title={platform.name}
-                      className={`flex flex-col items-center justify-center p-4 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${platform.color}`}
-                    >
-                      <platform.icon />
-                      <span className="text-xs font-medium text-center mt-2">{platform.name}</span>
-                    </motion.a>
-                  ))}
+{platforms.filter(p => p.category === "streaming").map((platform, index) => (
+  <motion.a
+    data-edit-id={`live-streaming-${platform.name.toLowerCase().replace(/\s+/g, '-')}`}
+    data-edit-type="link"
+    data-edit-label={`Streaming: ${platform.name}`}
+    key={platform.name}
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    whileHover={{ y: -2, scale: 1.02 }}
+    transition={{ duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
+    href={platform.href}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label={`Listen on ${platform.name}`}
+    title={platform.name}
+    className={`flex flex-col items-center justify-center p-4 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${platform.color}`}
+  >
+    <platform.icon />
+    <span className="text-xs font-medium text-center mt-2">{platform.name}</span>
+  </motion.a>
+))}
                 </div>
               </div>
 
@@ -190,23 +199,26 @@ export function LiveSection() {
                   Follow Us
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {platforms.filter(p => p.category === "social").map((platform, index) => (
-                    <motion.a
-                      key={platform.name}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      whileHover={{ y: -2, scale: 1.02 }}
-                      transition={{ duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
-                      href={platform.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={platform.name}
-                      className={`flex flex-col items-center justify-center p-5 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl ${platform.color}`}
-                    >
-                      <platform.icon />
-                      <span className="text-xs font-medium text-center mt-2">{platform.name}</span>
-                    </motion.a>
-                  ))}
+{platforms.filter(p => p.category === "social").map((platform, index) => (
+  <motion.a
+    data-edit-id={`live-social-${platform.name.toLowerCase().replace(/\s+/g, '-')}`}
+    data-edit-type="link"
+    data-edit-label={`Social: ${platform.name}`}
+    key={platform.name}
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    whileHover={{ y: -2, scale: 1.02 }}
+    transition={{ duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
+    href={platform.href}
+    target="_blank"
+    rel="noopener noreferrer"
+    title={platform.name}
+    className={`flex flex-col items-center justify-center p-5 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl ${platform.color}`}
+  >
+    <platform.icon />
+    <span className="text-xs font-medium text-center mt-2">{platform.name}</span>
+  </motion.a>
+))}
                 </div>
               </div>
             </motion.div>

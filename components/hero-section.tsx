@@ -5,6 +5,7 @@ import { motion, useScroll, useTransform } from "framer-motion"
 import Image from "next/image"
 import { client } from "@/lib/sanity/client"
 import { heroQuery } from "@/lib/sanity/queries"
+import { useVisualEditor } from "@/components/visual-editor"
 
 const FALLBACK = {
   title: "A vibrant blend of",
@@ -17,6 +18,137 @@ const FALLBACK = {
 export function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null)
   const [data, setData] = useState<typeof FALLBACK | null>(null)
+
+  // Editable refs
+  const heroSectionRef = useRef<HTMLElement>(null)
+  const heroBgRef = useRef<HTMLDivElement>(null)
+  const heroLogoRef = useRef<HTMLDivElement>(null)
+  const heroTitleRef = useRef<HTMLHeadingElement>(null)
+  const heroSubtitleRef = useRef<HTMLParagraphElement>(null)
+  const heroButtonsRef = useRef<HTMLDivElement>(null)
+  const heroScrollRef = useRef<HTMLDivElement>(null)
+
+  const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
+
+  // Register editable elements
+  useEffect(() => {
+    if (!isEditing) return
+
+    const registerAll = () => {
+      if (heroSectionRef.current) {
+        registerEditable({
+          id: 'hero-section',
+          type: 'section',
+          label: 'Hero Section',
+          parentId: null,
+          element: heroSectionRef.current,
+          originalRect: heroSectionRef.current.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: heroSectionRef.current.offsetWidth, height: heroSectionRef.current.offsetHeight },
+        })
+      }
+
+      if (heroBgRef.current) {
+        registerEditable({
+          id: 'hero-bg-image',
+          type: 'image',
+          label: 'Hero Background',
+          parentId: 'hero-section',
+          element: heroBgRef.current,
+          originalRect: heroBgRef.current.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: heroBgRef.current.offsetWidth, height: heroBgRef.current.offsetHeight },
+        })
+      }
+
+      if (heroLogoRef.current) {
+        registerEditable({
+          id: 'hero-logo',
+          type: 'image',
+          label: 'Hero Logo',
+          parentId: 'hero-section',
+          element: heroLogoRef.current,
+          originalRect: heroLogoRef.current.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: heroLogoRef.current.offsetWidth, height: heroLogoRef.current.offsetHeight },
+        })
+      }
+
+      if (heroTitleRef.current) {
+        registerEditable({
+          id: 'hero-title',
+          type: 'text',
+          label: 'Hero Title',
+          parentId: 'hero-section',
+          element: heroTitleRef.current,
+          originalRect: heroTitleRef.current.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: heroTitleRef.current.offsetWidth, height: heroTitleRef.current.offsetHeight },
+        })
+      }
+
+      if (heroSubtitleRef.current) {
+        registerEditable({
+          id: 'hero-subtitle',
+          type: 'text',
+          label: 'Hero Subtitle',
+          parentId: 'hero-section',
+          element: heroSubtitleRef.current,
+          originalRect: heroSubtitleRef.current.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: heroSubtitleRef.current.offsetWidth, height: heroSubtitleRef.current.offsetHeight },
+        })
+      }
+
+      if (heroButtonsRef.current) {
+        registerEditable({
+          id: 'hero-buttons',
+          type: 'box',
+          label: 'Hero Buttons',
+          parentId: 'hero-section',
+          element: heroButtonsRef.current,
+          originalRect: heroButtonsRef.current.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: heroButtonsRef.current.offsetWidth, height: heroButtonsRef.current.offsetHeight },
+        })
+      }
+
+      if (heroScrollRef.current) {
+        registerEditable({
+          id: 'hero-scroll-indicator',
+          type: 'box',
+          label: 'Scroll Indicator',
+          parentId: 'hero-section',
+          element: heroScrollRef.current,
+          originalRect: heroScrollRef.current.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: heroScrollRef.current.offsetWidth, height: heroScrollRef.current.offsetHeight },
+        })
+      }
+    }
+
+    registerAll()
+
+    // Update positions on scroll/resize
+    const updatePositions = () => {
+      registerAll()
+    }
+
+    window.addEventListener('scroll', updatePositions)
+    window.addEventListener('resize', updatePositions)
+
+    return () => {
+      window.removeEventListener('scroll', updatePositions)
+      window.removeEventListener('resize', updatePositions)
+      unregisterEditable('hero-section')
+      unregisterEditable('hero-bg-image')
+      unregisterEditable('hero-logo')
+      unregisterEditable('hero-title')
+      unregisterEditable('hero-subtitle')
+      unregisterEditable('hero-buttons')
+      unregisterEditable('hero-scroll-indicator')
+    }
+  }, [isEditing, registerEditable, unregisterEditable])
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -46,11 +178,11 @@ export function HeroSection() {
 
   return (
     <section
+      ref={(el) => {
+        sectionRef.current = el
+        heroSectionRef.current = el
+      }}
       id="top"
-      ref={sectionRef}
-      data-edit-id="hero-section"
-      data-edit-type="section"
-      data-edit-label="Sección Principal"
       className="relative flex min-h-screen w-full items-stretch overflow-hidden bg-black"
     >
       <div className="absolute inset-0 z-0">
@@ -58,16 +190,21 @@ export function HeroSection() {
           style={{ scale: backgroundScale, y: backgroundY }}
           className="relative h-full w-full"
         >
-          <Image
-            src={content.bgUrl}
-            alt="Tales for the Tillerman live atmosphere"
-            fill
-            priority
-            unoptimized
-            sizes="100vw"
-            className="object-cover"
-            style={{ objectPosition: "center center" }}
-          />
+          <div
+            ref={heroBgRef}
+            className="absolute inset-0"
+          >
+            <Image
+              src={content.bgUrl}
+              alt="Tales for the Tillerman live atmosphere"
+              fill
+              priority
+              unoptimized
+              sizes="100vw"
+              className="object-cover"
+              style={{ objectPosition: "center center" }}
+            />
+          </div>
         </motion.div>
       </div>
 
@@ -84,6 +221,7 @@ export function HeroSection() {
       <div className="relative z-10 flex min-h-screen w-full flex-col justify-end px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center text-center pb-8 pt-16">
           <h1 
+            ref={heroTitleRef}
             data-edit-id="hero-title"
             data-edit-type="text"
             data-edit-label="Título Principal"
@@ -96,15 +234,22 @@ export function HeroSection() {
           </h1>
 
           <div className="flex flex-col items-center">
-            <Image
-              src={content.logoUrl}
-              alt="Tales for the Tillerman logo"
-              width={290}
-              height={290}
-              priority
-              className="h-[141px] w-[141px] object-contain drop-shadow-2xl sm:h-[177px] sm:w-[177px] md:h-[213px] md:w-[213px]"
-            />
+            <div
+              ref={heroLogoRef}
+              className="relative"
+              style={{ width: 141, height: 141 }}
+            >
+              <Image
+                src={content.logoUrl}
+                alt="Tales for the Tillerman logo"
+                fill
+                priority
+                className="object-contain drop-shadow-2xl"
+                sizes="(min-width: 768px) 213px, 141px"
+              />
+            </div>
             <p 
+              ref={heroSubtitleRef}
               data-edit-id="hero-subtitle"
               data-edit-type="text"
               data-edit-label="Subtítulo"
@@ -116,7 +261,10 @@ export function HeroSection() {
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 hidden sm:flex items-center gap-3 text-white/80">
+      <div 
+        ref={heroScrollRef}
+        className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 hidden sm:flex items-center gap-3 text-white/80"
+      >
         <span className="text-lg uppercase tracking-[0.42em]">SCROLL</span>
         <svg className="h-9 w-9" fill="none" stroke="currentColor" strokeWidth={2.7} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7" />
