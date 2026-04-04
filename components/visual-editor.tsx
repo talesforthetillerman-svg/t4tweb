@@ -502,6 +502,54 @@ export function VisualEditorOverlay() {
     setIsAuthenticated(checkAuthCookie())
   }, [])
 
+  // Apply registry state to selected element's DOM node
+  useEffect(() => {
+    if (!isEditing || !selectedElement || !selectedElement.element) return
+
+    const el = selectedElement.element
+    const { transform, dimensions } = selectedElement
+    const orig = selectedElement.originalRect
+
+    if (!orig) return
+
+    console.log('[Editor] Applying state to', selectedElement.id, 'transform:', transform, 'dimensions:', dimensions)
+
+    el.style.transform = `translate(${transform.x}px, ${transform.y}px)`
+    el.style.transformOrigin = 'top left'
+    el.style.position = 'relative'
+    el.style.zIndex = '1'
+
+    if (Math.abs(dimensions.width - orig.width) > 0.5) {
+      el.style.width = `${dimensions.width}px`
+    } else {
+      el.style.width = ''
+    }
+
+    if (Math.abs(dimensions.height - orig.height) > 0.5) {
+      el.style.height = `${dimensions.height}px`
+    } else {
+      el.style.height = ''
+    }
+  }, [isEditing, selectedElement?.id, selectedElement?.transform?.x, selectedElement?.transform?.y, selectedElement?.dimensions?.width, selectedElement?.dimensions?.height])
+
+  // Clean up styles when selection changes or editing stops
+  useEffect(() => {
+    if (!isEditing) return
+    
+    return () => {
+      editableElements.forEach((el) => {
+        if (el.element) {
+          el.element.style.transform = ''
+          el.element.style.transformOrigin = ''
+          el.element.style.position = ''
+          el.element.style.zIndex = ''
+          el.element.style.width = ''
+          el.element.style.height = ''
+        }
+      })
+    }
+  }, [isEditing])
+
   const calculateSnapGuides = useCallback((x: number, y: number, w: number, h: number): { type: 'vertical' | 'horizontal'; position: number; start: number; end: number }[] => {
     if (!snapEnabled) return []
     
