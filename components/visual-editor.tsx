@@ -530,21 +530,38 @@ export function VisualEditorOverlay() {
 
     console.log('[Editor] Applying state to', selectedElement.id, 'transform:', transform, 'dimensions:', dimensions)
 
-    el.style.transform = `translate(${transform.x}px, ${transform.y}px)`
-    el.style.transformOrigin = 'top left'
-    el.style.position = 'relative'
-    el.style.zIndex = '1'
+    const scaleX = orig.width > 0 ? dimensions.width / orig.width : 1
+    const scaleY = orig.height > 0 ? dimensions.height / orig.height : 1
+    const isText = selectedElement.type === 'text'
+    const hasResize = Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01
+    const hasMove = transform.x !== 0 || transform.y !== 0
 
-    if (Math.abs(dimensions.width - orig.width) > 0.5) {
-      el.style.width = `${dimensions.width}px`
-    } else {
+    if (isText && hasResize) {
+      // For text elements, use scale transform to resize the text itself
+      el.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${scaleX}, ${scaleY})`
+      el.style.transformOrigin = 'top left'
+      el.style.position = 'relative'
+      el.style.zIndex = '1'
       el.style.width = ''
-    }
-
-    if (Math.abs(dimensions.height - orig.height) > 0.5) {
-      el.style.height = `${dimensions.height}px`
-    } else {
       el.style.height = ''
+    } else {
+      // For non-text elements, use width/height + translate
+      el.style.transform = `translate(${transform.x}px, ${transform.y}px)`
+      el.style.transformOrigin = 'top left'
+      el.style.position = 'relative'
+      el.style.zIndex = '1'
+
+      if (Math.abs(dimensions.width - orig.width) > 0.5) {
+        el.style.width = `${dimensions.width}px`
+      } else {
+        el.style.width = ''
+      }
+
+      if (Math.abs(dimensions.height - orig.height) > 0.5) {
+        el.style.height = `${dimensions.height}px`
+      } else {
+        el.style.height = ''
+      }
     }
   }, [isEditing, selectedElement?.id, selectedElement?.transform?.x, selectedElement?.transform?.y, selectedElement?.dimensions?.width, selectedElement?.dimensions?.height])
 
@@ -561,6 +578,8 @@ export function VisualEditorOverlay() {
           el.element.style.zIndex = ''
           el.element.style.width = ''
           el.element.style.height = ''
+          el.element.style.maxWidth = ''
+          el.element.style.maxHeight = ''
         }
       })
     }
