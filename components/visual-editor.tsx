@@ -29,6 +29,8 @@ interface VisualEditorContextType {
   editableElements: Map<string, EditableElementData>
   registerEditable: (data: EditableElementData) => void
   unregisterEditable: (id: string) => void
+  updateElementTransform: (id: string, transform: { x: number; y: number }) => void
+  updateElementDimensions: (id: string, dimensions: { width: number; height: number }) => void
   getElementById: (id: string) => EditableElementData | undefined
   getEditableAtPosition: (x: number, y: number) => EditableElementData | null
 }
@@ -64,6 +66,8 @@ const VisualEditorContext = createContext<VisualEditorContextType>({
   editableElements: new Map(),
   registerEditable: () => {},
   unregisterEditable: () => {},
+  updateElementTransform: () => {},
+  updateElementDimensions: () => {},
   getElementById: () => undefined,
   getEditableAtPosition: () => null,
 })
@@ -91,6 +95,26 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     setEditableElements(prev => {
       const next = new Map(prev)
       next.delete(id)
+      return next
+    })
+  }, [])
+
+  const updateElementTransform = useCallback((id: string, transform: { x: number; y: number }) => {
+    setEditableElements(prev => {
+      const existing = prev.get(id)
+      if (!existing) return prev
+      const next = new Map(prev)
+      next.set(id, { ...existing, transform })
+      return next
+    })
+  }, [])
+
+  const updateElementDimensions = useCallback((id: string, dimensions: { width: number; height: number }) => {
+    setEditableElements(prev => {
+      const existing = prev.get(id)
+      if (!existing) return prev
+      const next = new Map(prev)
+      next.set(id, { ...existing, dimensions })
       return next
     })
   }, [])
@@ -216,6 +240,8 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         editableElements,
         registerEditable,
         unregisterEditable,
+        updateElementTransform,
+        updateElementDimensions,
         getElementById,
         getEditableAtPosition,
       }}
@@ -447,6 +473,8 @@ export function VisualEditorOverlay() {
     registerEditable,
     getElementById,
     getEditableAtPosition,
+    updateElementTransform,
+    updateElementDimensions,
   } = useVisualEditor()
 
   const [showSaveModal, setShowSaveModal] = useState(false)
@@ -564,7 +592,7 @@ export function VisualEditorOverlay() {
     }
   }, [isEditing, getEditableAtPosition, setSelectedId, setOpenPanel])
 
-  // Handle pointer move - drag/resize in overlay only, NEVER modify DOM
+  // Handle pointer move - drag/resize updates registry state
   const handlePointerMove = useCallback((e: PointerEvent) => {
     if (!selectedElement) return
     
@@ -586,11 +614,8 @@ export function VisualEditorOverlay() {
       const newGuides = calculateSnapGuides(visualX, visualY, w, h)
       setGuides(newGuides)
       
-      // Update ONLY the registry state - NEVER touch the DOM
-      registerEditable({
-        ...selectedElement,
-        transform: { x: newX, y: newY },
-      })
+      // Update registry state - element will follow via useEditable styles
+      updateElementTransform(selectedElement.id, { x: newX, y: newY })
     }
     
     if (isResizing) {
@@ -633,14 +658,11 @@ export function VisualEditorOverlay() {
         newY = resizeStartRef.current.startY - heightDiff
       }
       
-      // Update ONLY the registry state - NEVER touch the DOM
-      registerEditable({
-        ...selectedElement,
-        transform: { x: newX, y: newY },
-        dimensions: { width: newWidth, height: newHeight },
-      })
+      // Update registry state - element will follow via useEditable styles
+      updateElementTransform(selectedElement.id, { x: newX, y: newY })
+      updateElementDimensions(selectedElement.id, { width: newWidth, height: newHeight })
     }
-  }, [selectedElement, isDragging, isResizing, calculateSnapGuides, registerEditable])
+  }, [selectedElement, isDragging, isResizing, calculateSnapGuides, updateElementTransform, updateElementDimensions])
 
   // Handle pointer up
   const handlePointerUp = useCallback(() => {
