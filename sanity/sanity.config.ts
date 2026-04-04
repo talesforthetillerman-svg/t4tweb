@@ -15,16 +15,4 @@ export default defineConfig({
     visionTool(),
   ],
   schema: { types: schemas },
-  shortcuts: [
-    { keys: ['mod', 'c'], action: 'copy' },
-    { keys: ['mod', 'v'], action: 'paste' },
-    { keys: ['mod', 'x'], action: 'cut' },
-    { keys: ['mod', 'z'], action: 'undo' },
-    { keys: ['mod', 'shift', 'z'], action: 'redo' },
-    { keys: ['mod', 's'], action: 'save' },
-    { keys: ['mod', 'shift', 'e'], action: 'publish' },
-    { keys: ['del'], action: 'delete' },
-    { keys: ['mod', 'a'], action: 'selectAll' },
-    { keys: ['mod', 'd'], action: 'deselect' },
-  ],
 })
