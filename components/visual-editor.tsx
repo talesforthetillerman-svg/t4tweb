@@ -79,7 +79,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   const [snapEnabled, setSnapEnabled] = useState(true)
   const [editableElements, setEditableElements] = useState<Map<string, EditableElementData>>(new Map())
 
-  // Register an editable element
   const registerEditable = useCallback((data: EditableElementData) => {
     setEditableElements(prev => {
       const next = new Map(prev)
@@ -88,7 +87,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Unregister an editable element
   const unregisterEditable = useCallback((id: string) => {
     setEditableElements(prev => {
       const next = new Map(prev)
@@ -97,14 +95,11 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Get element by ID
   const getElementById = useCallback((id: string) => {
     return editableElements.get(id)
   }, [editableElements])
 
-  // FALLBACK: Get editable from DOM when no registered elements found
   function getEditableFromDOM(x: number, y: number): EditableElementData | null {
-    // First check the direct target at the point (most reliable)
     const directTarget = document.elementFromPoint(x, y)
     if (directTarget instanceof HTMLElement) {
       const el = directTarget
@@ -133,9 +128,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       }
     }
     
-    // Then check all elements at point (for overlapping elements)
     const point = document.elementsFromPoint(x, y)
-    
     for (const el of point) {
       if (el instanceof HTMLElement) {
         const id = el.getAttribute('data-edit-id') || el.getAttribute('data-editable') || ''
@@ -167,21 +160,16 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     return null
   }
 
-  // Get the topmost editable element at a position
   const getEditableAtPosition = useCallback((x: number, y: number): EditableElementData | null => {
-    // First try registered elements
     const elements = Array.from(editableElements.values())
     
-    // Find all elements that contain the point
     const elementsAtPoint = elements.filter(el => {
       if (!el.element) return false
       const rect = el.element.getBoundingClientRect()
       return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
     })
 
-    // If registered elements found, use them (sorted by specificity)
     if (elementsAtPoint.length > 0) {
-      // Sort by "specificity" - more specific types first
       const typePriority: Record<string, number> = {
         button: 1,
         link: 2,
@@ -196,7 +184,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       elementsAtPoint.sort((a, b) => {
         const typeDiff = (typePriority[a.type] || 99) - (typePriority[b.type] || 99)
         if (typeDiff !== 0) return typeDiff
-        
         const depthA = getDepth(a.element)
         const depthB = getDepth(b.element)
         return depthB - depthA
@@ -205,8 +192,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       return elementsAtPoint[0]
     }
 
-    // FALLBACK: Check DOM hierarchy if no registered elements found
-    // This handles elements that weren't registered with useEditable
     return getEditableFromDOM(x, y)
   }, [editableElements, getEditableFromDOM])
 
@@ -240,7 +225,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   )
 }
 
-// Helper: get DOM depth
 function getDepth(element: HTMLElement | null): number {
   if (!element) return 0
   let depth = 0
@@ -272,38 +256,56 @@ interface SelectionOverlayProps {
 }
 
 function SelectionOverlay({ element, onDragStart, onResizeStart }: SelectionOverlayProps) {
-  const rect = element.element?.getBoundingClientRect() || null
-  
-  if (!rect) return null
+  const [rect, setRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
 
-  const x = rect.left + element.transform.x
-  const y = rect.top + element.transform.y
-  const width = element.dimensions.width || rect.width
-  const height = element.dimensions.height || rect.height
+  useEffect(() => {
+    if (!element.element) return
+    
+    const update = () => {
+      const r = element.element!.getBoundingClientRect()
+      setRect({
+        x: r.left + element.transform.x,
+        y: r.top + element.transform.y,
+        width: element.dimensions.width || r.width,
+        height: element.dimensions.height || r.height,
+      })
+    }
+    update()
+    
+    const observer = new ResizeObserver(update)
+    observer.observe(element.element)
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [element.element, element.transform.x, element.transform.y, element.dimensions.width, element.dimensions.height])
+
+  if (!rect) return null
 
   return createPortal(
     <div data-ve-overlay className="ve-overlay fixed inset-0 pointer-events-none z-[9990]">
-      {/* Drag surface */}
       <div
         className="absolute pointer-events-auto cursor-move"
-        style={{ left: x, top: y, width, height, touchAction: 'none' }}
+        style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height, touchAction: 'none' }}
         onPointerDown={onDragStart}
       />
       
-      {/* Selection border */}
       <div
         className="absolute pointer-events-none"
         style={{
-          left: x,
-          top: y,
-          width,
-          height,
+          left: rect.x,
+          top: rect.y,
+          width: rect.width,
+          height: rect.height,
           border: '2px solid #FF8C21',
           boxShadow: '0 0 0 1px rgba(255,140,33,0.3), 0 0 12px rgba(255,140,33,0.15)',
         }}
       />
       
-      {/* Corner handles */}
       {CORNER_HANDLES.map(({ handle, cursor }) => {
         const isRight = handle.includes('e')
         const isBottom = handle.includes('s')
@@ -312,8 +314,8 @@ function SelectionOverlay({ element, onDragStart, onResizeStart }: SelectionOver
             key={handle}
             className="absolute w-4 h-4 bg-white border-2 border-[#FF8C21] rounded-sm pointer-events-auto"
             style={{
-              left: isRight ? x + width : x,
-              top: isBottom ? y + height : y,
+              left: isRight ? rect.x + rect.width : rect.x,
+              top: isBottom ? rect.y + rect.height : rect.y,
               transform: `translate(${isRight ? '-50%' : '50%'}, ${isBottom ? '-50%' : '50%'})`,
               cursor,
             }}
@@ -322,7 +324,6 @@ function SelectionOverlay({ element, onDragStart, onResizeStart }: SelectionOver
         )
       })}
 
-      {/* Side handles */}
       {SIDE_HANDLES.map(({ handle, cursor }) => {
         const isTop = handle === 'n'
         const isBottom = handle === 's'
@@ -335,8 +336,8 @@ function SelectionOverlay({ element, onDragStart, onResizeStart }: SelectionOver
               key={handle}
               className="absolute w-8 h-4 bg-white border-2 border-[#FF8C21] rounded-sm pointer-events-auto"
               style={{
-                left: x + width / 2,
-                top: isTop ? y : y + height,
+                left: rect.x + rect.width / 2,
+                top: isTop ? rect.y : rect.y + rect.height,
                 transform: 'translate(-50%, -50%)',
                 cursor,
               }}
@@ -351,8 +352,8 @@ function SelectionOverlay({ element, onDragStart, onResizeStart }: SelectionOver
               key={handle}
               className="absolute w-4 h-8 bg-white border-2 border-[#FF8C21] rounded-sm pointer-events-auto"
               style={{
-                left: isLeft ? x : x + width,
-                top: y + height / 2,
+                left: isLeft ? rect.x : rect.x + rect.width,
+                top: rect.y + rect.height / 2,
                 transform: 'translate(-50%, -50%)',
                 cursor,
               }}
@@ -364,12 +365,11 @@ function SelectionOverlay({ element, onDragStart, onResizeStart }: SelectionOver
         return null
       })}
 
-      {/* Dimensions label */}
       <div
         className="absolute pointer-events-none px-2 py-1 bg-[#FF8C21] text-white text-[11px] font-medium rounded"
-        style={{ left: x + width / 2, top: y + height + 10, transform: 'translateX(-50%)' }}
+        style={{ left: rect.x + rect.width / 2, top: rect.y + rect.height + 10, transform: 'translateX(-50%)' }}
       >
-        {Math.round(width)} × {Math.round(height)}
+        {Math.round(rect.width)} × {Math.round(rect.height)}
       </div>
     </div>,
     document.body
@@ -392,7 +392,6 @@ function HoverIndicator({ element }: { element: EditableElementData }) {
     
     const observer = new ResizeObserver(update)
     observer.observe(element.element)
-    
     window.addEventListener('scroll', update, true)
     window.addEventListener('resize', update)
     
@@ -475,7 +474,6 @@ export function VisualEditorOverlay() {
     setIsAuthenticated(checkAuthCookie())
   }, [])
 
-  // Calculate snap guides
   const calculateSnapGuides = useCallback((x: number, y: number, w: number, h: number): { type: 'vertical' | 'horizontal'; position: number; start: number; end: number }[] => {
     if (!snapEnabled) return []
     
@@ -511,9 +509,10 @@ export function VisualEditorOverlay() {
     e.preventDefault()
     e.stopPropagation()
     
-    if (!selectedElement?.element) return
+    if (!selectedElement) return
     
-    const rect = selectedElement.element.getBoundingClientRect()
+    console.log('[Editor] Drag start:', selectedElement.id)
+    
     dragStartRef.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
@@ -528,14 +527,15 @@ export function VisualEditorOverlay() {
     e.preventDefault()
     e.stopPropagation()
     
-    if (!selectedElement?.element) return
+    if (!selectedElement) return
     
-    const rect = selectedElement.element.getBoundingClientRect()
+    console.log('[Editor] Resize start:', selectedElement.id, handle)
+    
     resizeStartRef.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
-      width: selectedElement.dimensions.width || rect.width,
-      height: selectedElement.dimensions.height || rect.height,
+      width: selectedElement.dimensions.width || (selectedElement.element?.getBoundingClientRect().width || 0),
+      height: selectedElement.dimensions.height || (selectedElement.element?.getBoundingClientRect().height || 0),
       startX: selectedElement.transform.x,
       startY: selectedElement.transform.y,
       handle,
@@ -543,36 +543,30 @@ export function VisualEditorOverlay() {
     setIsResizing(true)
   }, [selectedElement])
 
-  // Unified pointer handler
+  // Handle pointer down - selection only
   const handlePointerDown = useCallback((e: PointerEvent) => {
     if (!isEditing) return
     
     const target = e.target as HTMLElement
     if (isEditorUI(target)) return
 
-    // Get editable at position
     const editable = getEditableAtPosition(e.clientX, e.clientY)
     
     if (editable) {
       e.preventDefault()
       e.stopPropagation()
-      
-      // Select the element
+      console.log('[Editor] Selected:', editable.id)
       setSelectedId(editable.id)
       setOpenPanel(true)
     } else {
-      // Clicked on empty space - deselect
       setSelectedId(null)
       setOpenPanel(false)
     }
   }, [isEditing, getEditableAtPosition, setSelectedId, setOpenPanel])
 
-  // Handle pointer move
+  // Handle pointer move - drag/resize in overlay only, NEVER modify DOM
   const handlePointerMove = useCallback((e: PointerEvent) => {
-    if (!selectedElement || !selectedElement.element) return
-    
-    const el = selectedElement.element
-    const orig = el.getBoundingClientRect()
+    if (!selectedElement) return
     
     if (isDragging) {
       const deltaX = e.clientX - dragStartRef.current.mouseX
@@ -581,19 +575,18 @@ export function VisualEditorOverlay() {
       let newX = dragStartRef.current.startX + deltaX
       let newY = dragStartRef.current.startY + deltaY
       
-      const visualX = orig.left + newX
-      const visualY = orig.top + newY
-      const w = selectedElement.dimensions.width || orig.width
-      const h = selectedElement.dimensions.height || orig.height
+      const elementRect = selectedElement.element?.getBoundingClientRect()
+      if (!elementRect) return
+      
+      const visualX = elementRect.left + newX
+      const visualY = elementRect.top + newY
+      const w = selectedElement.dimensions.width || elementRect.width
+      const h = selectedElement.dimensions.height || elementRect.height
       
       const newGuides = calculateSnapGuides(visualX, visualY, w, h)
       setGuides(newGuides)
       
-      // Apply transform for visual feedback during drag
-      el.style.transform = `translate(${newX}px, ${newY}px)`
-      el.style.position = 'relative'
-      
-      // Update element in registry
+      // Update ONLY the registry state - NEVER touch the DOM
       registerEditable({
         ...selectedElement,
         transform: { x: newX, y: newY },
@@ -640,15 +633,7 @@ export function VisualEditorOverlay() {
         newY = resizeStartRef.current.startY - heightDiff
       }
       
-      // Preserve absolute positioning
-      const wasAbsolute = el.style.position === 'absolute' || getComputedStyle(el).position === 'absolute'
-      el.style.width = `${newWidth}px`
-      el.style.height = `${newHeight}px`
-      el.style.transform = `translate(${newX}px, ${newY}px)`
-      el.style.position = wasAbsolute ? 'absolute' : 'relative'
-      el.style.maxWidth = 'none'
-      el.style.maxHeight = 'none'
-      
+      // Update ONLY the registry state - NEVER touch the DOM
       registerEditable({
         ...selectedElement,
         transform: { x: newX, y: newY },
@@ -659,36 +644,21 @@ export function VisualEditorOverlay() {
 
   // Handle pointer up
   const handlePointerUp = useCallback(() => {
-    if (selectedElement && selectedElement.element) {
-      const el = selectedElement.element
-      const currentTransform = {
-        x: parseFloat(el.style.transform?.match(/translate\(([-\d.]+)px/)?.[1] || '0'),
-        y: parseFloat(el.style.transform?.match(/translate\([^,]+,\s*([-\d.]+)px/)?.[1] || '0'),
-      }
-      if (currentTransform.x !== 0 || currentTransform.y !== 0) {
-        // Persist the position using margin
-        const currentMarginLeft = parseFloat(el.style.marginLeft) || 0
-        const currentMarginTop = parseFloat(el.style.marginTop) || 0
-        el.style.marginLeft = `${currentMarginLeft + currentTransform.x}px`
-        el.style.marginTop = `${currentMarginTop + currentTransform.y}px`
-        el.style.transform = 'translate(0px, 0px)'
-        
-        registerEditable({
-          ...selectedElement,
-          transform: { x: 0, y: 0 },
-        })
-      }
-    }
     setIsDragging(false)
     setIsResizing(false)
     setGuides([])
-  }, [selectedElement, registerEditable])
+  }, [])
 
   // Hover detection
   const handleMouseOver = useCallback((e: MouseEvent) => {
     if (!isEditing) return
     
     const target = e.target as HTMLElement
+    if (isEditorUI(target)) {
+      setHoveredId(null)
+      return
+    }
+    
     const editable = getEditableAtPosition(e.clientX, e.clientY)
     setHoveredId(editable?.id || null)
   }, [isEditing, getEditableAtPosition])
@@ -710,27 +680,24 @@ export function VisualEditorOverlay() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isEditing, showSaveModal, openPanel, setSelectedId, setOpenPanel])
 
-  // Global click/link interceptor to prevent navigation in editor mode
+  // Global click interceptor
   const handleGlobalClick = useCallback((e: MouseEvent) => {
     if (!isEditing) return
     
     const target = e.target as HTMLElement
     
-    // Allow clicks on editor UI elements (toolbar, panel, close buttons)
     if (
       target.closest('[data-edit-toolbar]') ||
       target.closest('[data-edit-panel]') ||
       target.closest('[data-edit-modal]') ||
       target.closest('.resize-handle')
     ) {
-      return // Let these clicks pass through
+      return
     }
     
-    // Check if it's a link or button
     const isLink = target.tagName === 'A' || target.closest('a')
     const isButton = target.tagName === 'BUTTON' || target.closest('button')
     
-    // Prevent link navigation and button actions in editor mode
     if (isLink || isButton) {
       e.preventDefault()
       e.stopPropagation()
@@ -791,13 +758,11 @@ export function VisualEditorOverlay() {
     setTimeout(() => setDeployStatus('idle'), 3000)
   }
 
-  // Also close panel when clicking outside or pressing escape
   const handleClosePanel = useCallback(() => {
     setOpenPanel(false)
     setSelectedId(null)
   }, [setOpenPanel, setSelectedId])
 
-  // Get value for edit panel
   const getElementValue = (el: EditableElementData) => {
     if (!el.element) return ''
     const type = el.type
@@ -815,10 +780,26 @@ export function VisualEditorOverlay() {
     return ''
   }
 
-  // Make toolbar smaller and unobtrusive
   return (
     <>
-      {/* Toolbar - compact floating badge */}
+      {/* Snap guides */}
+      {isEditing && guides.length > 0 && (
+        <div data-ve-overlay className="fixed inset-0 pointer-events-none z-[9991]">
+          {guides.map((guide, i) => (
+            <div
+              key={i}
+              className="absolute bg-[#FF8C21]/40"
+              style={
+                guide.type === 'vertical'
+                  ? { left: guide.position - 0.5, top: guide.start, width: 1, height: guide.end - guide.start }
+                  : { left: guide.start, top: guide.position - 0.5, height: 1, width: guide.end - guide.start }
+              }
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Toolbar */}
       <AnimatePresence>
         {isEditing && (
           <motion.div
