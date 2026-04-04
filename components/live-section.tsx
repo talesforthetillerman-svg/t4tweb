@@ -90,8 +90,8 @@ export function LiveSection() {
   }, [])
 
   const today = new Date()
-  const upcomingConcerts = concerts.filter(c => new Date(c.date) >= today)
-  const historyConcerts = concerts.filter(c => new Date(c.date) < today)
+  const upcomingConcerts = concerts.filter(c => c.status === "Upcoming" || new Date(c.date) >= today)
+  const historyConcerts = concerts.filter(c => c.status === "Completed" && new Date(c.date) < today)
 
   const platforms = [
     { name: "Spotify", href: "https://open.spotify.com/artist/0FHjK3O0k8HQMrJsF7KQwF", icon: SpotifyIcon, color: "hover:bg-[#1DB954]", category: "streaming" },
