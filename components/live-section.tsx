@@ -56,12 +56,17 @@ export function LiveSection() {
           setLoading(false)
           return
         }
+        console.log("[LiveSection] Fetching CSV...")
         const response = await fetch("/data/concerts.csv")
+        console.log("[LiveSection] Response:", response.status)
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const text = await response.text()
+        console.log("[LiveSection] CSV text length:", text.length)
         const lines = text.trim().split("\n")
+        console.log("[LiveSection] Lines:", lines.length)
         const parsed = lines.slice(1).map(line => {
           const values = line.split(",")
+          console.log("[LiveSection] Values:", values)
           return {
             venue: values[0] || "",
             city: values[1] || "",
@@ -92,6 +97,8 @@ export function LiveSection() {
   const today = new Date()
   const upcomingConcerts = concerts.filter(c => c.status === "Upcoming" || new Date(c.date) >= today)
   const historyConcerts = concerts.filter(c => c.status === "Completed" && new Date(c.date) < today)
+
+  console.log("[LiveSection] concerts:", concerts.length, "upcoming:", upcomingConcerts.length, "history:", historyConcerts.length)
 
   const platforms = [
     { name: "Spotify", href: "https://open.spotify.com/artist/0FHjK3O0k8HQMrJsF7KQwF", icon: SpotifyIcon, color: "hover:bg-[#1DB954]", category: "streaming" },
