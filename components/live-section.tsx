@@ -5,8 +5,6 @@ import { motion } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { SectionHeader } from "@/components/section-header"
-import { client } from "@/lib/sanity/client"
-import { concertsQuery } from "@/lib/sanity/queries"
 
 interface Concert {
   venue: string
@@ -39,34 +37,18 @@ export function LiveSection() {
   useEffect(() => {
     async function fetchConcerts() {
       try {
-        const sanityData = await client.fetch(concertsQuery).catch(() => null)
-        if (sanityData && sanityData.length > 0) {
-          setConcerts(sanityData.map((c: any) => ({
-            venue: c.venue,
-            city: c.city,
-            country: c.country,
-            date: c.date,
-            time: c.time,
-            status: c.status,
-            genre: c.genre,
-            capacity: c.capacity,
-            price: c.price === 0 ? "Free" : String(c.price),
-          })))
+        const response = await fetch("/data/concerts.csv")
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const text = await response.text()
+        const lines = text.trim().split("\n")
+        if (lines.length <= 1) {
+          setConcerts([])
           setError(false)
           setLoading(false)
           return
         }
-        console.log("[LiveSection] Fetching CSV...")
-        const response = await fetch("/data/concerts.csv")
-        console.log("[LiveSection] Response:", response.status)
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const text = await response.text()
-        console.log("[LiveSection] CSV text length:", text.length)
-        const lines = text.trim().split("\n")
-        console.log("[LiveSection] Lines:", lines.length)
         const parsed = lines.slice(1).map(line => {
           const values = line.split(",")
-          console.log("[LiveSection] Values:", values)
           return {
             venue: values[0] || "",
             city: values[1] || "",
@@ -94,11 +76,8 @@ export function LiveSection() {
     fetchConcerts()
   }, [])
 
-  const today = new Date()
-  const upcomingConcerts = concerts.filter(c => c.status === "Upcoming" || new Date(c.date) >= today)
-  const historyConcerts = concerts.filter(c => c.status === "Completed" && new Date(c.date) < today)
-
-  console.log("[LiveSection] concerts:", concerts.length, "upcoming:", upcomingConcerts.length, "history:", historyConcerts.length)
+  const upcomingConcerts = concerts.filter(c => c.status === "Upcoming")
+  const historyConcerts = concerts.filter(c => c.status === "Completed")
 
   const platforms = [
     { name: "Spotify", href: "https://open.spotify.com/artist/0FHjK3O0k8HQMrJsF7KQwF", icon: SpotifyIcon, color: "hover:bg-[#1DB954]", category: "streaming" },
