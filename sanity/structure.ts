@@ -4,16 +4,80 @@ export const structure: StructureResolver = (S) =>
   S.list()
     .title('Tales for the Tillerman')
     .items([
-      S.documentTypeListItem('siteSettings').title('Site Settings').title('Site Settings'),
+      S.listItem()
+        .title('Site Settings')
+        .child(
+          S.documentList()
+            .title('Site Settings')
+            .filter('_type == "siteSettings"')
+        ),
       S.divider(),
-      S.documentTypeListItem('heroSection').title('Hero Section'),
-      S.documentTypeListItem('aboutSection').title('About Section'),
-      S.documentTypeListItem('bandMember').title('Band Members'),
-      S.documentTypeListItem('latestRelease').title('Latest Release'),
-      S.divider(),
-      S.documentTypeListItem('concert').title('Concerts'),
-      S.documentTypeListItem('pressKitSection').title('Press Kit'),
-      S.documentTypeListItem('contactSection').title('Contact Section'),
-      S.divider(),
-      S.documentTypeListItem('navigation').title('Navigation'),
+      S.listItem()
+        .title('Pages & Sections')
+        .child(
+          S.list()
+            .title('Pages & Sections')
+            .items([
+              S.listItem()
+                .title('Hero Section')
+                .child(
+                  S.documentList()
+                    .title('Hero Section')
+                    .filter('_type == "heroSection"')
+                ),
+              S.listItem()
+                .title('About Section')
+                .child(
+                  S.documentList()
+                    .title('About Section')
+                    .filter('_type == "aboutSection"')
+                ),
+              S.listItem()
+                .title('Band Members')
+                .child(
+                  S.documentList()
+                    .title('Band Members')
+                    .filter('_type == "bandMember"')
+                    .defaultOrdering([{ field: '_createdAt', direction: 'asc' }])
+                ),
+              S.listItem()
+                .title('Latest Release')
+                .child(
+                  S.documentList()
+                    .title('Latest Release')
+                    .filter('_type == "latestRelease"')
+                ),
+              S.divider(),
+              S.listItem()
+                .title('Concerts')
+                .child(
+                  S.documentList()
+                    .title('Concerts')
+                    .filter('_type == "concert"')
+                    .defaultOrdering([{ field: 'date', direction: 'desc' }])
+                ),
+              S.listItem()
+                .title('Press Kit')
+                .child(
+                  S.documentList()
+                    .title('Press Kit')
+                    .filter('_type == "pressKitSection"')
+                ),
+              S.listItem()
+                .title('Contact Section')
+                .child(
+                  S.documentList()
+                    .title('Contact Section')
+                    .filter('_type == "contactSection"')
+                ),
+              S.divider(),
+              S.listItem()
+                .title('Navigation')
+                .child(
+                  S.documentList()
+                    .title('Navigation')
+                    .filter('_type == "navigation"')
+                ),
+            ])
+        ),
     ])
