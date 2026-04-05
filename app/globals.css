@@ -9,13 +9,37 @@
 [data-edit-mode="true"] .max-w-4xl,
 [data-edit-mode="true"] .max-w-5xl,
 [data-edit-mode="true"] .max-w-6xl,
-[data-edit-mode="true"] .max-w-2xl {
+[data-edit-mode="true"] .max-w-2xl,
+[data-edit-mode="true"] .max-w-xs,
+[data-edit-mode="true"] .max-w-sm,
+[data-edit-mode="true"] .max-w-md,
+[data-edit-mode="true"] .max-w-lg,
+[data-edit-mode="true"] .max-w-xl {
   max-width: 100% !important;
 }
 
 [data-edit-mode="true"] .mx-auto {
   margin-left: 0 !important;
   margin-right: 0 !important;
+}
+
+[data-edit-mode="true"] html,
+[data-edit-mode="true"] body {
+  overflow-x: visible !important;
+}
+
+[data-edit-mode="true"] section,
+[data-edit-mode="true"] .section-container {
+  overflow: visible !important;
+}
+
+[data-edit-mode="true"] .flex-1 {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+[data-edit-mode="true"] [data-edit-id] {
+  pointer-events: auto !important;
 }
 
 :root {

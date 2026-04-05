@@ -249,7 +249,7 @@ export function ContactSection() {
       <div className="section-photo-fade-bottom" />
 
       <div className="relative z-10 mx-auto w-full max-w-5xl min-h-screen flex flex-col justify-end">
-        <motion.div ref={headerRef} style={{ opacity, y }} className="mb-10 md:mb-12">
+        <motion.div ref={headerRef} style={{ opacity, y }} className="mb-10 md:mb-12" data-edit-id="contact-header-wrapper" data-edit-type="box" data-edit-label="Contact Header">
           <SectionHeader
             eyebrow="Contact"
             title="Book the Band"
