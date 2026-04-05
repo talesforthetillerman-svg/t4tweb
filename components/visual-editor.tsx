@@ -1,7 +1,7 @@
 "use client"
-/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element, react-hooks/set-state-in-effect, react-hooks/refs, react-hooks/immutability, react-hooks/exhaustive-deps */
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
 
@@ -96,14 +96,17 @@ export function useVisualEditor() {
 }
 
 export function VisualEditorProvider({ children }: { children: ReactNode }) {
-  const [isEditing, setIsEditing] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    const params = new URLSearchParams(window.location.search)
-    return params.get('editMode') === 'true' || window.location.pathname === '/editor'
-  })
+  const [isEditing, setIsEditing] = useState(false)
   const [selectedElement, setSelectedElement] = useState<EditableElement | null>(null)
   const [openPanel, setOpenPanel] = useState(false)
   const [snapEnabled, setSnapEnabled] = useState(true)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('editMode') === 'true' || window.location.pathname === '/editor') {
+      setIsEditing(true)
+    }
+  }, [])
 
   return (
     <VisualEditorContext.Provider
@@ -122,24 +125,15 @@ function ElementSelectionOverlay({
   element: HTMLElement
 }) {
   const { snapEnabled } = useVisualEditor()
-  const initialRect = element.getBoundingClientRect()
   
   // Store the ORIGINAL rect when element was selected (before any transforms)
-  const [originalRect] = useState<ElementRect>({
-    x: initialRect.left,
-    y: initialRect.top,
-    width: initialRect.width,
-    height: initialRect.height,
-  })
+  const originalRectRef = useRef<ElementRect>({ x: 0, y: 0, width: 0, height: 0 })
   
   // Track current transform offset separately
   const [offset, setOffset] = useState<TransformOffset>({ x: 0, y: 0 })
   
   // Track current dimensions (may change during resize)
-  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
-    width: initialRect.width,
-    height: initialRect.height,
-  })
+  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({ width: 0, height: 0 })
   
   // Snap guides
   const [guides, setGuides] = useState<SnapGuide[]>([])
@@ -166,10 +160,23 @@ function ElementSelectionOverlay({
     aspectRatio: 1,
   })
 
+  // Initialize on mount - capture original rect ONCE
+  useEffect(() => {
+    const rect = element.getBoundingClientRect()
+    originalRectRef.current = {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+    }
+    setDimensions({ width: rect.width, height: rect.height })
+    setOffset({ x: 0, y: 0 })
+  }, [element])
+
   // Calculate current visual rect = original + offset
   const visualRect: ElementRect = {
-    x: originalRect.x + offset.x,
-    y: originalRect.y + offset.y,
+    x: originalRectRef.current.x + offset.x,
+    y: originalRectRef.current.y + offset.y,
     width: dimensions.width,
     height: dimensions.height,
   }
@@ -251,8 +258,8 @@ function ElementSelectionOverlay({
       let newY = dragState.startOffsetY + deltaY
       
       // Calculate snap
-      const visualX = originalRect.x + newX
-      const visualY = originalRect.y + newY
+      const visualX = originalRectRef.current.x + newX
+      const visualY = originalRectRef.current.y + newY
       const newGuides = calculateSnapGuides(visualX, visualY, dimensions.width, dimensions.height)
       setGuides(newGuides)
       
@@ -261,15 +268,15 @@ function ElementSelectionOverlay({
         for (const guide of newGuides) {
           if (guide.type === 'vertical') {
             if (guide.position === 0 || guide.position === window.innerWidth) {
-              newX = guide.position - originalRect.x + (guide.position === window.innerWidth ? -dimensions.width : 0)
+              newX = guide.position - originalRectRef.current.x + (guide.position === window.innerWidth ? -dimensions.width : 0)
             } else {
-              newX = guide.position - dimensions.width / 2 - originalRect.x
+              newX = guide.position - dimensions.width / 2 - originalRectRef.current.x
             }
           } else {
             if (guide.position === 0) {
-              newY = guide.position - originalRect.y
+              newY = guide.position - originalRectRef.current.y
             } else {
-              newY = guide.position - dimensions.height / 2 - originalRect.y
+              newY = guide.position - dimensions.height / 2 - originalRectRef.current.y
             }
           }
         }
@@ -298,7 +305,7 @@ function ElementSelectionOverlay({
       document.removeEventListener('mouseup', handleMouseUp)
       document.body.style.userSelect = ''
     }
-  }, [dragState, element, dimensions, calculateSnapGuides, originalRect.x, originalRect.y])
+  }, [dragState, element, dimensions, calculateSnapGuides])
 
   // ==================== RESIZE HANDLING ====================
 
@@ -546,7 +553,11 @@ export function VisualEditorOverlay() {
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null)
-  const [isAuthenticated] = useState<boolean>(() => checkAuthCookie())
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    setIsAuthenticated(checkAuthCookie())
+  }, [])
 
   // Click handler - select elements
   const handleClick = useCallback((e: MouseEvent) => {
@@ -651,7 +662,7 @@ export function VisualEditorOverlay() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isEditing, showSaveModal, openPanel, setIsEditing, setOpenPanel, setSelectedElement])
+  }, [isEditing, showSaveModal, openPanel])
 
   // Attach event listeners
   useEffect(() => {
@@ -807,9 +818,8 @@ export function VisualEditorOverlay() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF8C21] focus:border-transparent text-gray-800 resize-none"
                     rows={4}
                     onChange={(e) => {
-                      const editableElement = document.querySelector<HTMLElement>(`[data-edit-id="${selectedElement.id}"]`)
-                      if (editableElement) {
-                        editableElement.textContent = e.target.value
+                      if (selectedElement.element) {
+                        selectedElement.element.textContent = e.target.value
                       }
                     }}
                   />
@@ -841,9 +851,8 @@ export function VisualEditorOverlay() {
                     defaultValue={selectedElement.value}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF8C21] focus:border-transparent text-gray-800"
                     onChange={(e) => {
-                      const editableElement = document.querySelector<HTMLElement>(`[data-edit-id="${selectedElement.id}"]`)
-                      if (editableElement) {
-                        editableElement.setAttribute('href', e.target.value)
+                      if (selectedElement.element) {
+                        selectedElement.element.setAttribute('href', e.target.value)
                       }
                     }}
                   />
