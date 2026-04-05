@@ -33,6 +33,10 @@ interface VisualEditorContextType {
   updateElementDimensions: (id: string, dimensions: { width: number; height: number }) => void
   getElementById: (id: string) => EditableElementData | undefined
   getEditableAtPosition: (x: number, y: number) => EditableElementData | null
+  undo: () => void
+  redo: () => void
+  canUndo: boolean
+  canRedo: boolean
 }
 
 // ==================== CONSTANTS ====================
@@ -70,6 +74,10 @@ const VisualEditorContext = createContext<VisualEditorContextType>({
   updateElementDimensions: () => {},
   getElementById: () => undefined,
   getEditableAtPosition: () => null,
+  undo: () => {},
+  redo: () => {},
+  canUndo: false,
+  canRedo: false,
 })
 
 export function useVisualEditor() {
@@ -83,21 +91,54 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   const [snapEnabled, setSnapEnabled] = useState(true)
   const [editableElements, setEditableElements] = useState<Map<string, EditableElementData>>(new Map())
 
+  // History for undo/redo
+  const [history, setHistory] = useState<Map<string, EditableElementData>[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+
+  const pushHistory = useCallback((state: Map<string, EditableElementData>) => {
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1)
+      newHistory.push(new Map(state))
+      if (newHistory.length > 50) newHistory.shift()
+      return newHistory
+    })
+    setHistoryIndex(prev => Math.min(prev + 1, 49))
+  }, [historyIndex])
+
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) return
+    const newIndex = historyIndex - 1
+    setHistoryIndex(newIndex)
+    setEditableElements(new Map(history[newIndex]))
+  }, [history, historyIndex])
+
+  const redo = useCallback(() => {
+    if (historyIndex >= history.length - 1) return
+    const newIndex = historyIndex + 1
+    setHistoryIndex(newIndex)
+    setEditableElements(new Map(history[newIndex]))
+  }, [history, historyIndex])
+
+  const canUndo = historyIndex > 0
+  const canRedo = historyIndex < history.length - 1
+
   const registerEditable = useCallback((data: EditableElementData) => {
     setEditableElements(prev => {
       const next = new Map(prev)
       next.set(data.id, data)
+      pushHistory(next)
       return next
     })
-  }, [])
+  }, [pushHistory])
 
   const unregisterEditable = useCallback((id: string) => {
     setEditableElements(prev => {
       const next = new Map(prev)
       next.delete(id)
+      pushHistory(next)
       return next
     })
-  }, [])
+  }, [pushHistory])
 
   const updateElementTransform = useCallback((id: string, transform: { x: number; y: number }) => {
     setEditableElements(prev => {
@@ -105,9 +146,10 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       if (!existing) return prev
       const next = new Map(prev)
       next.set(id, { ...existing, transform })
+      pushHistory(next)
       return next
     })
-  }, [])
+  }, [pushHistory])
 
   const updateElementDimensions = useCallback((id: string, dimensions: { width: number; height: number }) => {
     setEditableElements(prev => {
@@ -115,9 +157,10 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       if (!existing) return prev
       const next = new Map(prev)
       next.set(id, { ...existing, dimensions })
+      pushHistory(next)
       return next
     })
-  }, [])
+  }, [pushHistory])
 
   const getElementById = useCallback((id: string) => {
     return editableElements.get(id)
@@ -244,6 +287,10 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         updateElementDimensions,
         getElementById,
         getEditableAtPosition,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
       }}
     >
       {children}
@@ -506,6 +553,10 @@ export function VisualEditorOverlay() {
     getEditableAtPosition,
     updateElementTransform,
     updateElementDimensions,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useVisualEditor()
 
   const [showSaveModal, setShowSaveModal] = useState(false)
@@ -816,6 +867,10 @@ export function VisualEditorOverlay() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept shortcuts when typing in inputs
+      const tag = (e.target as HTMLElement).tagName
+      const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable
+
       if (e.key === 'Escape') {
         if (showSaveModal) setShowSaveModal(false)
         else if (openPanel) { setOpenPanel(false); setSelectedId(null) }
@@ -825,10 +880,22 @@ export function VisualEditorOverlay() {
         e.preventDefault()
         setShowSaveModal(true)
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey && !isTyping) {
+        e.preventDefault()
+        undo()
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey)) && !isTyping) {
+        e.preventDefault()
+        redo()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'y' && !isTyping) {
+        e.preventDefault()
+        redo()
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isEditing, showSaveModal, openPanel, setSelectedId, setOpenPanel])
+  }, [isEditing, showSaveModal, openPanel, setSelectedId, setOpenPanel, undo, redo])
 
   // Global click interceptor
   const handleGlobalClick = useCallback((e: MouseEvent) => {
