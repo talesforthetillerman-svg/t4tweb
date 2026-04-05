@@ -28,7 +28,7 @@ export function HeroSection() {
   const heroButtonsRef = useRef<HTMLDivElement>(null)
   const heroScrollRef = useRef<HTMLDivElement>(null)
 
-  const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
+  const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
 
   // Register editable elements
   useEffect(() => {
@@ -36,6 +36,7 @@ export function HeroSection() {
 
     const registerAll = () => {
       if (heroSectionRef.current) {
+        const existing = getElementById('hero-section')
         registerEditable({
           id: 'hero-section',
           type: 'section',
@@ -43,86 +44,92 @@ export function HeroSection() {
           parentId: null,
           element: heroSectionRef.current,
           originalRect: heroSectionRef.current.getBoundingClientRect(),
-          transform: { x: 0, y: 0 },
-          dimensions: { width: heroSectionRef.current.offsetWidth, height: heroSectionRef.current.offsetHeight },
+          transform: existing?.transform || { x: 0, y: 0 },
+          dimensions: existing?.dimensions || { width: heroSectionRef.current.offsetWidth, height: heroSectionRef.current.offsetHeight },
         })
       }
 
       if (heroBgRef.current) {
+        const existing = getElementById('hero-bg-image')
         registerEditable({
           id: 'hero-bg-image',
           type: 'image',
           label: 'Hero Background',
-          parentId: 'hero-section',
+          parentId: null,
           element: heroBgRef.current,
           originalRect: heroBgRef.current.getBoundingClientRect(),
-          transform: { x: 0, y: 0 },
-          dimensions: { width: heroBgRef.current.offsetWidth, height: heroBgRef.current.offsetHeight },
+          transform: existing?.transform || { x: 0, y: 0 },
+          dimensions: existing?.dimensions || { width: heroBgRef.current.offsetWidth, height: heroBgRef.current.offsetHeight },
         })
       }
 
       if (heroLogoRef.current) {
+        const existing = getElementById('hero-logo')
         registerEditable({
           id: 'hero-logo',
           type: 'image',
           label: 'Hero Logo',
-          parentId: 'hero-section',
+          parentId: null,
           element: heroLogoRef.current,
           originalRect: heroLogoRef.current.getBoundingClientRect(),
-          transform: { x: 0, y: 0 },
-          dimensions: { width: heroLogoRef.current.offsetWidth, height: heroLogoRef.current.offsetHeight },
+          transform: existing?.transform || { x: 0, y: 0 },
+          dimensions: existing?.dimensions || { width: heroLogoRef.current.offsetWidth, height: heroLogoRef.current.offsetHeight },
         })
       }
 
       if (heroTitleRef.current) {
+        const existing = getElementById('hero-title')
         registerEditable({
           id: 'hero-title',
           type: 'text',
           label: 'Hero Title',
-          parentId: 'hero-section',
+          parentId: null,
           element: heroTitleRef.current,
           originalRect: heroTitleRef.current.getBoundingClientRect(),
-          transform: { x: 0, y: 0 },
-          dimensions: { width: heroTitleRef.current.offsetWidth, height: heroTitleRef.current.offsetHeight },
+          transform: existing?.transform || { x: 0, y: 0 },
+          dimensions: existing?.dimensions || { width: heroTitleRef.current.offsetWidth, height: heroTitleRef.current.offsetHeight },
         })
       }
 
       if (heroSubtitleRef.current) {
+        const existing = getElementById('hero-subtitle')
         registerEditable({
           id: 'hero-subtitle',
           type: 'text',
           label: 'Hero Subtitle',
-          parentId: 'hero-section',
+          parentId: null,
           element: heroSubtitleRef.current,
           originalRect: heroSubtitleRef.current.getBoundingClientRect(),
-          transform: { x: 0, y: 0 },
-          dimensions: { width: heroSubtitleRef.current.offsetWidth, height: heroSubtitleRef.current.offsetHeight },
+          transform: existing?.transform || { x: 0, y: 0 },
+          dimensions: existing?.dimensions || { width: heroSubtitleRef.current.offsetWidth, height: heroSubtitleRef.current.offsetHeight },
         })
       }
 
       if (heroButtonsRef.current) {
+        const existing = getElementById('hero-buttons')
         registerEditable({
           id: 'hero-buttons',
           type: 'box',
           label: 'Hero Buttons',
-          parentId: 'hero-section',
+          parentId: null,
           element: heroButtonsRef.current,
           originalRect: heroButtonsRef.current.getBoundingClientRect(),
-          transform: { x: 0, y: 0 },
-          dimensions: { width: heroButtonsRef.current.offsetWidth, height: heroButtonsRef.current.offsetHeight },
+          transform: existing?.transform || { x: 0, y: 0 },
+          dimensions: existing?.dimensions || { width: heroButtonsRef.current.offsetWidth, height: heroButtonsRef.current.offsetHeight },
         })
       }
 
       if (heroScrollRef.current) {
+        const existing = getElementById('hero-scroll-indicator')
         registerEditable({
           id: 'hero-scroll-indicator',
           type: 'box',
           label: 'Scroll Indicator',
-          parentId: 'hero-section',
+          parentId: null,
           element: heroScrollRef.current,
           originalRect: heroScrollRef.current.getBoundingClientRect(),
-          transform: { x: 0, y: 0 },
-          dimensions: { width: heroScrollRef.current.offsetWidth, height: heroScrollRef.current.offsetHeight },
+          transform: existing?.transform || { x: 0, y: 0 },
+          dimensions: existing?.dimensions || { width: heroScrollRef.current.offsetWidth, height: heroScrollRef.current.offsetHeight },
         })
       }
     }

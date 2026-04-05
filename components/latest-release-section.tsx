@@ -9,6 +9,7 @@ export function LatestReleaseSection() {
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
 
   const bgRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
   const subtitleRef = useRef<HTMLParagraphElement>(null)
   const watchButtonRef = useRef<HTMLAnchorElement>(null)
@@ -27,6 +28,19 @@ export function LatestReleaseSection() {
         originalRect: bgRef.current.getBoundingClientRect(),
         transform: { x: 0, y: 0 },
         dimensions: { width: bgRef.current.offsetWidth, height: bgRef.current.offsetHeight },
+      })
+    }
+
+    if (cardRef.current) {
+      registerEditable({
+        id: 'latest-release-card',
+        type: 'box',
+        label: 'Release Card',
+        parentId: null,
+        element: cardRef.current,
+        originalRect: cardRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: cardRef.current.offsetWidth, height: cardRef.current.offsetHeight },
       })
     }
 
@@ -84,6 +98,7 @@ export function LatestReleaseSection() {
 
     return () => {
       unregisterEditable('latest-release-bg')
+      unregisterEditable('latest-release-card')
       unregisterEditable('latest-release-title')
       unregisterEditable('latest-release-subtitle')
       unregisterEditable('latest-release-watch-button')
@@ -123,6 +138,10 @@ export function LatestReleaseSection() {
       <div className="relative z-10 flex min-h-screen items-center justify-center">
         <div className="mx-auto max-w-6xl">
           <motion.div
+            ref={cardRef}
+            data-edit-id="latest-release-card"
+            data-edit-type="box"
+            data-edit-label="Release Card"
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.25 }}

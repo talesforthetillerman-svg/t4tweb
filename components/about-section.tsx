@@ -11,6 +11,7 @@ export function AboutSection({ className = "" }: { className?: string }) {
   const sectionRef = useRef<HTMLElement>(null)
   const bgRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
+  const textCardRef = useRef<HTMLDivElement>(null)
   const text1Ref = useRef<HTMLParagraphElement>(null)
   const text2Ref = useRef<HTMLParagraphElement>(null)
   const tagsRef = useRef<HTMLParagraphElement>(null)
@@ -58,6 +59,19 @@ export function AboutSection({ className = "" }: { className?: string }) {
         originalRect: headerRef.current.getBoundingClientRect(),
         transform: { x: 0, y: 0 },
         dimensions: { width: headerRef.current.offsetWidth, height: headerRef.current.offsetHeight },
+      })
+    }
+
+    if (textCardRef.current) {
+      registerEditable({
+        id: 'about-text-card',
+        type: 'box',
+        label: 'About Text Card',
+        parentId: null,
+        element: textCardRef.current,
+        originalRect: textCardRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: textCardRef.current.offsetWidth, height: textCardRef.current.offsetHeight },
       })
     }
 
@@ -117,6 +131,7 @@ export function AboutSection({ className = "" }: { className?: string }) {
       unregisterEditable('about-section')
       unregisterEditable('about-bg-image')
       unregisterEditable('about-header')
+      unregisterEditable('about-text-card')
       unregisterEditable('about-text-1')
       unregisterEditable('about-text-2')
       unregisterEditable('about-tags')
@@ -187,6 +202,10 @@ Their performances balance musical depth with danceable power, bringing together
 
           {/* Box de texto reducido ~20% */}
           <motion.div
+            ref={textCardRef}
+            data-edit-id="about-text-card"
+            data-edit-type="box"
+            data-edit-label="About Text Card"
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}

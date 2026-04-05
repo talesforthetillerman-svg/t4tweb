@@ -598,6 +598,7 @@ export function VisualEditorOverlay() {
     const isAbsolute = computedStyle.position === 'absolute' || computedStyle.position === 'fixed'
     const isSection = selectedElement.type === 'section'
     const isImage = selectedElement.type === 'image'
+    const isBox = selectedElement.type === 'box'
 
     // For sections, only apply transform (no position/zIndex changes)
     if (isSection) {
@@ -606,8 +607,8 @@ export function VisualEditorOverlay() {
       return
     }
 
-    // For absolute/fixed images (backgrounds), allow movement via transform
-    if (isAbsolute && isImage) {
+    // For absolute/fixed images and boxes, allow movement via transform
+    if (isAbsolute && (isImage || isBox)) {
       el.style.transform = `translate(${transform.x}px, ${transform.y}px)`
       el.style.transformOrigin = 'top left'
       return

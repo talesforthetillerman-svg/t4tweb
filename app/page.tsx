@@ -18,6 +18,7 @@ export default function Home() {
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
   
   // Editable refs for the banner section
+  const bannerGifRef = useRef<HTMLImageElement>(null)
   const bannerTextRef = useRef<HTMLParagraphElement>(null)
   const bookButtonRef = useRef<HTMLAnchorElement>(null)
   const pressButtonRef = useRef<HTMLAnchorElement>(null)
@@ -25,6 +26,19 @@ export default function Home() {
   // Register editable elements for banner section
   useEffect(() => {
     if (!isEditing) return
+
+    if (bannerGifRef.current) {
+      registerEditable({
+        id: 'intro-banner-gif',
+        type: 'image',
+        label: 'Banner GIF',
+        parentId: null,
+        element: bannerGifRef.current,
+        originalRect: bannerGifRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: bannerGifRef.current.offsetWidth, height: bannerGifRef.current.offsetHeight },
+      })
+    }
 
     if (bannerTextRef.current) {
       registerEditable({
@@ -66,6 +80,7 @@ export default function Home() {
     }
 
     return () => {
+      unregisterEditable('intro-banner-gif')
       unregisterEditable('intro-banner-text')
       unregisterEditable('intro-book-button')
       unregisterEditable('intro-press-button')
@@ -84,8 +99,12 @@ export default function Home() {
         className="relative flex flex-col items-center justify-center gap-4 px-2 pt-8 pb-12 sm:px-4 sm:pt-12 sm:pb-16"
       >
         <img
+          ref={bannerGifRef}
           src="/images/t4tPics/banner-crop-ezgif.com-gif-maker.gif"
           alt="Animated banner"
+          data-edit-id="intro-banner-gif"
+          data-edit-type="image"
+          data-edit-label="Banner GIF"
           className="absolute inset-0 h-full w-full object-cover opacity-30"
         />
         <div className="relative z-10 flex flex-col items-center justify-center gap-4">
