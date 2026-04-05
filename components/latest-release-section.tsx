@@ -8,6 +8,7 @@ import { useVisualEditor } from "@/components/visual-editor"
 export function LatestReleaseSection() {
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
 
+  const sectionRef = useRef<HTMLElement>(null)
   const bgRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
@@ -17,6 +18,20 @@ export function LatestReleaseSection() {
 
   useEffect(() => {
     if (!isEditing) return
+
+    if (sectionRef.current) {
+      const existing = getElementById('latest-release-section')
+      registerEditable({
+        id: 'latest-release-section',
+        type: 'section',
+        label: 'Release Section',
+        parentId: null,
+        element: sectionRef.current,
+        originalRect: sectionRef.current.getBoundingClientRect(),
+        transform: existing?.transform || { x: 0, y: 0 },
+        dimensions: existing?.dimensions || { width: sectionRef.current.offsetWidth, height: sectionRef.current.offsetHeight },
+      })
+    }
 
     if (bgRef.current) {
       const existing = getElementById('latest-release-bg')
@@ -103,6 +118,7 @@ export function LatestReleaseSection() {
     }
 
     return () => {
+      unregisterEditable('latest-release-section')
       unregisterEditable('latest-release-bg')
       unregisterEditable('latest-release-card')
       unregisterEditable('latest-release-title')
@@ -114,7 +130,11 @@ export function LatestReleaseSection() {
   }, [isEditing])
   return (
     <section
+      ref={sectionRef}
       id="latest-release"
+      data-edit-id="latest-release-section"
+      data-edit-type="section"
+      data-edit-label="Release Section"
       className="relative overflow-hidden bg-black"
     >
       <div 

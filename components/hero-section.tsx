@@ -261,7 +261,7 @@ export function HeroSection() {
 
       <div 
         ref={heroScrollRef}
-        className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 hidden sm:flex items-center gap-3 text-white/80"
+        className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 text-white/80"
       >
         <span className="text-lg uppercase tracking-[0.42em]">SCROLL</span>
         <svg className="h-9 w-9" fill="none" stroke="currentColor" strokeWidth={2.7} viewBox="0 0 24 24">

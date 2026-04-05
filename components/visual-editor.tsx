@@ -552,6 +552,7 @@ export function VisualEditorOverlay() {
     setSnapEnabled,
     editableElements,
     registerEditable,
+    unregisterEditable,
     getElementById,
     getEditableAtPosition,
     updateElementTransform,
@@ -910,7 +911,6 @@ export function VisualEditorOverlay() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept shortcuts when typing in inputs
       const tag = (e.target as HTMLElement).tagName
       const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable
 
@@ -935,10 +935,21 @@ export function VisualEditorOverlay() {
         e.preventDefault()
         redo()
       }
+      // Delete selected element
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !isTyping && selectedId) {
+        e.preventDefault()
+        const el = editableElements.get(selectedId)
+        if (el && el.element) {
+          el.element.style.display = 'none'
+        }
+        unregisterEditable(selectedId)
+        setSelectedId(null)
+        setOpenPanel(false)
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isEditing, showSaveModal, openPanel, setSelectedId, setOpenPanel, undo, redo])
+  }, [isEditing, showSaveModal, openPanel, setSelectedId, setOpenPanel, undo, redo, selectedId, editableElements, unregisterEditable])
 
   // Global click interceptor
   const handleGlobalClick = useCallback((e: MouseEvent) => {
@@ -1161,7 +1172,7 @@ export function VisualEditorOverlay() {
             exit={{ x: 260, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             data-edit-panel
-            className={`fixed top-16 z-[9997] w-56 bg-white rounded-xl shadow-2xl overflow-hidden ${
+            className={`fixed top-16 z-[9997] w-56 bg-white rounded-xl shadow-2xl overflow-hidden pointer-events-none ${
               (() => {
                 const rect = selectedElement.element?.getBoundingClientRect()
                 if (!rect) return 'right-3'
@@ -1171,7 +1182,7 @@ export function VisualEditorOverlay() {
               })()
             }`}
           >
-            <div className="bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-3 py-2">
+            <div className="bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-3 py-2 pointer-events-auto">
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-white font-semibold text-sm truncate">{selectedElement.label}</h3>
@@ -1189,7 +1200,7 @@ export function VisualEditorOverlay() {
               </div>
             </div>
 
-            <div className="p-3">
+            <div className="p-3 pointer-events-auto">
               {(selectedElement.type === 'text' || selectedElement.type === 'button') && (
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-gray-700">Text</label>
@@ -1248,7 +1259,7 @@ export function VisualEditorOverlay() {
               )}
             </div>
 
-            <div className="px-3 py-2 border-t border-gray-100 bg-gray-50">
+            <div className="px-3 py-2 border-t border-gray-100 bg-gray-50 pointer-events-auto">
               <button
                 data-edit-modal
                 onClick={() => setShowSaveModal(true)}
