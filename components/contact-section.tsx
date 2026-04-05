@@ -20,6 +20,7 @@ export function ContactSection() {
   const telegramTitleRef = useRef<HTMLHeadingElement>(null)
   const telegramDescRef = useRef<HTMLParagraphElement>(null)
   const telegramHandleRef = useRef<HTMLSpanElement>(null)
+  const middleTextRef = useRef<HTMLParagraphElement>(null)
   const { opacity, y } = useScrollAnimation(sectionRef)
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
 
@@ -180,6 +181,20 @@ export function ContactSection() {
           dimensions: existing?.dimensions || { width: telegramHandleRef.current.offsetWidth, height: telegramHandleRef.current.offsetHeight },
         })
       }
+
+      if (middleTextRef.current) {
+        const existing = getElementById('contact-middle-text')
+        registerEditable({
+          id: 'contact-middle-text',
+          type: 'text',
+          label: 'Contact Middle Text',
+          parentId: null,
+          element: middleTextRef.current,
+          originalRect: middleTextRef.current.getBoundingClientRect(),
+          transform: existing?.transform || { x: 0, y: 0 },
+          dimensions: existing?.dimensions || { width: middleTextRef.current.offsetWidth, height: middleTextRef.current.offsetHeight },
+        })
+      }
     }
 
     registerAll()
@@ -196,6 +211,7 @@ export function ContactSection() {
       unregisterEditable('contact-telegram-title')
       unregisterEditable('contact-telegram-description')
       unregisterEditable('contact-telegram-handle')
+      unregisterEditable('contact-middle-text')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing])
@@ -309,7 +325,7 @@ export function ContactSection() {
           </motion.a>
 
           <div className="text-center px-4">
-            <p className="text-muted-foreground text-sm md:text-base">
+            <p ref={middleTextRef} data-edit-id="contact-middle-text" data-edit-type="text" data-edit-label="Contact Middle Text" className="text-muted-foreground text-sm md:text-base">
               Choose your preferred<br />
               way to reach us
             </p>
