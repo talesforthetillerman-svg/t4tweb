@@ -313,6 +313,14 @@ function getDepth(element: HTMLElement | null): number {
 
 // ==================== UTILITY FUNCTIONS ====================
 
+function rgbToHex(rgb: string): string {
+  if (rgb.startsWith('#')) return rgb
+  const match = rgb.match(/\d+/g)
+  if (!match || match.length < 3) return '#000000'
+  const [r, g, b] = match.slice(0, 3).map(Number)
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+}
+
 function isEditorUI(element: HTMLElement): boolean {
   return !!(
     element.closest('[data-edit-panel]') ||
@@ -1163,7 +1171,7 @@ export function VisualEditorOverlay() {
         />
       )}
 
-      {/* Edit Panel - compact */}
+      {/* Edit Panel - element-type-specific */}
       <AnimatePresence>
         {isEditing && openPanel && selectedElement && (
           <motion.div
@@ -1172,7 +1180,7 @@ export function VisualEditorOverlay() {
             exit={{ x: 260, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             data-edit-panel
-            className={`fixed top-16 z-[9997] w-56 bg-white rounded-xl shadow-2xl overflow-hidden pointer-events-none ${
+            className={`fixed top-16 z-[9997] w-60 bg-white rounded-xl shadow-2xl overflow-hidden pointer-events-none ${
               (() => {
                 const rect = selectedElement.element?.getBoundingClientRect()
                 if (!rect) return 'right-3'
@@ -1201,62 +1209,345 @@ export function VisualEditorOverlay() {
             </div>
 
             <div className="p-3 pointer-events-auto" key={selectedElement.id}>
-              {(selectedElement.type === 'text' || selectedElement.type === 'button') && (
+              {/* TEXT ELEMENTS */}
+              {selectedElement.type === 'text' && (
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-gray-700">Text</label>
+                  <label className="block text-xs font-semibold text-gray-700">Content</label>
                   <textarea
                     key={`text-${selectedElement.id}`}
-                    defaultValue={getElementValue(selectedElement)}
+                    defaultValue={selectedElement.element?.textContent?.trim() || ''}
                     className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#FF8C21] focus:border-transparent text-xs text-gray-800 resize-none"
                     rows={3}
                     onChange={(e) => {
-                      if (selectedElement.element) {
-                        selectedElement.element.textContent = e.target.value
-                      }
+                      if (selectedElement.element) selectedElement.element.textContent = e.target.value
                     }}
                   />
-                </div>
-              )}
-
-              {selectedElement.type === 'button' && (
-                <div className="space-y-2 mt-2 pt-2 border-t border-gray-100">
-                  <label className="block text-xs font-semibold text-gray-700">Link</label>
-                  <input
-                    key={`href-${selectedElement.id}`}
-                    type="url"
-                    defaultValue={selectedElement.element?.getAttribute('href') || ''}
-                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#FF8C21] focus:border-transparent text-xs text-gray-800"
-                    onChange={(e) => {
-                      if (selectedElement.element) {
-                        selectedElement.element.setAttribute('href', e.target.value)
-                      }
-                    }}
-                    placeholder="#contact"
-                  />
-                </div>
-              )}
-
-              {selectedElement.type === 'image' && (
-                <div className="space-y-2">
-                  <div className="text-[10px] text-gray-500 p-2 bg-gray-50 rounded-lg">
-                    Drag handles to resize, center to move
+                  <div className="flex items-center gap-1">
+                    <button
+                      className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 text-xs font-bold"
+                      onClick={() => {
+                        if (selectedElement.element) {
+                          const cs = getComputedStyle(selectedElement.element)
+                          selectedElement.element.style.fontWeight = cs.fontWeight === 'bold' || parseInt(cs.fontWeight) >= 700 ? 'normal' : 'bold'
+                        }
+                      }}
+                    >B</button>
+                    <button
+                      className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 text-xs italic"
+                      onClick={() => {
+                        if (selectedElement.element) {
+                          const cs = getComputedStyle(selectedElement.element)
+                          selectedElement.element.style.fontStyle = cs.fontStyle === 'italic' ? 'normal' : 'italic'
+                        }
+                      }}
+                    >I</button>
+                    <button
+                      className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 text-xs underline"
+                      onClick={() => {
+                        if (selectedElement.element) {
+                          const cs = getComputedStyle(selectedElement.element)
+                          selectedElement.element.style.textDecoration = cs.textDecoration === 'underline' ? 'none' : 'underline'
+                        }
+                      }}
+                    >U</button>
+                    <div className="w-px h-5 bg-gray-200 mx-1" />
+                    <button
+                      className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 text-xs"
+                      onClick={() => {
+                        if (selectedElement.element) selectedElement.element.style.textAlign = 'left'
+                      }}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M3 6h18M3 12h12M3 18h16" /></svg>
+                    </button>
+                    <button
+                      className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 text-xs"
+                      onClick={() => {
+                        if (selectedElement.element) selectedElement.element.style.textAlign = 'center'
+                      }}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M3 6h18M6 12h12M4 18h16" /></svg>
+                    </button>
+                    <button
+                      className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 text-xs"
+                      onClick={() => {
+                        if (selectedElement.element) selectedElement.element.style.textAlign = 'right'
+                      }}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M3 6h18M9 12h12M5 18h16" /></svg>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-gray-500 shrink-0">Size</label>
+                    <input
+                      type="text"
+                      defaultValue={(() => {
+                        if (!selectedElement.element) return ''
+                        const fs = getComputedStyle(selectedElement.element).fontSize
+                        return fs
+                      })()}
+                      className="flex-1 px-2 py-1 border border-gray-200 rounded text-xs"
+                      onChange={(e) => {
+                        if (selectedElement.element) selectedElement.element.style.fontSize = e.target.value
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-gray-500 shrink-0">Color</label>
+                    <input
+                      type="color"
+                      defaultValue={(() => {
+                        if (!selectedElement.element) return '#ffffff'
+                        const c = getComputedStyle(selectedElement.element).color
+                        return rgbToHex(c)
+                      })()}
+                      className="w-6 h-6 rounded cursor-pointer border-0"
+                      onChange={(e) => {
+                        if (selectedElement.element) selectedElement.element.style.color = e.target.value
+                      }}
+                    />
+                    <label className="text-[10px] text-gray-500 shrink-0">Opacity</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      defaultValue={(() => {
+                        if (!selectedElement.element) return 1
+                        return getComputedStyle(selectedElement.element).opacity
+                      })()}
+                      className="flex-1 h-1"
+                      onChange={(e) => {
+                        if (selectedElement.element) selectedElement.element.style.opacity = e.target.value
+                      }}
+                    />
                   </div>
                 </div>
               )}
 
+              {/* BUTTON ELEMENTS */}
+              {selectedElement.type === 'button' && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-gray-700">Text</label>
+                  <textarea
+                    key={`btn-text-${selectedElement.id}`}
+                    defaultValue={selectedElement.element?.textContent?.trim() || ''}
+                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#FF8C21] focus:border-transparent text-xs text-gray-800 resize-none"
+                    rows={2}
+                    onChange={(e) => {
+                      if (selectedElement.element) selectedElement.element.textContent = e.target.value
+                    }}
+                  />
+                  <label className="block text-xs font-semibold text-gray-700">Link</label>
+                  <input
+                    key={`btn-href-${selectedElement.id}`}
+                    type="url"
+                    defaultValue={selectedElement.element?.getAttribute('href') || ''}
+                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#FF8C21] focus:border-transparent text-xs text-gray-800"
+                    onChange={(e) => {
+                      if (selectedElement.element) selectedElement.element.setAttribute('href', e.target.value)
+                    }}
+                    placeholder="#contact"
+                  />
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-gray-500 shrink-0">BG</label>
+                    <input
+                      type="color"
+                      defaultValue={(() => {
+                        if (!selectedElement.element) return '#FF8C21'
+                        const bg = getComputedStyle(selectedElement.element).backgroundColor
+                        if (bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') return '#FF8C21'
+                        return rgbToHex(bg)
+                      })()}
+                      className="w-6 h-6 rounded cursor-pointer border-0"
+                      onChange={(e) => {
+                        if (selectedElement.element) selectedElement.element.style.backgroundColor = e.target.value
+                      }}
+                    />
+                    <label className="text-[10px] text-gray-500 shrink-0">Text</label>
+                    <input
+                      type="color"
+                      defaultValue={(() => {
+                        if (!selectedElement.element) return '#ffffff'
+                        return rgbToHex(getComputedStyle(selectedElement.element).color)
+                      })()}
+                      className="w-6 h-6 rounded cursor-pointer border-0"
+                      onChange={(e) => {
+                        if (selectedElement.element) selectedElement.element.style.color = e.target.value
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-gray-500 shrink-0">Opacity</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      defaultValue={(() => {
+                        if (!selectedElement.element) return 1
+                        return getComputedStyle(selectedElement.element).opacity
+                      })()}
+                      className="flex-1 h-1"
+                      onChange={(e) => {
+                        if (selectedElement.element) selectedElement.element.style.opacity = e.target.value
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* IMAGE / LOGO / GIF ELEMENTS */}
+              {selectedElement.type === 'image' && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-gray-700">Image URL</label>
+                  <input
+                    key={`img-src-${selectedElement.id}`}
+                    type="url"
+                    defaultValue={(() => {
+                      if (!selectedElement.element) return ''
+                      const img = selectedElement.element.querySelector('img')
+                      if (img) return (img as HTMLImageElement).src
+                      const bg = selectedElement.element.style.backgroundImage
+                      if (bg) return bg.match(/url\("?([^"]+)"?\)/)?.[1] || ''
+                      return selectedElement.element.getAttribute('src') || ''
+                    })()}
+                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#FF8C21] focus:border-transparent text-xs text-gray-800"
+                    onChange={(e) => {
+                      if (!selectedElement.element) return
+                      const img = selectedElement.element.querySelector('img')
+                      if (img) {
+                        (img as HTMLImageElement).src = e.target.value
+                      } else if (selectedElement.element.tagName === 'IMG') {
+                        (selectedElement.element as HTMLImageElement).src = e.target.value
+                      } else {
+                        selectedElement.element.style.backgroundImage = `url(${e.target.value})`
+                      }
+                    }}
+                    placeholder="/images/..."
+                  />
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-gray-500 shrink-0">Opacity</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      defaultValue={(() => {
+                        if (!selectedElement.element) return 1
+                        return getComputedStyle(selectedElement.element).opacity
+                      })()}
+                      className="flex-1 h-1"
+                      onChange={(e) => {
+                        if (selectedElement.element) selectedElement.element.style.opacity = e.target.value
+                      }}
+                    />
+                  </div>
+                  {selectedElement.element && (
+                    <a
+                      href={(() => {
+                        const img = selectedElement.element!.querySelector('img')
+                        if (img) return (img as HTMLImageElement).src
+                        return selectedElement.element!.getAttribute('src') || ''
+                      })()}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-100 rounded-lg text-xs text-gray-700 hover:bg-gray-200 transition"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      Download
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* LINK ELEMENTS */}
               {selectedElement.type === 'link' && (
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-gray-700">URL</label>
                   <input
-                    key={`url-${selectedElement.id}`}
+                    key={`link-url-${selectedElement.id}`}
                     type="url"
-                    defaultValue={getElementValue(selectedElement)}
+                    defaultValue={selectedElement.element?.getAttribute('href') || ''}
                     className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#FF8C21] focus:border-transparent text-xs text-gray-800"
                     onChange={(e) => {
-                      if (selectedElement.element) {
-                        selectedElement.element.setAttribute('href', e.target.value)
-                      }
+                      if (selectedElement.element) selectedElement.element.setAttribute('href', e.target.value)
                     }}
+                    placeholder="https://..."
+                  />
+                  <label className="block text-xs font-semibold text-gray-700">Text</label>
+                  <input
+                    key={`link-text-${selectedElement.id}`}
+                    type="text"
+                    defaultValue={selectedElement.element?.textContent?.trim() || ''}
+                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#FF8C21] focus:border-transparent text-xs text-gray-800"
+                    onChange={(e) => {
+                      if (selectedElement.element) selectedElement.element.textContent = e.target.value
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* BOX / SECTION / CONTAINER ELEMENTS */}
+              {(selectedElement.type === 'box' || selectedElement.type === 'section') && (
+                <div className="space-y-2">
+                  <div className="text-[10px] text-gray-500 p-2 bg-gray-50 rounded-lg">
+                    <div>Size: {Math.round(selectedElement.originalRect?.width || 0)} × {Math.round(selectedElement.originalRect?.height || 0)}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-gray-500 shrink-0">BG</label>
+                    <input
+                      type="color"
+                      defaultValue={(() => {
+                        if (!selectedElement.element) return '#000000'
+                        const bg = getComputedStyle(selectedElement.element).backgroundColor
+                        if (bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') return '#000000'
+                        return rgbToHex(bg)
+                      })()}
+                      className="w-6 h-6 rounded cursor-pointer border-0"
+                      onChange={(e) => {
+                        if (selectedElement.element) selectedElement.element.style.backgroundColor = e.target.value
+                      }}
+                    />
+                    <label className="text-[10px] text-gray-500 shrink-0">Opacity</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      defaultValue={(() => {
+                        if (!selectedElement.element) return 1
+                        return getComputedStyle(selectedElement.element).opacity
+                      })()}
+                      className="flex-1 h-1"
+                      onChange={(e) => {
+                        if (selectedElement.element) selectedElement.element.style.opacity = e.target.value
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* VIDEO ELEMENTS */}
+              {selectedElement.type === 'video' && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-gray-700">Video URL</label>
+                  <input
+                    key={`video-url-${selectedElement.id}`}
+                    type="url"
+                    defaultValue={(() => {
+                      if (!selectedElement.element) return ''
+                      const iframe = selectedElement.element.querySelector('iframe')
+                      if (iframe) return iframe.src
+                      return selectedElement.element.getAttribute('src') || ''
+                    })()}
+                    className="w-full px-2 py-1.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#FF8C21] focus:border-transparent text-xs text-gray-800"
+                    onChange={(e) => {
+                      if (!selectedElement.element) return
+                      const iframe = selectedElement.element.querySelector('iframe')
+                      if (iframe) iframe.src = e.target.value
+                    }}
+                    placeholder="https://youtube.com/embed/..."
                   />
                 </div>
               )}
