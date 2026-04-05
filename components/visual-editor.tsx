@@ -231,14 +231,11 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
   const getEditableAtPosition = useCallback((x: number, y: number): EditableElementData | null => {
     const elements = Array.from(editableElements.values())
-    console.log('[Editor] getEditableAtPosition checking', elements.length, 'registered elements')
     
     const elementsAtPoint = elements.filter(el => {
       if (!el.element) return false
       const rect = el.element.getBoundingClientRect()
-      const hit = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
-      if (hit) console.log('[Editor] Element at point:', el.id, rect)
-      return hit
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
     })
 
     if (elementsAtPoint.length > 0) {
@@ -261,7 +258,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         return depthB - depthA
       })
 
-      console.log('[Editor] Returning:', elementsAtPoint[0].id)
       return elementsAtPoint[0]
     }
 
@@ -813,16 +809,11 @@ export function VisualEditorOverlay() {
     const target = e.target as HTMLElement
     if (isEditorUI(target)) return
 
-    console.log('[Editor] PointerDown at', e.clientX, e.clientY, 'target:', target.tagName, target.getAttribute('data-edit-id'))
-    
     const editable = getEditableAtPosition(e.clientX, e.clientY)
-    
-    console.log('[Editor] Found editable:', editable?.id || 'none')
     
     if (editable) {
       e.preventDefault()
       e.stopPropagation()
-      console.log('[Editor] Selected:', editable.id)
       setSelectedId(editable.id)
       setOpenPanel(true)
     } else {
