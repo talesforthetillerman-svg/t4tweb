@@ -610,10 +610,20 @@ export function VisualEditorOverlay() {
       return
     }
 
-    // For absolute/fixed images and boxes, allow movement via transform
+    // For absolute/fixed images and boxes, allow movement + resize via transform
     if (isAbsolute && (isImage || isBox)) {
-      el.style.transform = `translate(${transform.x}px, ${transform.y}px)`
+      const scaleX = orig.width > 0 ? dimensions.width / orig.width : 1
+      const scaleY = orig.height > 0 ? dimensions.height / orig.height : 1
+      const hasResize = Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01
+      
+      if (hasResize) {
+        el.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${scaleX}, ${scaleY})`
+      } else {
+        el.style.transform = `translate(${transform.x}px, ${transform.y}px)`
+      }
       el.style.transformOrigin = 'top left'
+      // Ensure absolute elements stay visible above siblings
+      el.style.zIndex = '100'
       return
     }
 
@@ -631,13 +641,22 @@ export function VisualEditorOverlay() {
     const hasMove = transform.x !== 0 || transform.y !== 0
 
     if (isImage) {
-      // Image elements: only translate, preserve original dimensions
+      // Image elements: translate + high z-index to stay above background
       el.style.transform = `translate(${transform.x}px, ${transform.y}px)`
       el.style.transformOrigin = 'top left'
       el.style.position = 'relative'
-      el.style.zIndex = '1'
-      el.style.width = ''
-      el.style.height = ''
+      el.style.zIndex = '100'
+      // Only clear dimensions if actually resized
+      if (Math.abs(dimensions.width - orig.width) > 0.5) {
+        el.style.width = `${dimensions.width}px`
+      } else {
+        el.style.width = ''
+      }
+      if (Math.abs(dimensions.height - orig.height) > 0.5) {
+        el.style.height = `${dimensions.height}px`
+      } else {
+        el.style.height = ''
+      }
     } else if (isText && hasResize) {
       // For text and button elements, use scale transform to resize the content
       el.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${scaleX}, ${scaleY})`
@@ -673,7 +692,7 @@ export function VisualEditorOverlay() {
     }
   }, [isEditing, selectedElement?.id, selectedElement?.transform?.x, selectedElement?.transform?.y, selectedElement?.dimensions?.width, selectedElement?.dimensions?.height])
 
-  // Clean up styles when selection changes or editing stops
+    // Clean up styles when selection changes or editing stops
   useEffect(() => {
     if (!isEditing) return
     
@@ -692,6 +711,18 @@ export function VisualEditorOverlay() {
       })
     }
   }, [isEditing])
+
+  // Reset zIndex when element is deselected
+  useEffect(() => {
+    if (!selectedElement) {
+      // Reset all elements' z-index
+      editableElements.forEach((el) => {
+        if (el.element && el.element.style.zIndex === '100') {
+          el.element.style.zIndex = ''
+        }
+      })
+    }
+  }, [selectedElement, editableElements])
 
   const calculateSnapGuides = useCallback((x: number, y: number, w: number, h: number): { type: 'vertical' | 'horizontal'; position: number; start: number; end: number }[] => {
     if (!snapEnabled) return []
