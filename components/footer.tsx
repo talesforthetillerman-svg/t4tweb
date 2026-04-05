@@ -1,8 +1,114 @@
 "use client"
 
+import { useRef, useEffect } from "react"
 import Image from "next/image"
+import { useVisualEditor } from "@/components/visual-editor"
 
 export function Footer() {
+  const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
+  const footerRef = useRef<HTMLElement>(null)
+  const logoRef = useRef<HTMLDivElement>(null)
+  const descRef = useRef<HTMLParagraphElement>(null)
+  const ctaRef = useRef<HTMLAnchorElement>(null)
+  const copyrightRef = useRef<HTMLParagraphElement>(null)
+  const socialRefs = useRef<(HTMLAnchorElement | null)[]>([])
+
+  useEffect(() => {
+    if (!isEditing) return
+
+    if (footerRef.current) {
+      registerEditable({
+        id: 'footer-section',
+        type: 'section',
+        label: 'Footer Section',
+        parentId: null,
+        element: footerRef.current,
+        originalRect: footerRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: footerRef.current.offsetWidth, height: footerRef.current.offsetHeight },
+      })
+    }
+
+    if (logoRef.current) {
+      registerEditable({
+        id: 'footer-logo',
+        type: 'image',
+        label: 'Footer Logo',
+        parentId: null,
+        element: logoRef.current,
+        originalRect: logoRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: logoRef.current.offsetWidth, height: logoRef.current.offsetHeight },
+      })
+    }
+
+    if (descRef.current) {
+      registerEditable({
+        id: 'footer-description',
+        type: 'text',
+        label: 'Footer Description',
+        parentId: null,
+        element: descRef.current,
+        originalRect: descRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: descRef.current.offsetWidth, height: descRef.current.offsetHeight },
+      })
+    }
+
+    if (ctaRef.current) {
+      registerEditable({
+        id: 'footer-cta',
+        type: 'button',
+        label: 'Book the Band',
+        parentId: null,
+        element: ctaRef.current,
+        originalRect: ctaRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: ctaRef.current.offsetWidth, height: ctaRef.current.offsetHeight },
+      })
+    }
+
+    if (copyrightRef.current) {
+      registerEditable({
+        id: 'footer-copyright',
+        type: 'text',
+        label: 'Footer Copyright',
+        parentId: null,
+        element: copyrightRef.current,
+        originalRect: copyrightRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: copyrightRef.current.offsetWidth, height: copyrightRef.current.offsetHeight },
+      })
+    }
+
+    socialRefs.current.forEach((el, i) => {
+      if (el) {
+        registerEditable({
+          id: `footer-social-${i}`,
+          type: 'link',
+          label: `Footer Social: ${el.getAttribute('aria-label') || 'Link'}`,
+          parentId: null,
+          element: el,
+          originalRect: el.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: el.offsetWidth, height: el.offsetHeight },
+        })
+      }
+    })
+
+    return () => {
+      unregisterEditable('footer-section')
+      unregisterEditable('footer-logo')
+      unregisterEditable('footer-description')
+      unregisterEditable('footer-cta')
+      unregisterEditable('footer-copyright')
+      socialRefs.current.forEach((_, i) => {
+        unregisterEditable(`footer-social-${i}`)
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing])
+
   const currentYear = new Date().getFullYear()
 
   const streamingPlatforms = [
@@ -63,9 +169,10 @@ export function Footer() {
 
   return (
     <footer 
-      data-edit-id="footer"
+      ref={footerRef}
+      data-edit-id="footer-section"
       data-edit-type="section"
-      data-edit-label="Pie de página"
+      data-edit-label="Footer Section"
       className="bg-black"
     >
       <div className="h-8 bg-gradient-to-b from-black/40 to-black" />
@@ -73,9 +180,10 @@ export function Footer() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 text-center">
         
         <div 
+          ref={logoRef}
           data-edit-id="footer-logo"
           data-edit-type="image"
-          data-edit-label="Logo del pie de página"
+          data-edit-label="Footer Logo"
           className="mb-6"
         >
           <Image
@@ -88,9 +196,10 @@ export function Footer() {
         </div>
 
         <p 
+          ref={descRef}
           data-edit-id="footer-description"
           data-edit-type="text"
-          data-edit-label="Descripción del pie de página"
+          data-edit-label="Footer Description"
           className="text-lg text-white/70 mb-6 max-w-2xl mx-auto"
         >
           Berlin-based world music collective blending funk, soul, and reggae.
@@ -98,9 +207,10 @@ export function Footer() {
 
         <div className="mb-8">
           <a
+            ref={ctaRef}
             data-edit-id="footer-cta"
-            data-edit-type="link"
-            data-edit-label="Botón de contacto"
+            data-edit-type="button"
+            data-edit-label="Book the Band"
             href="#contact"
             className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-8 py-3 text-base font-bold text-white shadow-lg shadow-[#FF8C21]/30 hover:shadow-xl hover:shadow-[#FF8C21]/40 transition-all"
           >
@@ -109,13 +219,17 @@ export function Footer() {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-          {socialLinks.map((link) => (
+          {socialLinks.map((link, i) => (
             <a
               key={link.name}
+              ref={(el) => { socialRefs.current[i] = el }}
               href={link.href}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={link.name}
+              data-edit-id={`footer-social-${i}`}
+              data-edit-type="link"
+              data-edit-label={`Footer Social: ${link.name}`}
               className="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-primary transition-colors"
             >
               <link.icon />
@@ -125,9 +239,10 @@ export function Footer() {
 
         <div className="border-t border-white/10 pt-6">
           <p 
+            ref={copyrightRef}
             data-edit-id="footer-copyright"
             data-edit-type="text"
-            data-edit-label="Texto de derechos de autor"
+            data-edit-label="Footer Copyright"
             className="text-white/40 text-sm text-center"
           >
             &copy; {currentYear} Tales for the Tillerman
