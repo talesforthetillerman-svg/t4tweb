@@ -507,15 +507,25 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isEditing) return
-    const observer = new ResizeObserver(() => setRegistry(scanRegistry()))
+    const scheduleRegistryRefresh = () => {
+      if (registryRafRef.current !== null) window.cancelAnimationFrame(registryRafRef.current)
+      registryRafRef.current = window.requestAnimationFrame(() => {
+        setRegistry(scanRegistry())
+        registryRafRef.current = null
+      })
+    }
+    const observer = new ResizeObserver(scheduleRegistryRefresh)
     registry.forEach((entry) => observer.observe(entry.element))
-    const refresh = () => setRegistry(scanRegistry())
-    window.addEventListener("scroll", refresh, true)
-    window.addEventListener("resize", refresh)
+    window.addEventListener("scroll", scheduleRegistryRefresh, true)
+    window.addEventListener("resize", scheduleRegistryRefresh)
     return () => {
       observer.disconnect()
-      window.removeEventListener("scroll", refresh, true)
-      window.removeEventListener("resize", refresh)
+      window.removeEventListener("scroll", scheduleRegistryRefresh, true)
+      window.removeEventListener("resize", scheduleRegistryRefresh)
+      if (registryRafRef.current !== null) {
+        window.cancelAnimationFrame(registryRafRef.current)
+        registryRafRef.current = null
+      }
     }
   }, [isEditing, registry])
 
