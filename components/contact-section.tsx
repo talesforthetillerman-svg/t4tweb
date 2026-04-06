@@ -231,6 +231,7 @@ export function ContactSection() {
         ref={bgRef}
         data-editor-node-id="contact-bg-image"
         data-editor-node-type="background"
+        data-editor-media-kind="image"
         data-editor-node-label="Imagen de fondo contacto"
         className="absolute inset-0 -z-10"
       >
@@ -248,7 +249,7 @@ export function ContactSection() {
       <div className="section-photo-fade-bottom" />
 
       <div className="relative z-10 mx-auto w-full max-w-5xl min-h-screen flex flex-col justify-end">
-        <motion.div ref={headerRef} style={{ opacity, y }} className="mb-10 md:mb-12">
+        <motion.div ref={headerRef} style={isEditing ? undefined : { opacity, y }} className="mb-10 md:mb-12">
           <SectionHeader
             eyebrow="Contact"
             title="Book the Band"
@@ -267,12 +268,14 @@ export function ContactSection() {
             data-editor-node-type="card"
             data-editor-node-label="Contacto Email"
             data-editor-grouped="true"
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            whileHover={{ y: -2, scale: 1.01 }}
-            transition={{ duration: 0.45, type: "spring", stiffness: 320, damping: 22 }}
+            initial={isEditing ? false : { opacity: 0, x: -20 }}
+            whileInView={isEditing ? undefined : { opacity: 1, x: 0 }}
+            whileHover={isEditing ? undefined : { y: -2, scale: 1.01 }}
+            transition={isEditing ? undefined : { duration: 0.45, type: "spring", stiffness: 320, damping: 22 }}
             href={contactMethods[0].href}
-            className="group rounded-xl border border-border bg-card/90 p-4 md:p-5 lg:p-7 text-center shadow-md backdrop-blur-sm transition-all duration-300 hover:border-primary/45 hover:shadow-lg flex-1 max-w-xs"
+            className={`group rounded-xl border border-border bg-card/90 p-4 md:p-5 lg:p-7 text-center shadow-md backdrop-blur-sm flex-1 max-w-xs ${
+              isEditing ? "" : "transition-all duration-300 hover:border-primary/45 hover:shadow-lg"
+            }`}
           >
             <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/18 group-hover:bg-primary/26 md:mb-4 md:h-14 md:w-14">
               <EmailIcon className="h-6 w-6 text-primary md:h-7 md:w-7" />
@@ -321,14 +324,16 @@ export function ContactSection() {
             data-editor-node-type="card"
             data-editor-node-label="Contacto Telegram"
             data-editor-grouped="true"
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            whileHover={{ y: -2, scale: 1.01 }}
-            transition={{ duration: 0.45, type: "spring", stiffness: 320, damping: 22 }}
+            initial={isEditing ? false : { opacity: 0, x: 20 }}
+            whileInView={isEditing ? undefined : { opacity: 1, x: 0 }}
+            whileHover={isEditing ? undefined : { y: -2, scale: 1.01 }}
+            transition={isEditing ? undefined : { duration: 0.45, type: "spring", stiffness: 320, damping: 22 }}
             href={contactMethods[1].href}
             target="_blank"
             rel="noopener noreferrer"
-            className="group rounded-xl border border-border bg-card/90 p-4 md:p-5 lg:p-7 text-center shadow-md backdrop-blur-sm transition-all duration-300 hover:border-primary/45 hover:shadow-lg flex-1 max-w-xs"
+            className={`group rounded-xl border border-border bg-card/90 p-4 md:p-5 lg:p-7 text-center shadow-md backdrop-blur-sm flex-1 max-w-xs ${
+              isEditing ? "" : "transition-all duration-300 hover:border-primary/45 hover:shadow-lg"
+            }`}
           >
             <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/18 group-hover:bg-primary/26 md:mb-4 md:h-14 md:w-14">
               <TelegramIcon className="h-6 w-6 text-primary md:h-7 md:w-7" />
