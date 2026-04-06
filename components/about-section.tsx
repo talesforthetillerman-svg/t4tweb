@@ -161,6 +161,7 @@ Their performances balance musical depth with danceable power, bringing together
 5 musicians • Berlin-based • World music fusion • Live experience`
 
   const copyBio = async () => {
+    if (isEditing) return
     try {
       await navigator.clipboard.writeText(bioText)
       setCopied(true)
@@ -182,6 +183,7 @@ Their performances balance musical depth with danceable power, bringing together
         ref={bgRef}
         data-editor-node-id="about-bg-image"
         data-editor-node-type="background"
+        data-editor-media-kind="image"
         data-editor-node-label="Imagen de fondo"
         className="absolute inset-0 -z-10"
       >
@@ -201,7 +203,7 @@ Their performances balance musical depth with danceable power, bringing together
       {/* Contenido */}
       <div className="relative z-10 flex min-h-screen items-center justify-center px-6 sm:px-8">
         <motion.div 
-          style={{ opacity, y }} 
+          style={isEditing ? undefined : { opacity, y }} 
           className="mx-auto w-full max-w-4xl"
         >
           <div ref={headerRef}>
@@ -210,9 +212,8 @@ Their performances balance musical depth with danceable power, bringing together
               title="A Journey Through Sound"
               titleClassName="text-white"
               className="mb-10 max-w-4xl md:mb-12"
-              data-editor-node-id="about-header"
-              data-editor-node-type="text"
-              data-editor-node-label="Sección Sobre Nosotros"
+              dataEditId="about-header"
+              dataEditLabel="Sección Sobre Nosotros"
             />
           </div>
 
@@ -222,10 +223,10 @@ Their performances balance musical depth with danceable power, bringing together
             data-editor-node-id="about-text-card"
             data-editor-node-type="card"
             data-editor-node-label="About Text Card"
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.6, delay: 0.05 }}
+            initial={isEditing ? false : { opacity: 0, y: 16 }}
+            whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+            viewport={isEditing ? undefined : { once: true, amount: 0.2 }}
+            transition={isEditing ? undefined : { duration: 0.6, delay: 0.05 }}
             className="w-full rounded-3xl border border-white/10 bg-black/50 px-6 py-8 md:px-10 md:py-12 lg:px-12 lg:py-14 shadow-2xl backdrop-blur-md"
           >
             <div className="space-y-6 text-white md:space-y-8">
@@ -272,9 +273,9 @@ Their performances balance musical depth with danceable power, bringing together
               ref={copyButtonRef}
               type="button"
               onClick={copyBio}
-              whileTap={{ scale: 0.98 }}
-              animate={copied ? { scale: [1, 1.04, 1] } : { scale: 1 }}
-              transition={{ duration: 0.3 }}
+              whileTap={isEditing ? undefined : { scale: 0.98 }}
+              animate={isEditing ? undefined : (copied ? { scale: [1, 1.04, 1] } : { scale: 1 })}
+              transition={isEditing ? undefined : { duration: 0.3 }}
               data-editor-node-id="about-copy-button"
               data-editor-node-type="button"
               data-editor-node-label="Copy Bio Button"
