@@ -177,7 +177,7 @@ Their performances balance musical depth with danceable power, bringing together
       data-editor-node-id="about-section"
       data-editor-node-type="section"
       data-editor-node-label="Sección Sobre Nosotros"
-      className={`relative min-h-screen w-full overflow-hidden bg-black ${className}`}
+      className={`relative isolate min-h-screen w-full overflow-hidden bg-black ${className}`}
     >
       <div 
         ref={bgRef}
@@ -185,7 +185,7 @@ Their performances balance musical depth with danceable power, bringing together
         data-editor-node-type="background"
         data-editor-media-kind="image"
         data-editor-node-label="Imagen de fondo"
-        className="absolute inset-0 -z-10"
+        className="absolute inset-0 z-0"
       >
         <Image
           src="/images/about-bg-main.jpg"
@@ -196,9 +196,9 @@ Their performances balance musical depth with danceable power, bringing together
         />
       </div>
 
-      <div className="section-photo-scrim" />
-      <div className="section-photo-fade-top" />
-      <div className="section-photo-fade-bottom" />
+      <div className="section-photo-scrim z-10" />
+      <div className="section-photo-fade-top z-10" />
+      <div className="section-photo-fade-bottom z-10" />
 
       {/* Contenido */}
       <div className="relative z-10 flex min-h-screen items-center justify-center px-6 sm:px-8">

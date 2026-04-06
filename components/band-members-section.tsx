@@ -63,7 +63,7 @@ export function BandMembersSection() {
       data-editor-node-id="band-members-section"
       data-editor-node-type="section"
       data-editor-node-label="Sección Miembros de la Banda"
-      className="relative min-h-screen w-full overflow-hidden bg-black"
+      className="relative isolate min-h-screen w-full overflow-hidden bg-black"
     >
       {/* Fondo full width */}
       <div 
@@ -71,7 +71,7 @@ export function BandMembersSection() {
         data-editor-node-type="background"
         data-editor-media-kind="image"
         data-editor-node-label="Imagen de fondo banda"
-        className="absolute inset-0 -z-10"
+        className="absolute inset-0 z-0"
       >
         <Image
           src="/images/t4t-2.jpg"
@@ -82,12 +82,12 @@ export function BandMembersSection() {
       </div>
 
       {/* Gradiente superior */}
-      <div className="section-photo-fade-top" />
+      <div className="section-photo-fade-top z-10" />
 
       {/* Gradiente inferior */}
-      <div className="section-photo-fade-bottom" />
+      <div className="section-photo-fade-bottom z-10" />
 
-      <div className="section-photo-scrim" />
+      <div className="section-photo-scrim z-10" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div

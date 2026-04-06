@@ -709,6 +709,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
 function SelectionOverlay({ entry }: { entry: RuntimeEntry }) {
   const boxRef = useRef<HTMLDivElement>(null)
+  const isSection = entry.type === "section"
 
   useEffect(() => {
     let rafId: number | null = null
@@ -740,7 +741,11 @@ function SelectionOverlay({ entry }: { entry: RuntimeEntry }) {
     <div data-editor-overlay className="fixed inset-0 pointer-events-none z-[9990]">
       <div
         ref={boxRef}
-        className="absolute border-2 border-[#FF8C21] shadow-[0_0_0_1px_rgba(255,140,33,0.3),0_0_12px_rgba(255,140,33,0.15)]"
+        className={`absolute border-2 ${
+          isSection
+            ? "border-[#22c55e] shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_12px_rgba(34,197,94,0.2)]"
+            : "border-[#FF8C21] shadow-[0_0_0_1px_rgba(255,140,33,0.3),0_0_12px_rgba(255,140,33,0.15)]"
+        }`}
       >
         {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const).map((handle) => (
           <div

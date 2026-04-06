@@ -50,26 +50,6 @@ export function PressKitSection() {
       icon: LinkIcon,
       href: "https://linktr.ee/tales4tillerman",
     },
-    {
-      title: "Download Logo Pack",
-      description: "Transparent and monochrome variants",
-      icon: DownloadIcon,
-      href: "/images/logo-transparent.png",
-      download: true,
-    },
-    {
-      title: "Artist Links",
-      description: "Streaming and social destination links",
-      icon: LinkIcon,
-      href: "https://linktr.ee/tales4tillerman",
-    },
-    {
-      title: "Contact Sheet",
-      description: "Management and booking contacts",
-      icon: FolderIcon,
-      href: "/PressKit T40 2025.26_compressed.pdf",
-      download: true,
-    },
   ], [])
 
   const resourceVariants = {
