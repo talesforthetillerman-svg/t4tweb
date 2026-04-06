@@ -1,12 +1,16 @@
 "use client"
 
 import { Ribbons } from "@/components/Ribbons"
+import { useVisualEditor } from "@/components/visual-editor"
 
 export function RibbonsBlock() {
+  const { isEditing } = useVisualEditor()
+  if (isEditing) return null
+
   return (
     <div className="pointer-events-none fixed inset-0 z-[1]">
       <Ribbons
-        colors={["#972f0c"]}
+        colors={["#FF8C21"]}
         baseSpring={0.04}
         baseFriction={0.83}
         baseThickness={30}

@@ -599,8 +599,10 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       const navRect = navigationEntry.element.getBoundingClientRect()
       const insideNavigation = x >= navRect.left && x <= navRect.right && y >= navRect.top && y <= navRect.bottom
       if (insideNavigation) {
+        const navigationInnerEntry = candidates.find((c) => c.id === "navigation-inner")
         const navSpecificChild = candidates.find((c) => c.id !== "navigation" && c.id.startsWith("nav-") && c.type !== "section")
         if (navSpecificChild) return navSpecificChild
+        if (navigationInnerEntry) return navigationInnerEntry
         return navigationEntry
       }
     }
