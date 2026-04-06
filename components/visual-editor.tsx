@@ -43,6 +43,7 @@ interface EditorNode {
     href?: string
     src?: string
     alt?: string
+    videoUrl?: string
   }
   explicitSize: boolean
 }
@@ -223,6 +224,10 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
     const img = el.tagName === "IMG" ? (el as HTMLImageElement) : el.querySelector("img")
     content.src = img?.getAttribute("src") || ""
     content.alt = img?.getAttribute("alt") || ""
+    if (entry.type === "background") {
+      const iframe = el.querySelector("iframe")
+      content.videoUrl = iframe?.getAttribute("src") || ""
+    }
   }
   const cs = getComputedStyle(el)
   return {
@@ -235,7 +240,6 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
     style: {
       color: rgbToHex(cs.color),
       backgroundColor: cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)" ? rgbToHex(cs.backgroundColor) : "#000000",
-      opacity: Number(cs.opacity || "1"),
       fontSize: cs.fontSize,
       fontFamily: cs.fontFamily,
       fontWeight: cs.fontWeight,
@@ -331,9 +335,11 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     }
     if (node.type === "image" || node.type === "background") {
       const img = el.tagName === "IMG" ? (el as HTMLImageElement) : el.querySelector("img")
+      const iframe = node.type === "background" ? el.querySelector("iframe") : null
       if (img && node.content.src) img.src = node.content.src
       if (img && node.content.alt !== undefined) img.alt = node.content.alt
       if (!img && node.content.src) el.style.backgroundImage = `url(${node.content.src})`
+      if (iframe && node.content.videoUrl) iframe.setAttribute("src", node.content.videoUrl)
     }
     if (node.type === "section") {
       if (node.style.minHeight) el.style.minHeight = node.style.minHeight
@@ -571,16 +577,20 @@ function SelectionOverlay({ entry }: { entry: RuntimeEntry }) {
   const [rect, setRect] = useState(entry.rect)
 
   useEffect(() => {
-    const update = () => setRect(entry.element.getBoundingClientRect())
-    update()
-    const observer = new ResizeObserver(update)
+    let rafId: number | null = null
+    const tick = () => {
+      setRect(entry.element.getBoundingClientRect())
+      rafId = window.requestAnimationFrame(tick)
+    }
+    tick()
+    const syncOnce = () => setRect(entry.element.getBoundingClientRect())
+    const observer = new ResizeObserver(syncOnce)
     observer.observe(entry.element)
-    window.addEventListener("scroll", update, true)
-    window.addEventListener("resize", update)
+    window.addEventListener("resize", syncOnce)
     return () => {
       observer.disconnect()
-      window.removeEventListener("scroll", update, true)
-      window.removeEventListener("resize", update)
+      window.removeEventListener("resize", syncOnce)
+      if (rafId !== null) window.cancelAnimationFrame(rafId)
     }
   }, [entry])
 
@@ -766,7 +776,7 @@ export function VisualEditorOverlay() {
               </>
             )}
 
-            {(selectedNode.type === "image" || selectedNode.type === "background") && (
+            {(selectedNode.type === "image" || (selectedNode.type === "background" && !selectedNode.content.videoUrl)) && (
               <>
                 <label className="text-xs font-semibold">Asset</label>
                 <select
@@ -791,6 +801,12 @@ export function VisualEditorOverlay() {
                   }}
                 />
               </>
+            )}
+
+            {selectedNode.type === "background" && selectedNode.content.videoUrl && (
+              <div className="rounded border border-slate-200 bg-slate-50 p-2 text-[11px] text-slate-700">
+                Video background detected. Media URL is preserved in editor mode.
+              </div>
             )}
 
             {(selectedNode.type === "text" || selectedNode.type === "button") && (
