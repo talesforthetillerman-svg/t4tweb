@@ -195,6 +195,7 @@ export function HeroSection() {
             ref={heroBgRef}
             data-editor-node-id="hero-bg-image"
             data-editor-node-type="background"
+            data-editor-media-kind="image"
             data-editor-node-label="Hero Background"
             className="absolute inset-0"
           >
