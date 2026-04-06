@@ -13,6 +13,7 @@ import { SceneSection } from "@/components/scene-section"
 import { LatestReleaseSection } from "@/components/latest-release-section"
 import { useEffect, useRef } from "react"
 import { useVisualEditor } from "@/components/visual-editor"
+import { RibbonsBlock } from "@/components/ribbons-block"
 
 export default function Home() {
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
@@ -89,6 +90,7 @@ export default function Home() {
 
   return (
     <main className="relative bg-black">
+      <RibbonsBlock />
       <Navigation />
 
       <HeroSection />
