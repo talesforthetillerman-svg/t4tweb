@@ -3,6 +3,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
+import { MotionConfig } from "framer-motion"
 
 type NodeType = "section" | "background" | "card" | "text" | "button" | "image"
 
@@ -42,7 +43,12 @@ interface EditorNode {
     href?: string
     src?: string
     alt?: string
+    videoUrl?: string
   }
+  explicitContent: boolean
+  explicitStyle: boolean
+  explicitPosition: boolean
+  explicitSize: boolean
 }
 
 interface RuntimeEntry {
@@ -100,10 +106,12 @@ interface VisualEditorContextType {
 }
 
 type Command =
+  // Conflict-resolution baseline keeps geometry commit command for resize handles.
   | { type: "SELECT_NODE"; nodeId: string }
   | { type: "DESELECT_NODE" }
-  | { type: "MOVE_NODE"; nodeId: string; dx: number; dy: number }
-  | { type: "RESIZE_NODE"; nodeId: string; width: number; height: number }
+  | { type: "MOVE_NODE"; nodeId: string; dx: number; dy: number; transient?: boolean }
+  | { type: "RESIZE_NODE"; nodeId: string; width: number; height: number; transient?: boolean }
+  | { type: "SET_NODE_GEOMETRY"; nodeId: string; x: number; y: number; width: number; height: number; transient?: boolean }
   | { type: "UPDATE_TEXT"; nodeId: string; patch: Partial<EditorNode["content"] & EditorNode["style"]> }
   | { type: "UPDATE_BUTTON"; nodeId: string; patch: Partial<EditorNode["content"] & EditorNode["style"]> }
   | { type: "UPDATE_IMAGE"; nodeId: string; patch: Partial<EditorNode["content"] & EditorNode["style"]> }
@@ -114,6 +122,8 @@ type Command =
   | { type: "COPY_NODE"; nodeId: string }
   | { type: "CUT_NODE"; nodeId: string }
   | { type: "PASTE_NODE"; targetNodeId?: string }
+  | { type: "BEGIN_TRANSACTION" }
+  | { type: "END_TRANSACTION" }
 
 const typePriority: Record<NodeType, number> = {
   button: 1,
@@ -180,6 +190,7 @@ function scanRegistry(): Map<string, RuntimeEntry> {
   const map = new Map<string, RuntimeEntry>()
   const elements = document.querySelectorAll<HTMLElement>("[data-editor-node-id]")
   elements.forEach((el) => {
+    if (el.dataset.editorDeleted === "true") return
     const id = el.dataset.editorNodeId
     if (!id) return
     const rect = el.getBoundingClientRect()
@@ -219,6 +230,10 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
     const img = el.tagName === "IMG" ? (el as HTMLImageElement) : el.querySelector("img")
     content.src = img?.getAttribute("src") || ""
     content.alt = img?.getAttribute("alt") || ""
+    if (entry.type === "background") {
+      const iframe = el.querySelector("iframe")
+      content.videoUrl = iframe?.getAttribute("src") || ""
+    }
   }
   const cs = getComputedStyle(el)
   return {
@@ -231,7 +246,6 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
     style: {
       color: rgbToHex(cs.color),
       backgroundColor: cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)" ? rgbToHex(cs.backgroundColor) : "#000000",
-      opacity: Number(cs.opacity || "1"),
       fontSize: cs.fontSize,
       fontFamily: cs.fontFamily,
       fontWeight: cs.fontWeight,
@@ -242,6 +256,10 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
       paddingBottom: cs.paddingBottom,
     },
     content,
+    explicitContent: false,
+    explicitStyle: false,
+    explicitPosition: false,
+    explicitSize: false,
   }
 }
 
@@ -254,6 +272,11 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<Map<string, EditorNode>[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const clipboardRef = useRef<EditorNode | null>(null)
+  const registryRafRef = useRef<number | null>(null)
+  const historyRef = useRef<Map<string, EditorNode>[]>([])
+  const historyIndexRef = useRef(-1)
+  const transactionRef = useRef<{ active: boolean; baseline: Map<string, EditorNode> | null }>({ active: false, baseline: null })
+  const deletedIdsRef = useRef<Set<string>>(new Set())
 
   const assets = useMemo<AssetItem[]>(() => {
     if (typeof document === "undefined") return []
@@ -262,14 +285,16 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   }, [isEditing])
 
   const snapshot = useCallback((state: Map<string, EditorNode>) => {
-    setHistory((prev) => {
-      const next = prev.slice(0, historyIndex + 1)
-      next.push(new Map(state))
-      if (next.length > 80) next.shift()
-      return next
-    })
-    setHistoryIndex((prev) => Math.min(prev + 1, 79))
-  }, [historyIndex])
+    const base = historyRef.current.slice(0, historyIndexRef.current + 1)
+    base.push(new Map(state))
+    if (base.length > 80) {
+      base.shift()
+    }
+    historyRef.current = base
+    historyIndexRef.current = base.length - 1
+    setHistory(base)
+    setHistoryIndex(base.length - 1)
+  }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -293,37 +318,65 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   const applyNodeToDom = useCallback((node: EditorNode, entry: RuntimeEntry) => {
     const el = entry.element
     const g = node.geometry
-    el.style.transform = `translate(${g.x}px, ${g.y}px)`
-    el.style.transformOrigin = "top left"
-    el.style.width = `${Math.max(8, g.width)}px`
-    el.style.height = `${Math.max(8, g.height)}px`
+    const hasManagedTransform = el.dataset.editorManagedTransform === "true"
+    const hasManagedSize = el.dataset.editorManagedSize === "true"
+    if (node.explicitPosition) {
+      el.style.transform = `translate(${g.x}px, ${g.y}px)`
+      el.style.transformOrigin = "top left"
+      el.dataset.editorManagedTransform = "true"
+    } else {
+      if (hasManagedTransform) {
+        el.style.removeProperty("transform")
+        el.style.removeProperty("transform-origin")
+        delete el.dataset.editorManagedTransform
+      }
+    }
+    if (node.explicitSize) {
+      el.style.width = `${Math.max(8, g.width)}px`
+      el.style.height = `${Math.max(8, g.height)}px`
+      el.dataset.editorManagedSize = "true"
+    } else {
+      if (hasManagedSize) {
+        el.style.removeProperty("width")
+        el.style.removeProperty("height")
+        delete el.dataset.editorManagedSize
+      }
+    }
 
-    if (node.style.opacity !== undefined) el.style.opacity = String(node.style.opacity)
+    if (node.explicitStyle && node.style.opacity !== undefined) el.style.opacity = String(node.style.opacity)
     if (node.type === "text" || node.type === "button") {
-      if (node.content.text !== undefined) el.textContent = node.content.text
-      if (node.style.color) el.style.color = node.style.color
-      if (node.style.fontSize) el.style.fontSize = node.style.fontSize
-      if (node.style.fontFamily) el.style.fontFamily = node.style.fontFamily
-      if (node.style.fontWeight) el.style.fontWeight = node.style.fontWeight
-      if (node.style.fontStyle) el.style.fontStyle = node.style.fontStyle
-      if (node.style.textDecoration) el.style.textDecoration = node.style.textDecoration
+      if (node.explicitContent && node.content.text !== undefined) el.textContent = node.content.text
+      if (node.explicitStyle) {
+        if (node.style.color) el.style.color = node.style.color
+        if (node.style.fontSize) el.style.fontSize = node.style.fontSize
+        if (node.style.fontFamily) el.style.fontFamily = node.style.fontFamily
+        if (node.style.fontWeight) el.style.fontWeight = node.style.fontWeight
+        if (node.style.fontStyle) el.style.fontStyle = node.style.fontStyle
+        if (node.style.textDecoration) el.style.textDecoration = node.style.textDecoration
+      }
     }
     if (node.type === "button") {
-      if (node.content.href !== undefined && (el.tagName === "A" || el.tagName === "BUTTON")) {
+      if (node.explicitContent && node.content.href !== undefined && (el.tagName === "A" || el.tagName === "BUTTON")) {
         el.setAttribute("href", node.content.href)
       }
-      if (node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
+      if (node.explicitStyle && node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
     }
     if (node.type === "image" || node.type === "background") {
       const img = el.tagName === "IMG" ? (el as HTMLImageElement) : el.querySelector("img")
-      if (img && node.content.src) img.src = node.content.src
-      if (img && node.content.alt !== undefined) img.alt = node.content.alt
-      if (!img && node.content.src) el.style.backgroundImage = `url(${node.content.src})`
+      const iframe = node.type === "background" ? el.querySelector("iframe") : null
+      if (node.explicitContent) {
+        if (img && node.content.src) img.src = node.content.src
+        if (img && node.content.alt !== undefined) img.alt = node.content.alt
+        if (!img && node.content.src) el.style.backgroundImage = `url(${node.content.src})`
+        if (iframe && node.content.videoUrl) iframe.setAttribute("src", node.content.videoUrl)
+      }
     }
     if (node.type === "section") {
-      if (node.style.minHeight) el.style.minHeight = node.style.minHeight
-      if (node.style.paddingTop) el.style.paddingTop = node.style.paddingTop
-      if (node.style.paddingBottom) el.style.paddingBottom = node.style.paddingBottom
+      if (node.explicitStyle) {
+        if (node.style.minHeight) el.style.minHeight = node.style.minHeight
+        if (node.style.paddingTop) el.style.paddingTop = node.style.paddingTop
+        if (node.style.paddingBottom) el.style.paddingBottom = node.style.paddingBottom
+      }
     }
   }, [])
 
@@ -345,20 +398,48 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         next.set(nodeId, updater(node))
       }
 
+      let shouldSnapshot = true
       switch (command.type) {
         case "SELECT_NODE":
           setSelectedId(command.nodeId)
           setOpenPanel(true)
+          shouldSnapshot = false
           return next
         case "DESELECT_NODE":
           setSelectedId(null)
           setOpenPanel(false)
+          shouldSnapshot = false
           return next
+        case "BEGIN_TRANSACTION":
+          transactionRef.current = { active: true, baseline: new Map(prev) }
+          shouldSnapshot = false
+          return next
+        case "END_TRANSACTION": {
+          const tx = transactionRef.current
+          transactionRef.current = { active: false, baseline: null }
+          shouldSnapshot = false
+          if (!tx.active || !tx.baseline) return next
+          const before = JSON.stringify(Array.from(tx.baseline.entries()))
+          const after = JSON.stringify(Array.from(next.entries()))
+          if (before !== after) snapshot(next)
+          return next
+        }
         case "MOVE_NODE":
-          patchNode(command.nodeId, (n) => ({ ...n, geometry: { ...n.geometry, x: n.geometry.x + command.dx, y: n.geometry.y + command.dy } }))
+          patchNode(command.nodeId, (n) => ({ ...n, explicitPosition: true, geometry: { ...n.geometry, x: n.geometry.x + command.dx, y: n.geometry.y + command.dy } }))
+          shouldSnapshot = !command.transient && !transactionRef.current.active
           break
         case "RESIZE_NODE":
-          patchNode(command.nodeId, (n) => ({ ...n, geometry: { ...n.geometry, width: command.width, height: command.height } }))
+          patchNode(command.nodeId, (n) => ({ ...n, explicitSize: true, geometry: { ...n.geometry, width: command.width, height: command.height } }))
+          shouldSnapshot = !command.transient && !transactionRef.current.active
+          break
+        case "SET_NODE_GEOMETRY":
+          patchNode(command.nodeId, (n) => ({
+            ...n,
+            explicitPosition: true,
+            explicitSize: true,
+            geometry: { ...n.geometry, x: command.x, y: command.y, width: command.width, height: command.height },
+          }))
+          shouldSnapshot = !command.transient && !transactionRef.current.active
           break
         case "UPDATE_TEXT":
         case "UPDATE_BUTTON":
@@ -369,15 +450,31 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
           patchNode(command.nodeId, (n) => {
             const content: EditorNode["content"] = { ...n.content }
             const style = { ...n.style }
+            let isContentEdit = !!n.explicitContent
+            let isStyleEdit = !!n.explicitStyle
             Object.entries(command.patch).forEach(([k, v]) => {
-              if (["text", "href", "src", "alt"].includes(k)) (content as Record<string, unknown>)[k] = v
-              else (style as Record<string, unknown>)[k] = v
+              if (["text", "href", "src", "alt", "videoUrl"].includes(k)) {
+                isContentEdit = true;
+                (content as Record<string, unknown>)[k] = v
+              }
+              else {
+                isStyleEdit = true;
+                (style as Record<string, unknown>)[k] = v
+              }
             })
-            return { ...n, content, style }
+            return { ...n, content, style, explicitContent: isContentEdit, explicitStyle: isStyleEdit }
           })
           break
         }
         case "DELETE_NODE":
+          {
+            const entry = registry.get(command.nodeId)
+            if (entry?.element) {
+              entry.element.dataset.editorDeleted = "true"
+              entry.element.style.display = "none"
+              deletedIdsRef.current.add(command.nodeId)
+            }
+          }
           next.delete(command.nodeId)
           if (selectedId === command.nodeId) {
             setSelectedId(null)
@@ -392,6 +489,12 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         case "CUT_NODE": {
           const node = next.get(command.nodeId)
           if (node) clipboardRef.current = structuredClone(node)
+          const entry = registry.get(command.nodeId)
+          if (entry?.element) {
+            entry.element.dataset.editorDeleted = "true"
+            entry.element.style.display = "none"
+            deletedIdsRef.current.add(command.nodeId)
+          }
           next.delete(command.nodeId)
           if (selectedId === command.nodeId) {
             setSelectedId(null)
@@ -403,7 +506,23 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
           const clip = clipboardRef.current
           if (!clip) break
           const id = `${clip.id}-copy-${Date.now()}`
-          next.set(id, { ...structuredClone(clip), id, geometry: { ...clip.geometry, x: clip.geometry.x + 20, y: clip.geometry.y + 20 } })
+          const sourceEntry = registry.get(clip.id)
+          if (sourceEntry?.element) {
+            const clone = sourceEntry.element.cloneNode(true)
+            if (clone instanceof HTMLElement) {
+              clone.dataset.editorNodeId = id
+              clone.dataset.editorManagedTransform = "true"
+              clone.querySelectorAll<HTMLElement>("[data-editor-node-id]").forEach((child) => {
+                if (child === clone) return
+                delete child.dataset.editorNodeId
+                delete child.dataset.editorNodeType
+                delete child.dataset.editorNodeLabel
+                delete child.dataset.editorGrouped
+              })
+              sourceEntry.element.insertAdjacentElement("afterend", clone)
+            }
+          }
+          next.set(id, { ...structuredClone(clip), id, geometry: { ...clip.geometry, x: clip.geometry.x + 24, y: clip.geometry.y + 24 }, explicitPosition: true })
           setSelectedId(id)
           setOpenPanel(true)
           break
@@ -412,24 +531,28 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
           break
       }
 
-      snapshot(next)
+      if (shouldSnapshot && !transactionRef.current.active) snapshot(next)
       return next
     })
-  }, [selectedId, snapshot])
+  }, [registry, selectedId, snapshot])
 
   const undo = useCallback(() => {
-    if (historyIndex <= 0) return
-    const idx = historyIndex - 1
+    if (historyIndexRef.current <= 0) return
+    const idx = historyIndexRef.current - 1
+    historyIndexRef.current = idx
     setHistoryIndex(idx)
-    setNodes(new Map(history[idx]))
-  }, [history, historyIndex])
+    const nextState = historyRef.current[idx]
+    if (nextState) setNodes(new Map(nextState))
+  }, [])
 
   const redo = useCallback(() => {
-    if (historyIndex >= history.length - 1) return
-    const idx = historyIndex + 1
+    if (historyIndexRef.current >= historyRef.current.length - 1) return
+    const idx = historyIndexRef.current + 1
+    historyIndexRef.current = idx
     setHistoryIndex(idx)
-    setNodes(new Map(history[idx]))
-  }, [history, historyIndex])
+    const nextState = historyRef.current[idx]
+    if (nextState) setNodes(new Map(nextState))
+  }, [])
 
   const getEditableAtPosition = useCallback((x: number, y: number): RuntimeEntry | null => {
     const els = document.elementsFromPoint(x, y)
@@ -449,6 +572,13 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     candidates.sort((a, b) => typePriority[a.type] - typePriority[b.type])
 
     const best = candidates[0]
+    if (best) {
+      const groupedAncestor = best.element.parentElement?.closest<HTMLElement>("[data-editor-grouped='true'][data-editor-node-id]")
+      if (groupedAncestor?.dataset.editorNodeId && groupedAncestor.dataset.editorNodeId !== best.id) {
+        const groupedEntry = registry.get(groupedAncestor.dataset.editorNodeId)
+        if (groupedEntry) return groupedEntry
+      }
+    }
     if (best.type !== "section") return best
 
     const child = candidates.find((c) => c.type !== "section")
@@ -459,15 +589,25 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isEditing) return
-    const observer = new ResizeObserver(() => setRegistry(scanRegistry()))
+    const scheduleRegistryRefresh = () => {
+      if (registryRafRef.current !== null) window.cancelAnimationFrame(registryRafRef.current)
+      registryRafRef.current = window.requestAnimationFrame(() => {
+        setRegistry(scanRegistry())
+        registryRafRef.current = null
+      })
+    }
+    const observer = new ResizeObserver(scheduleRegistryRefresh)
     registry.forEach((entry) => observer.observe(entry.element))
-    const refresh = () => setRegistry(scanRegistry())
-    window.addEventListener("scroll", refresh, true)
-    window.addEventListener("resize", refresh)
+    window.addEventListener("scroll", scheduleRegistryRefresh, true)
+    window.addEventListener("resize", scheduleRegistryRefresh)
     return () => {
       observer.disconnect()
-      window.removeEventListener("scroll", refresh, true)
-      window.removeEventListener("resize", refresh)
+      window.removeEventListener("scroll", scheduleRegistryRefresh, true)
+      window.removeEventListener("resize", scheduleRegistryRefresh)
+      if (registryRafRef.current !== null) {
+        window.cancelAnimationFrame(registryRafRef.current)
+        registryRafRef.current = null
+      }
     }
   }, [isEditing, registry])
 
@@ -520,32 +660,69 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     getEditableAtPosition,
   }
 
-  return <VisualEditorContext.Provider value={value}>{children}</VisualEditorContext.Provider>
+  return (
+    <VisualEditorContext.Provider value={value}>
+      <MotionConfig reducedMotion={isEditing ? "always" : "never"}>
+        {children}
+      </MotionConfig>
+    </VisualEditorContext.Provider>
+  )
 }
 
 function SelectionOverlay({ entry }: { entry: RuntimeEntry }) {
-  const [rect, setRect] = useState(entry.rect)
+  const boxRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const update = () => setRect(entry.element.getBoundingClientRect())
-    update()
-    const observer = new ResizeObserver(update)
+    let rafId: number | null = null
+    const applyRect = () => {
+      const rect = entry.element.getBoundingClientRect()
+      if (!boxRef.current) return
+      boxRef.current.style.left = `${rect.left}px`
+      boxRef.current.style.top = `${rect.top}px`
+      boxRef.current.style.width = `${rect.width}px`
+      boxRef.current.style.height = `${rect.height}px`
+    }
+    const tick = () => {
+      applyRect()
+      rafId = window.requestAnimationFrame(tick)
+    }
+    tick()
+    const syncOnce = () => applyRect()
+    const observer = new ResizeObserver(syncOnce)
     observer.observe(entry.element)
-    window.addEventListener("scroll", update, true)
-    window.addEventListener("resize", update)
+    window.addEventListener("resize", syncOnce)
     return () => {
       observer.disconnect()
-      window.removeEventListener("scroll", update, true)
-      window.removeEventListener("resize", update)
+      window.removeEventListener("resize", syncOnce)
+      if (rafId !== null) window.cancelAnimationFrame(rafId)
     }
   }, [entry])
 
   return createPortal(
     <div data-editor-overlay className="fixed inset-0 pointer-events-none z-[9990]">
       <div
+        ref={boxRef}
         className="absolute border-2 border-[#FF8C21] shadow-[0_0_0_1px_rgba(255,140,33,0.3),0_0_12px_rgba(255,140,33,0.15)]"
-        style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
-      />
+      >
+        {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const).map((handle) => (
+          <div
+            key={handle}
+            data-editor-resize-handle={handle}
+            data-editor-resize-node-id={entry.id}
+            className={`absolute h-3 w-3 rounded-sm border border-white bg-[#FF8C21] shadow ${
+              handle === "nw" ? "-left-2 -top-2 cursor-nwse-resize" :
+              handle === "n" ? "left-1/2 -top-2 -translate-x-1/2 cursor-ns-resize" :
+              handle === "ne" ? "-right-2 -top-2 cursor-nesw-resize" :
+              handle === "e" ? "-right-2 top-1/2 -translate-y-1/2 cursor-ew-resize" :
+              handle === "se" ? "-bottom-2 -right-2 cursor-nwse-resize" :
+              handle === "s" ? "bottom-[-0.5rem] left-1/2 -translate-x-1/2 cursor-ns-resize" :
+              handle === "sw" ? "-bottom-2 -left-2 cursor-nesw-resize" :
+              "-left-2 top-1/2 -translate-y-1/2 cursor-ew-resize"
+            }`}
+            style={{ pointerEvents: "auto" }}
+          />
+        ))}
+      </div>
     </div>,
     document.body
   )
@@ -556,8 +733,19 @@ export function VisualEditorOverlay() {
 
   const selectedEntry = selectedId ? registry.get(selectedId) || null : null
   const selectedNode = selectedId ? nodes.get(selectedId) || null : null
+  const exitEditor = () => {
+    setIsEditing(false)
+    window.location.reload()
+  }
 
-  const pointerRef = useRef<{ mode: "move" | "resize" | null; start: Point; origin: NodeGeometry | null }>({ mode: null, start: { x: 0, y: 0 }, origin: null })
+  const pointerRef = useRef<{
+    mode: "move" | "resize" | null
+    start: Point
+    origin: NodeGeometry | null
+    handle: "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw" | null
+    nodeId: string | null
+    lastGeometry: NodeGeometry | null
+  }>({ mode: null, start: { x: 0, y: 0 }, origin: null, handle: null, nodeId: null, lastGeometry: null })
 
   useEffect(() => {
     if (!isEditing) return
@@ -565,37 +753,124 @@ export function VisualEditorOverlay() {
 
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as HTMLElement
+      const handleEl = target.closest<HTMLElement>("[data-editor-resize-handle]")
+      if (handleEl) {
+        e.preventDefault()
+        e.stopPropagation()
+        const handle = (handleEl.dataset.editorResizeHandle || null) as "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw" | null
+        const resizeNodeId = handleEl.dataset.editorResizeNodeId || selectedId
+        if (!resizeNodeId) return
+        const n = nodes.get(resizeNodeId)
+        if (!n || !handle) return
+        dispatch({ type: "SELECT_NODE", nodeId: resizeNodeId })
+        dispatch({ type: "BEGIN_TRANSACTION" })
+        pointerRef.current = {
+          mode: "resize",
+          start: { x: e.clientX, y: e.clientY },
+          origin: { ...n.geometry },
+          handle,
+          nodeId: resizeNodeId,
+          lastGeometry: { ...n.geometry },
+        }
+        return
+      }
       if (target.closest("[data-editor-toolbar]") || target.closest("[data-editor-panel]") || target.closest("[data-editor-overlay]")) return
       const hit = getEditableAtPosition(e.clientX, e.clientY)
       if (hit) {
         e.preventDefault()
+        e.stopPropagation()
         dispatch({ type: "SELECT_NODE", nodeId: hit.id })
+        dispatch({ type: "BEGIN_TRANSACTION" })
         const n = nodes.get(hit.id)
-        pointerRef.current = { mode: "move", start: { x: e.clientX, y: e.clientY }, origin: n ? { ...n.geometry } : null }
+        pointerRef.current = { mode: "move", start: { x: e.clientX, y: e.clientY }, origin: n ? { ...n.geometry } : null, handle: null, nodeId: hit.id, lastGeometry: n ? { ...n.geometry } : null }
       } else {
         dispatch({ type: "DESELECT_NODE" })
       }
     }
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!selectedId) return
       const state = pointerRef.current
-      if (!state.mode || !state.origin) return
+      if (!state.mode || !state.origin || !state.nodeId) return
       const dx = e.clientX - state.start.x
       const dy = e.clientY - state.start.y
       if (state.mode === "move") {
-        dispatch({ type: "MOVE_NODE", nodeId: selectedId, dx, dy })
+        dispatch({ type: "MOVE_NODE", nodeId: state.nodeId, dx, dy, transient: true })
         pointerRef.current.start = { x: e.clientX, y: e.clientY }
+      } else if (state.mode === "resize" && state.origin && state.nodeId && state.handle) {
+        const handle = state.handle
+        let nextX = state.origin.x
+        let nextY = state.origin.y
+        let nextWidth = state.origin.width
+        let nextHeight = state.origin.height
+
+        if (handle.includes("e")) nextWidth = state.origin.width + dx
+        if (handle.includes("w")) {
+          nextWidth = state.origin.width - dx
+          nextX = state.origin.x + dx
+        }
+        if (handle.includes("s")) nextHeight = state.origin.height + dy
+        if (handle.includes("n")) {
+          nextHeight = state.origin.height - dy
+          nextY = state.origin.y + dy
+        }
+
+        if (handle.length === 2) {
+          const ratio = state.origin.width / Math.max(1, state.origin.height)
+          const scale = Math.max(nextWidth / Math.max(1, state.origin.width), nextHeight / Math.max(1, state.origin.height))
+          nextWidth = state.origin.width * scale
+          nextHeight = nextWidth / ratio
+          if (handle.includes("w")) nextX = state.origin.x + (state.origin.width - nextWidth)
+          if (handle.includes("n")) nextY = state.origin.y + (state.origin.height - nextHeight)
+        }
+
+        nextWidth = Math.max(8, nextWidth)
+        nextHeight = Math.max(8, nextHeight)
+
+        const geometry: NodeGeometry = { x: nextX, y: nextY, width: nextWidth, height: nextHeight }
+        pointerRef.current.lastGeometry = geometry
+        dispatch({ type: "SET_NODE_GEOMETRY", nodeId: state.nodeId, ...geometry, transient: true })
       }
     }
 
     const onPointerUp = () => {
+      const state = pointerRef.current
+      if (state.mode === "resize" && state.nodeId && state.lastGeometry) {
+        const g = state.lastGeometry
+        dispatch({ type: "SET_NODE_GEOMETRY", nodeId: state.nodeId, x: g.x, y: g.y, width: g.width, height: g.height })
+      }
       pointerRef.current.mode = null
       pointerRef.current.origin = null
+      pointerRef.current.handle = null
+      pointerRef.current.nodeId = null
+      pointerRef.current.lastGeometry = null
+      dispatch({ type: "END_TRANSACTION" })
+    }
+
+    const shouldBlockPublicAction = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) return false
+      if (target.closest("[data-editor-toolbar]") || target.closest("[data-editor-panel]") || target.closest("[data-editor-overlay]")) return false
+      if (target.closest("[data-editor-node-id]")) return true
+      if (target.closest("a,button,[role='button'],form")) return true
+      return false
+    }
+
+    const blockPublicAction = (e: Event) => {
+      if (!shouldBlockPublicAction(e.target)) return
+      e.preventDefault()
+      e.stopPropagation()
+      if ("stopImmediatePropagation" in e) {
+        e.stopImmediatePropagation()
+      }
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (isEditingInput(e.target)) return
+      const isActivation = e.key === "Enter" || e.key === " "
+      if (isActivation && shouldBlockPublicAction(e.target)) {
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
         e.preventDefault()
         undo()
@@ -622,12 +897,28 @@ export function VisualEditorOverlay() {
     document.addEventListener("pointerdown", onPointerDown, true)
     document.addEventListener("pointermove", onPointerMove)
     document.addEventListener("pointerup", onPointerUp)
+    document.addEventListener("mousedown", blockPublicAction, true)
+    document.addEventListener("mouseup", blockPublicAction, true)
+    document.addEventListener("touchend", blockPublicAction, true)
+    document.addEventListener("click", blockPublicAction, true)
+    document.addEventListener("auxclick", blockPublicAction, true)
+    document.addEventListener("contextmenu", blockPublicAction, true)
+    document.addEventListener("dragstart", blockPublicAction, true)
+    document.addEventListener("submit", blockPublicAction, true)
     window.addEventListener("keydown", onKeyDown)
 
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true)
       document.removeEventListener("pointermove", onPointerMove)
       document.removeEventListener("pointerup", onPointerUp)
+      document.removeEventListener("mousedown", blockPublicAction, true)
+      document.removeEventListener("mouseup", blockPublicAction, true)
+      document.removeEventListener("touchend", blockPublicAction, true)
+      document.removeEventListener("click", blockPublicAction, true)
+      document.removeEventListener("auxclick", blockPublicAction, true)
+      document.removeEventListener("contextmenu", blockPublicAction, true)
+      document.removeEventListener("dragstart", blockPublicAction, true)
+      document.removeEventListener("submit", blockPublicAction, true)
       window.removeEventListener("keydown", onKeyDown)
       document.body.removeAttribute("data-editor-mode")
     }
@@ -652,13 +943,13 @@ export function VisualEditorOverlay() {
         <button onClick={undo} disabled={!canUndo}>Undo</button>
         <button onClick={redo} disabled={!canRedo}>Redo</button>
         <button onClick={() => dispatch({ type: "DESELECT_NODE" })}>Deselect</button>
-        <button onClick={() => setIsEditing(false)}>Exit</button>
+        <button onClick={exitEditor}>Exit</button>
       </div>
 
       {selectedEntry && <SelectionOverlay entry={selectedEntry} />}
 
       {openPanel && selectedNode && (
-        <div data-editor-panel className="fixed top-16 right-3 z-[9997] w-72 rounded-xl bg-white shadow-2xl">
+        <div data-editor-panel className="fixed top-16 right-3 z-[9997] w-72 rounded-xl bg-white text-slate-900 shadow-2xl">
           <div className="bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-3 py-2 text-white">
             <div className="flex items-center justify-between">
               <div>
@@ -669,7 +960,7 @@ export function VisualEditorOverlay() {
             </div>
           </div>
 
-          <div className="p-3 space-y-2">
+          <div className="space-y-2 p-3 text-slate-900">
             {(selectedNode.type === "text" || selectedNode.type === "button") && (
               <>
                 <label className="text-xs font-semibold">Content</label>
@@ -678,6 +969,61 @@ export function VisualEditorOverlay() {
                   value={selectedNode.content.text || ""}
                   onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { text: e.target.value } })}
                 />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px]">Text Color</label>
+                    <input
+                      type="color"
+                      className="h-8 w-full rounded border p-1"
+                      value={selectedNode.style.color || "#ffffff"}
+                      onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { color: e.target.value } })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px]">Font Size</label>
+                    <input
+                      className="w-full rounded border p-1 text-xs"
+                      value={selectedNode.style.fontSize || ""}
+                      onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { fontSize: e.target.value } })}
+                      placeholder="e.g. 24px"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px]">Opacity ({(selectedNode.style.opacity ?? 1).toFixed(2)})</label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    className="w-full"
+                    value={selectedNode.style.opacity ?? 1}
+                    onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { opacity: Number(e.target.value) } })}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`rounded border px-2 py-1 text-xs ${selectedNode.style.fontWeight === "700" ? "bg-slate-900 text-white" : ""}`}
+                    onClick={() => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { fontWeight: selectedNode.style.fontWeight === "700" ? "400" : "700" } })}
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded border px-2 py-1 text-xs italic ${selectedNode.style.fontStyle === "italic" ? "bg-slate-900 text-white" : ""}`}
+                    onClick={() => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { fontStyle: selectedNode.style.fontStyle === "italic" ? "normal" : "italic" } })}
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded border px-2 py-1 text-xs underline ${selectedNode.style.textDecoration === "underline" ? "bg-slate-900 text-white" : ""}`}
+                    onClick={() => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { textDecoration: selectedNode.style.textDecoration === "underline" ? "none" : "underline" } })}
+                  >
+                    U
+                  </button>
+                </div>
               </>
             )}
 
@@ -692,13 +1038,13 @@ export function VisualEditorOverlay() {
               </>
             )}
 
-            {(selectedNode.type === "image" || selectedNode.type === "background") && (
+            {selectedNode.type === "image" && (
               <>
                 <label className="text-xs font-semibold">Asset</label>
                 <select
                   className="w-full rounded border p-1 text-xs"
                   value={selectedNode.content.src || ""}
-                  onChange={(e) => dispatch({ type: selectedNode.type === "image" ? "UPDATE_IMAGE" : "UPDATE_BACKGROUND", nodeId: selectedNode.id, patch: { src: e.target.value } })}
+                  onChange={(e) => dispatch({ type: "UPDATE_IMAGE", nodeId: selectedNode.id, patch: { src: e.target.value } })}
                 >
                   <option value="">Select asset</option>
                   {assets.map((a) => (
@@ -713,32 +1059,51 @@ export function VisualEditorOverlay() {
                     const file = e.target.files?.[0]
                     if (!file) return
                     const url = URL.createObjectURL(file)
-                    dispatch({ type: selectedNode.type === "image" ? "UPDATE_IMAGE" : "UPDATE_BACKGROUND", nodeId: selectedNode.id, patch: { src: url } })
+                    dispatch({ type: "UPDATE_IMAGE", nodeId: selectedNode.id, patch: { src: url } })
                   }}
                 />
               </>
             )}
 
+            {selectedNode.type === "background" && (
+              <>
+                <label className="text-xs font-semibold">Video Link</label>
+                <input
+                  className="w-full rounded border p-1 text-xs"
+                  value={selectedNode.content.videoUrl || ""}
+                  onChange={(e) => dispatch({ type: "UPDATE_BACKGROUND", nodeId: selectedNode.id, patch: { videoUrl: e.target.value } })}
+                />
+              </>
+            )}
+
+            {/* Keep this block structurally flat to avoid JSX tag mismatch regressions in CI. */}
             {(selectedNode.type === "text" || selectedNode.type === "button") && (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px]">Width</label>
-                  <input
-                    type="number"
-                    className="w-full rounded border p-1 text-xs"
-                    value={Math.round(selectedNode.geometry.width)}
-                    onChange={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: Number(e.target.value) || selectedNode.geometry.width, height: selectedNode.geometry.height })}
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px]">Height</label>
-                  <input
-                    type="number"
-                    className="w-full rounded border p-1 text-xs"
-                    value={Math.round(selectedNode.geometry.height)}
-                    onChange={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: selectedNode.geometry.width, height: Number(e.target.value) || selectedNode.geometry.height })}
-                  />
-                </div>
+              <div className="pt-1">
+                <details>
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-600">Advanced Size</summary>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px]">Width</label>
+                      <input
+                        type="number"
+                        className="w-full rounded border p-1 text-xs"
+                        value={Math.round(selectedNode.geometry.width)}
+                        onChange={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: Number(e.target.value) || selectedNode.geometry.width, height: selectedNode.geometry.height, transient: true })}
+                        onBlur={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: Number(e.target.value) || selectedNode.geometry.width, height: selectedNode.geometry.height })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px]">Height</label>
+                      <input
+                        type="number"
+                        className="w-full rounded border p-1 text-xs"
+                        value={Math.round(selectedNode.geometry.height)}
+                        onChange={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: selectedNode.geometry.width, height: Number(e.target.value) || selectedNode.geometry.height, transient: true })}
+                        onBlur={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: selectedNode.geometry.width, height: Number(e.target.value) || selectedNode.geometry.height })}
+                      />
+                    </div>
+                  </div>
+                </details>
               </div>
             )}
 
