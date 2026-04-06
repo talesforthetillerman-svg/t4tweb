@@ -775,6 +775,24 @@ export function VisualEditorOverlay() {
         return
       }
       if (target.closest("[data-editor-toolbar]") || target.closest("[data-editor-panel]") || target.closest("[data-editor-overlay]")) return
+      const handleEl = target.closest<HTMLElement>("[data-editor-resize-handle]")
+      if (handleEl && selectedId) {
+        e.preventDefault()
+        e.stopPropagation()
+        const handle = (handleEl.dataset.editorResizeHandle || null) as "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw" | null
+        const n = nodes.get(selectedId)
+        if (!n || !handle) return
+        dispatch({ type: "BEGIN_TRANSACTION" })
+        pointerRef.current = {
+          mode: "resize",
+          start: { x: e.clientX, y: e.clientY },
+          origin: { ...n.geometry },
+          handle,
+          nodeId: selectedId,
+          lastGeometry: { ...n.geometry },
+        }
+        return
+      }
       const hit = getEditableAtPosition(e.clientX, e.clientY)
       if (hit) {
         e.preventDefault()
