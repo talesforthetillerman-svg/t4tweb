@@ -2,7 +2,6 @@
 
 import { useRef, useEffect } from "react"
 import { motion } from "framer-motion"
-import Image from "next/image"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
 import { useVisualEditor } from "@/components/visual-editor"
 
@@ -145,13 +144,6 @@ export function LatestReleaseSection() {
         data-editor-node-label="Fondo Video YouTube"
         className="absolute inset-0 z-0"
       >
-        <Image
-          src="/images/sections/hero-bg.jpg"
-          alt=""
-          fill
-          aria-hidden="true"
-          className="object-cover opacity-40 md:hidden"
-        />
         <iframe
           src="https://www.youtube.com/embed/xofflmVqYGs?autoplay=1&mute=1&loop=1&playlist=xofflmVqYGs&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"
           title=""
@@ -171,10 +163,10 @@ export function LatestReleaseSection() {
             data-editor-node-id="latest-release-card"
             data-editor-node-type="card"
             data-editor-node-label="Release Card"
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.25 }}
-            transition={{ duration: 0.45 }}
+            initial={isEditing ? false : { opacity: 0, y: 10 }}
+            whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+            viewport={isEditing ? undefined : { once: true, amount: 0.25 }}
+            transition={isEditing ? undefined : { duration: 0.45 }}
             className="flex w-full max-w-4xl flex-col items-center rounded-2xl border border-primary/28 bg-black/24 p-6 text-center shadow-md backdrop-blur-sm md:p-8"
           >
             <h2 
