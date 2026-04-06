@@ -29,6 +29,10 @@ interface EditorNode {
     color?: string
     backgroundColor?: string
     opacity?: number
+    contrast?: number
+    saturation?: number
+    brightness?: number
+    negative?: boolean
     fontSize?: string
     fontFamily?: string
     fontWeight?: string
@@ -374,6 +378,10 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       }
       if (node.explicitStyle && node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
     }
+    if (node.type === "card") {
+      if (node.explicitContent && node.content.text !== undefined) el.textContent = node.content.text
+      if (node.explicitStyle && node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
+    }
     if (node.type === "image" || node.type === "background") {
       const img = el.tagName === "IMG" ? (el as HTMLImageElement) : el.querySelector("img")
       const iframe = node.type === "background" ? el.querySelector("iframe") : null
@@ -384,6 +392,18 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
           if (img && node.content.src) img.src = node.content.src
           if (img && node.content.alt !== undefined) img.alt = node.content.alt
           if (!img && node.content.src) el.style.backgroundImage = `url(${node.content.src})`
+        }
+      }
+      if (node.explicitStyle && (node.type !== "background" || node.content.mediaKind !== "video")) {
+        const contrast = node.style.contrast ?? 100
+        const saturation = node.style.saturation ?? 100
+        const brightness = node.style.brightness ?? 100
+        const negative = node.style.negative ?? false
+        const filterValue = `contrast(${contrast}%) saturate(${saturation}%) brightness(${brightness}%)${negative ? " invert(1)" : ""}`
+        if (img) {
+          img.style.filter = filterValue
+        } else {
+          el.style.filter = filterValue
         }
       }
     }
@@ -816,7 +836,9 @@ export function VisualEditorOverlay() {
     window.location.reload()
   }
   const onDeploy = () => {
-    // Placeholder: deploy backend integration can be wired here when available.
+    window.alert(
+      "Deploy blocked: run and pass pnpm typecheck, pnpm lint, pnpm build, and conflict/branch safety checks before deploying."
+    )
   }
 
   const pointerRef = useRef<{
@@ -1234,6 +1256,82 @@ export function VisualEditorOverlay() {
                     })
                   }}
                 />
+                <div>
+                  <label className="text-[10px]">Contrast ({Math.round(selectedNode.style.contrast ?? 100)}%)</label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={200}
+                    step={1}
+                    className="w-full"
+                    value={selectedNode.style.contrast ?? 100}
+                    onChange={(e) => dispatch({
+                      type: selectedNode.type === "image" ? "UPDATE_IMAGE" : "UPDATE_BACKGROUND",
+                      nodeId: selectedNode.id,
+                      patch: { contrast: Number(e.target.value) },
+                    })}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px]">Opacity ({(selectedNode.style.opacity ?? 1).toFixed(2)})</label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    className="w-full"
+                    value={selectedNode.style.opacity ?? 1}
+                    onChange={(e) => dispatch({
+                      type: selectedNode.type === "image" ? "UPDATE_IMAGE" : "UPDATE_BACKGROUND",
+                      nodeId: selectedNode.id,
+                      patch: { opacity: Number(e.target.value) },
+                    })}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px]">Saturation ({Math.round(selectedNode.style.saturation ?? 100)}%)</label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={200}
+                    step={1}
+                    className="w-full"
+                    value={selectedNode.style.saturation ?? 100}
+                    onChange={(e) => dispatch({
+                      type: selectedNode.type === "image" ? "UPDATE_IMAGE" : "UPDATE_BACKGROUND",
+                      nodeId: selectedNode.id,
+                      patch: { saturation: Number(e.target.value) },
+                    })}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px]">Brightness ({Math.round(selectedNode.style.brightness ?? 100)}%)</label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={200}
+                    step={1}
+                    className="w-full"
+                    value={selectedNode.style.brightness ?? 100}
+                    onChange={(e) => dispatch({
+                      type: selectedNode.type === "image" ? "UPDATE_IMAGE" : "UPDATE_BACKGROUND",
+                      nodeId: selectedNode.id,
+                      patch: { brightness: Number(e.target.value) },
+                    })}
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={selectedNode.style.negative ?? false}
+                    onChange={(e) => dispatch({
+                      type: selectedNode.type === "image" ? "UPDATE_IMAGE" : "UPDATE_BACKGROUND",
+                      nodeId: selectedNode.id,
+                      patch: { negative: e.target.checked },
+                    })}
+                  />
+                  Negativo
+                </label>
               </>
             )}
 
@@ -1298,6 +1396,34 @@ export function VisualEditorOverlay() {
                   className="w-full rounded border p-1 text-xs"
                   value={selectedNode.style.paddingBottom || ""}
                   onChange={(e) => dispatch({ type: "UPDATE_SECTION", nodeId: selectedNode.id, patch: { paddingBottom: e.target.value } })}
+                />
+              </>
+            )}
+
+            {selectedNode.type === "card" && (
+              <>
+                <label className="text-xs font-semibold">Card Text</label>
+                <textarea
+                  className="w-full rounded border p-1 text-xs"
+                  value={selectedNode.content.text || ""}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { text: e.target.value } })}
+                />
+                <label className="text-[10px]">Opacity ({(selectedNode.style.opacity ?? 1).toFixed(2)})</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  className="w-full"
+                  value={selectedNode.style.opacity ?? 1}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { opacity: Number(e.target.value) } })}
+                />
+                <label className="text-[10px]">Background Color</label>
+                <input
+                  type="color"
+                  className="h-8 w-full rounded border p-1"
+                  value={selectedNode.style.backgroundColor || "#000000"}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { backgroundColor: e.target.value } })}
                 />
               </>
             )}
