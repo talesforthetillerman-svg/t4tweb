@@ -309,19 +309,29 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   const applyNodeToDom = useCallback((node: EditorNode, entry: RuntimeEntry) => {
     const el = entry.element
     const g = node.geometry
+    const hasManagedTransform = el.dataset.editorManagedTransform === "true"
+    const hasManagedSize = el.dataset.editorManagedSize === "true"
     if (node.explicitPosition) {
       el.style.transform = `translate(${g.x}px, ${g.y}px)`
       el.style.transformOrigin = "top left"
+      el.dataset.editorManagedTransform = "true"
     } else {
-      el.style.removeProperty("transform")
-      el.style.removeProperty("transform-origin")
+      if (hasManagedTransform) {
+        el.style.removeProperty("transform")
+        el.style.removeProperty("transform-origin")
+        delete el.dataset.editorManagedTransform
+      }
     }
     if (node.explicitSize) {
       el.style.width = `${Math.max(8, g.width)}px`
       el.style.height = `${Math.max(8, g.height)}px`
+      el.dataset.editorManagedSize = "true"
     } else {
-      el.style.removeProperty("width")
-      el.style.removeProperty("height")
+      if (hasManagedSize) {
+        el.style.removeProperty("width")
+        el.style.removeProperty("height")
+        delete el.dataset.editorManagedSize
+      }
     }
 
     if (node.style.opacity !== undefined) el.style.opacity = String(node.style.opacity)
