@@ -977,6 +977,7 @@ section {
 /* ============================================================================
    VISUAL EDITOR
    ============================================================================ */
+/* Conflict-resolution baseline: keep editor-mode interaction and visibility rules from stabilization branch. */
 
 /* Editable elements cursor */
 body[data-editor-mode="true"] [data-editor-node-id] {
