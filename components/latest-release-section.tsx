@@ -146,13 +146,12 @@ export function LatestReleaseSection() {
         className="absolute inset-0 z-0"
       >
         {isEditing ? (
-          <iframe
-            src="https://www.youtube.com/embed/xofflmVqYGs?autoplay=1&mute=1&loop=1&playlist=xofflmVqYGs&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"
-            title=""
+          <Image
+            src="/images/sections/hero-bg.jpg"
+            alt=""
+            fill
             aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-1/2 h-[125%] w-[125%] -translate-x-1/2 -translate-y-[40%]"
-            allow="autoplay; encrypted-media"
-            allowFullScreen={false}
+            className="object-cover opacity-40"
           />
         ) : (
           <>

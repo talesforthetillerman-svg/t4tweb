@@ -985,12 +985,6 @@ body[data-editor-mode="true"] [data-editor-node-id] {
   animation: none !important;
 }
 
-body[data-editor-mode="true"] [data-editor-node-id="nav-logo"],
-body[data-editor-mode="true"] [data-editor-node-id="hero-logo"] {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
 /* Hover state */
 body[data-editor-mode="true"] [data-editor-node-id]:hover {
   outline: 2px dashed #FF8C21 !important;
