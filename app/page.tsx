@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { HeroSection } from "@/components/hero-section"
 import { SectionDivider } from "@/components/section-divider"
 import { AboutSection } from "@/components/about-section"
