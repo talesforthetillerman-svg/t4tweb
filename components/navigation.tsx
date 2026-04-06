@@ -168,6 +168,9 @@ export function Navigation() {
   return (
     <nav
       ref={navRef}
+      data-editor-node-id="navigation"
+      data-editor-node-type="section"
+      data-editor-node-label="Navigation"
       className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${
         isScrolled
           ? "bg-black/80 backdrop-blur-2xl border-b border-white/10 shadow-xl shadow-black/25"
