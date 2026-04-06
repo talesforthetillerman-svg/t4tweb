@@ -593,6 +593,18 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     }
 
     if (candidates.length === 0) return null
+
+    const navigationEntry = candidates.find((c) => c.id === "navigation")
+    if (navigationEntry) {
+      const navRect = navigationEntry.element.getBoundingClientRect()
+      const insideNavigation = x >= navRect.left && x <= navRect.right && y >= navRect.top && y <= navRect.bottom
+      if (insideNavigation) {
+        const navSpecificChild = candidates.find((c) => c.id !== "navigation" && c.id.startsWith("nav-") && c.type !== "section")
+        if (navSpecificChild) return navSpecificChild
+        return navigationEntry
+      }
+    }
+
     candidates.sort((a, b) => typePriority[a.type] - typePriority[b.type])
 
     const best = candidates[0]
