@@ -95,9 +95,8 @@ export function BandMembersSection() {
             eyebrow="The Musicians"
             title="Meet the Band"
             description="Five musicians from diverse backgrounds, united by a passion for rhythm and groove."
-            data-editor-node-id="band-members-header"
-            data-editor-node-type="text"
-            data-editor-node-label="Encabezado Miembros"
+            dataEditId="band-members-header"
+            dataEditLabel="Encabezado Miembros"
           />
         </motion.div>
 

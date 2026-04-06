@@ -144,6 +144,8 @@ export function LiveSection() {
               eyebrow="Live Performances"
               title="See All Shows"
               description="From intimate club shows to festival main stages, Tales for the Tillerman delivers an unforgettable live experience."
+              dataEditId="live-see-shows-header"
+              dataEditLabel="Live See Shows Header"
             />
 <motion.a
   data-editor-node-id="live-section-see-shows-button"
@@ -174,6 +176,8 @@ export function LiveSection() {
                 eyebrow="Listen"
                 title="Stream Our Music"
                 className="mb-8"
+                dataEditId="live-stream-header"
+                dataEditLabel="Live Stream Header"
               />
 
               <div className="mb-10">
@@ -243,7 +247,12 @@ export function LiveSection() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="mb-12 min-h-[440px]"
             >
-              <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-6 text-center">
+              <h3
+                data-editor-node-id="live-upcoming-title"
+                data-editor-node-type="text"
+                data-editor-node-label="Live Upcoming Title"
+                className="font-serif text-2xl md:text-3xl text-foreground mb-6 text-center"
+              >
                 Upcoming
               </h3>
 
@@ -298,7 +307,12 @@ export function LiveSection() {
               transition={{ duration: 0.6, delay: 0.35 }}
               className="mb-12"
             >
-              <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-6 text-center">
+              <h3
+                data-editor-node-id="live-history-title"
+                data-editor-node-type="text"
+                data-editor-node-label="Live History Title"
+                className="font-serif text-2xl md:text-3xl text-foreground mb-6 text-center"
+              >
                 History
               </h3>
 

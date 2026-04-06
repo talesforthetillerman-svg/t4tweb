@@ -210,9 +210,8 @@ Their performances balance musical depth with danceable power, bringing together
               title="A Journey Through Sound"
               titleClassName="text-white"
               className="mb-10 max-w-4xl md:mb-12"
-              data-editor-node-id="about-header"
-              data-editor-node-type="text"
-              data-editor-node-label="Sección Sobre Nosotros"
+              dataEditId="about-header"
+              dataEditLabel="Sección Sobre Nosotros"
             />
           </div>
 
