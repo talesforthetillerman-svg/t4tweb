@@ -981,6 +981,14 @@ section {
 /* Editable elements cursor */
 body[data-editor-mode="true"] [data-editor-node-id] {
   cursor: move !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+body[data-editor-mode="true"] [data-editor-node-id="nav-logo"],
+body[data-editor-mode="true"] [data-editor-node-id="hero-logo"] {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* Hover state */
@@ -999,4 +1007,3 @@ body[data-editor-mode="true"] [data-editor-node-id]:hover {
 .resize-handle {
   pointer-events: auto !important;
 }
-
