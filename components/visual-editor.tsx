@@ -88,6 +88,15 @@ interface AssetItem {
   filename: string
 }
 
+type PrecheckLevel = "green" | "yellow" | "red"
+
+interface PrecheckFinding {
+  element: string
+  issue: string
+  severity: PrecheckLevel
+  blocks: boolean
+}
+
 interface VisualEditorContextType {
   isEditing: boolean
   setIsEditing: (v: boolean) => void
@@ -837,10 +846,145 @@ export function VisualEditorOverlay() {
     setIsEditing(false)
     window.location.reload()
   }
-  const onDeploy = () => {
-    window.alert(
-      "Deploy blocked: run and pass pnpm typecheck, pnpm lint, pnpm build, and conflict/branch safety checks before deploying."
+  const isValidUrlValue = useCallback((value: string): boolean => {
+    if (!value.trim()) return false
+    if (value.startsWith("#") || value.startsWith("/") || value.startsWith("mailto:") || value.startsWith("tel:")) return true
+    try {
+      const parsed = new URL(value)
+      return parsed.protocol === "http:" || parsed.protocol === "https:"
+    } catch {
+      return false
+    }
+  }, [])
+
+  const runDeployPrecheck = useCallback((): { level: PrecheckLevel; findings: PrecheckFinding[] } => {
+    const findings: PrecheckFinding[] = []
+    const touchedNodes = Array.from(nodes.values()).filter(
+      (node) => node.explicitContent || node.explicitStyle || node.explicitPosition || node.explicitSize
     )
+
+    touchedNodes.forEach((node) => {
+      const elementLabel = `${node.label} (${node.id})`
+      const entry = registry.get(node.id)
+      const widthRatio = entry?.rect.width ? node.geometry.width / entry.rect.width : 1
+      const heightRatio = entry?.rect.height ? node.geometry.height / entry.rect.height : 1
+      const movedFar = Math.abs(node.geometry.x) > 280 || Math.abs(node.geometry.y) > 280
+      const resizedHard = widthRatio > 2.5 || widthRatio < 0.35 || heightRatio > 2.5 || heightRatio < 0.35
+
+      if (movedFar || resizedHard) {
+        findings.push({
+          element: elementLabel,
+          issue: "Section/card bounds changed significantly; deploy allowed, but mobile visual QA is recommended.",
+          severity: "yellow",
+          blocks: false,
+        })
+      }
+
+      if (node.type === "button") {
+        const href = (node.content.href || "").trim()
+        if (!href) {
+          findings.push({
+            element: elementLabel,
+            issue: "Button/link is missing href but is rendered as interactive.",
+            severity: "red",
+            blocks: true,
+          })
+        } else if (!isValidUrlValue(href)) {
+          findings.push({
+            element: elementLabel,
+            issue: `Button/link href is invalid: "${href}".`,
+            severity: "red",
+            blocks: true,
+          })
+        } else if (/^https?:\/\//i.test(href)) {
+          findings.push({
+            element: elementLabel,
+            issue: "External link detected; deploy allowed, but destination should be verified manually.",
+            severity: "yellow",
+            blocks: false,
+          })
+        }
+      }
+
+      if (node.type === "image" || (node.type === "background" && node.content.mediaKind !== "video")) {
+        const src = (node.content.src || "").trim()
+        if (!src) {
+          findings.push({
+            element: elementLabel,
+            issue: "Image/background source is empty and will render broken media.",
+            severity: "red",
+            blocks: true,
+          })
+        } else if (!isValidUrlValue(src)) {
+          findings.push({
+            element: elementLabel,
+            issue: `Image/background source is invalid: "${src}".`,
+            severity: "red",
+            blocks: true,
+          })
+        } else if (/^https?:\/\//i.test(src)) {
+          findings.push({
+            element: elementLabel,
+            issue: "External media URL changed; deploy allowed, but loading/performance should be reviewed.",
+            severity: "yellow",
+            blocks: false,
+          })
+        }
+      }
+
+      if (node.type === "background" && node.content.mediaKind === "video") {
+        const videoUrl = (node.content.videoUrl || "").trim()
+        if (!videoUrl || !isValidUrlValue(videoUrl)) {
+          findings.push({
+            element: elementLabel,
+            issue: "Background video URL is empty or invalid.",
+            severity: "red",
+            blocks: true,
+          })
+        } else {
+          findings.push({
+            element: elementLabel,
+            issue: "Background video/complex embed changed; deploy allowed, but mobile rendering should be reviewed manually.",
+            severity: "yellow",
+            blocks: false,
+          })
+        }
+      }
+
+      if (node.type === "card" && node.isGrouped) {
+        findings.push({
+          element: elementLabel,
+          issue: "Grouped card edited; deploy allowed, but check nested content alignment.",
+          severity: "yellow",
+          blocks: false,
+        })
+      }
+    })
+
+    const level: PrecheckLevel = findings.some((f) => f.severity === "red")
+      ? "red"
+      : findings.some((f) => f.severity === "yellow")
+        ? "yellow"
+        : "green"
+
+    return { level, findings }
+  }, [isValidUrlValue, nodes, registry])
+
+  const onDeploy = () => {
+    const report = runDeployPrecheck()
+    const header =
+      report.level === "green"
+        ? "Green: deploy allowed."
+        : report.level === "yellow"
+          ? "Yellow: deploy allowed with warnings."
+          : "Red: deploy blocked."
+    const findingsText = report.findings.length
+      ? report.findings.map((f, i) => `${i + 1}. ${f.severity.toUpperCase()} | ${f.blocks ? "blocks" : "does not block"} | ${f.element} — ${f.issue}`).join("\n")
+      : "No findings. Simple editor changes are safe to deploy."
+    const checksHint =
+      "Technical gate still required before real deploy: pnpm typecheck, pnpm lint, pnpm build."
+
+    window.alert(`${header}\n\n${findingsText}\n\n${checksHint}`)
   }
 
   const pointerRef = useRef<{
