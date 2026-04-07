@@ -883,21 +883,23 @@ export function VisualEditorOverlay() {
 
       if (node.type === "button") {
         const href = (node.content.href || "").trim()
-        if (!href) {
+        const tagName = entry?.element.tagName || ""
+        const requiresHref = tagName === "A" || node.explicitContent || href.length > 0
+        if (requiresHref && !href) {
           findings.push({
             element: elementLabel,
             issue: "Button/link is missing href but is rendered as interactive.",
             severity: "red",
             blocks: true,
           })
-        } else if (!isValidUrlValue(href)) {
+        } else if (requiresHref && !isValidUrlValue(href)) {
           findings.push({
             element: elementLabel,
             issue: `Button/link href is invalid: "${href}".`,
             severity: "red",
             blocks: true,
           })
-        } else if (/^https?:\/\//i.test(href)) {
+        } else if (requiresHref && /^https?:\/\//i.test(href)) {
           findings.push({
             element: elementLabel,
             issue: "External link detected; deploy allowed, but destination should be verified manually.",
