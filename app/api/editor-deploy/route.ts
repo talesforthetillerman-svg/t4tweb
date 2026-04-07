@@ -286,6 +286,8 @@ async function runGithubFlow(content: string): Promise<{
 export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as DeployRequestPayload
+    const isProductionRuntime = process.env.NODE_ENV === "production" || !!process.env.VERCEL
+    const githubConfigured = Boolean(process.env.GITHUB_TOKEN && process.env.GITHUB_REPO)
     const steps: DeployStepResult[] = [{
       step: "checking",
       ok: true,
@@ -313,11 +315,36 @@ export async function POST(request: Request) {
     }
     const serialized = JSON.stringify(persistable, null, 2)
 
-    const outputDir = path.join(process.cwd(), "public", "data")
-    await mkdir(outputDir, { recursive: true })
-    const outputPath = path.join(outputDir, "editor-deploy-state.json")
-    await writeFile(outputPath, serialized, "utf8")
-    steps.push({ step: "saving", ok: true, message: "State persisted locally to public/data/editor-deploy-state.json." })
+    let localSaved = false
+    if (isProductionRuntime) {
+      steps.push({
+        step: "saving",
+        ok: true,
+        message: "Cannot write to local filesystem in production runtime. Using GitHub as persistence target instead.",
+      })
+      if (!githubConfigured) {
+        return NextResponse.json(
+          {
+            status: "failed",
+            mode: "incomplete",
+            step: "saving",
+            localSaved: false,
+            remoteReady: false,
+            message:
+              "Deploy failed: runtime local filesystem is read-only and GitHub persistence is not configured.",
+            steps,
+          },
+          { status: 500 }
+        )
+      }
+    } else {
+      const outputDir = path.join(process.cwd(), "public", "data")
+      await mkdir(outputDir, { recursive: true })
+      const outputPath = path.join(outputDir, "editor-deploy-state.json")
+      await writeFile(outputPath, serialized, "utf8")
+      localSaved = true
+      steps.push({ step: "saving", ok: true, message: "State persisted locally to public/data/editor-deploy-state.json." })
+    }
 
     const githubResult = await runGithubFlow(serialized)
     const mergedSteps = steps.concat(githubResult.steps)
@@ -327,7 +354,7 @@ export async function POST(request: Request) {
         status: "ok",
         mode: "complete",
         step: "done",
-        localSaved: true,
+        localSaved,
         remoteReady: true,
         message: "Branch updated, editor payload committed, and PR ready.",
         prUrl: githubResult.prUrl,
@@ -340,7 +367,7 @@ export async function POST(request: Request) {
       status: "incomplete",
       mode: "incomplete",
       step: failedStep,
-      localSaved: true,
+      localSaved,
       remoteReady: false,
       message:
         githubResult.error ||
