@@ -116,7 +116,7 @@ export function LiveSection() {
   ]
 
   return (
-    <section ref={sectionRef} data-editor-node-id="live-section" data-editor-node-type="section" data-editor-node-label="Live Section" className="relative overflow-hidden">
+    <section ref={sectionRef} data-editor-node-id="live-section" data-editor-node-type="section" data-editor-node-label="Live Section" className="relative min-h-screen overflow-hidden">
 <div className="absolute inset-0 -z-10">
   <Image
     src="/images/sections/live-bg.jpg"
@@ -124,6 +124,7 @@ export function LiveSection() {
     fill
     data-editor-node-id="live-section-bg-image"
     data-editor-node-type="background"
+    data-editor-media-kind="image"
     data-editor-node-label="Live Section Background Image"
     className="object-cover"
     sizes="100vw"
@@ -144,13 +145,15 @@ export function LiveSection() {
               eyebrow="Live Performances"
               title="See All Shows"
               description="From intimate club shows to festival main stages, Tales for the Tillerman delivers an unforgettable live experience."
+              dataEditId="live-see-shows-header"
+              dataEditLabel="Live See Shows Header"
             />
 <motion.a
   data-editor-node-id="live-section-see-shows-button"
   data-editor-node-type="button"
   data-editor-node-label="See All Shows Button"
-  whileHover={{ scale: 1.02, y: -2 }}
-  transition={{ type: "spring", stiffness: 320, damping: 22 }}
+  whileHover={isEditing ? undefined : { scale: 1.02, y: -2 }}
+  transition={isEditing ? undefined : { type: "spring", stiffness: 320, damping: 22 }}
   href="https://www.bandsintown.com/e/108124718-tales-for-the-tillerman-at-mauerpark?came_from=250&utm_medium=web&utm_source=artist_page&utm_campaign=search_bar"
   target="_blank"
   rel="noopener noreferrer"
@@ -165,19 +168,21 @@ export function LiveSection() {
 
             {/* ── STREAM OUR MUSIC ── */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              initial={isEditing ? false : { opacity: 0, y: 20 }}
+              whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+              transition={isEditing ? undefined : { duration: 0.6, delay: 0.2 }}
               className="mb-12"
             >
               <SectionHeader
                 eyebrow="Listen"
                 title="Stream Our Music"
                 className="mb-8"
+                dataEditId="live-stream-header"
+                dataEditLabel="Live Stream Header"
               />
 
-              <div className="mb-10">
-                <h4 className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block">
+              <div className="mb-10" data-editor-node-id="live-stream-platforms-group" data-editor-node-type="card" data-editor-node-label="Live Streaming Platforms Group" data-editor-grouped="true">
+                <h4 data-editor-node-id="live-stream-platforms-title" data-editor-node-type="text" data-editor-node-label="Spotify Apple Music and More" className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block">
                   Spotify, Apple Music & More
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
@@ -188,10 +193,10 @@ export function LiveSection() {
     data-editor-node-label={`Streaming: ${platform.name}`}
     data-editor-grouped="true"
     key={platform.name}
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    whileHover={{ y: -2, scale: 1.02 }}
-    transition={{ duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
+    initial={isEditing ? false : { opacity: 0, y: 20 }}
+    whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+    whileHover={isEditing ? undefined : { y: -2, scale: 1.02 }}
+    transition={isEditing ? undefined : { duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
     href={platform.href}
     target="_blank"
     rel="noopener noreferrer"
@@ -206,8 +211,8 @@ export function LiveSection() {
                 </div>
               </div>
 
-              <div>
-                <h4 className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block">
+              <div data-editor-node-id="live-social-platforms-group" data-editor-node-type="card" data-editor-node-label="Live Social Platforms Group" data-editor-grouped="true">
+                <h4 data-editor-node-id="live-social-platforms-title" data-editor-node-type="text" data-editor-node-label="Follow Us Title" className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block">
                   Follow Us
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -218,10 +223,10 @@ export function LiveSection() {
     data-editor-node-label={`Social: ${platform.name}`}
     data-editor-grouped="true"
     key={platform.name}
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    whileHover={{ y: -2, scale: 1.02 }}
-    transition={{ duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
+    initial={isEditing ? false : { opacity: 0, y: 20 }}
+    whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+    whileHover={isEditing ? undefined : { y: -2, scale: 1.02 }}
+    transition={isEditing ? undefined : { duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
     href={platform.href}
     target="_blank"
     rel="noopener noreferrer"
@@ -238,12 +243,17 @@ export function LiveSection() {
 
             {/* ── UPCOMING SHOWS ── */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
+              initial={isEditing ? false : { opacity: 0, y: 20 }}
+              whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+              transition={isEditing ? undefined : { duration: 0.6, delay: 0.3 }}
               className="mb-12 min-h-[440px]"
             >
-              <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-6 text-center">
+              <h3
+                data-editor-node-id="live-upcoming-title"
+                data-editor-node-type="text"
+                data-editor-node-label="Live Upcoming Title"
+                className="font-serif text-2xl md:text-3xl text-foreground mb-6 text-center"
+              >
                 Upcoming
               </h3>
 
@@ -262,20 +272,24 @@ export function LiveSection() {
                   {upcomingConcerts.map((concert, index) => (
                     <motion.div
                       key={`upcoming-${index}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      whileHover={{ y: -2, scale: 1.01 }}
-                      transition={{ duration: 0.4, delay: index * 0.03, type: "spring", stiffness: 300, damping: 20 }}
+                      initial={isEditing ? false : { opacity: 0, y: 20 }}
+                      whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+                      whileHover={isEditing ? undefined : { y: -2, scale: 1.01 }}
+                      transition={isEditing ? undefined : { duration: 0.4, delay: index * 0.03, type: "spring", stiffness: 300, damping: 20 }}
+                      data-editor-node-id={`live-upcoming-event-${index}`}
+                      data-editor-node-type="card"
+                      data-editor-node-label={`Upcoming Event ${index + 1}`}
+                      data-editor-grouped="true"
                       className="min-h-[80px] p-5 bg-secondary/50 rounded-xl border border-border hover:border-primary/30 transition-all duration-300 group shadow-lg hover:shadow-xl flex items-center"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
-                        <div className="shrink-0 text-primary font-medium min-w-[100px]">{formatDate(concert.date)}</div>
+                        <div data-editor-node-id={`live-upcoming-event-${index}-date`} data-editor-node-type="text" data-editor-node-label={`Upcoming Event ${index + 1} Date`} className="shrink-0 text-primary font-medium min-w-[100px]">{formatDate(concert.date)}</div>
                         <div className="flex-1">
-                          <div className="font-serif text-lg text-foreground group-hover:text-primary transition-colors">{concert.venue}</div>
-                          <div className="text-muted-foreground text-sm">{concert.city}, {concert.country}</div>
+                          <div data-editor-node-id={`live-upcoming-event-${index}-venue`} data-editor-node-type="text" data-editor-node-label={`Upcoming Event ${index + 1} Venue`} className="font-serif text-lg text-foreground group-hover:text-primary transition-colors">{concert.venue}</div>
+                          <div data-editor-node-id={`live-upcoming-event-${index}-city`} data-editor-node-type="text" data-editor-node-label={`Upcoming Event ${index + 1} Location`} className="text-muted-foreground text-sm">{concert.city}, {concert.country}</div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground sm:ml-auto">
-                          <span className="px-3 py-1 bg-primary/10 rounded-full text-primary text-xs">{concert.genre}</span>
+                          <span data-editor-node-id={`live-upcoming-event-${index}-genre`} data-editor-node-type="text" data-editor-node-label={`Upcoming Event ${index + 1} Genre`} className="px-3 py-1 bg-primary/10 rounded-full text-primary text-xs">{concert.genre}</span>
                           <span>{concert.price === "Free" ? "Free" : `€${concert.price}`}</span>
                         </div>
                       </div>
@@ -293,12 +307,17 @@ export function LiveSection() {
 
             {/* ── HISTORY ── */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.35 }}
+              initial={isEditing ? false : { opacity: 0, y: 20 }}
+              whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+              transition={isEditing ? undefined : { duration: 0.6, delay: 0.35 }}
               className="mb-12"
             >
-              <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-6 text-center">
+              <h3
+                data-editor-node-id="live-history-title"
+                data-editor-node-type="text"
+                data-editor-node-label="Live History Title"
+                className="font-serif text-2xl md:text-3xl text-foreground mb-6 text-center"
+              >
                 History
               </h3>
 
@@ -307,17 +326,21 @@ export function LiveSection() {
                   {historyConcerts.map((concert, index) => (
                     <motion.div
                       key={`history-${index}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      whileHover={{ y: -2, scale: 1.01 }}
-                      transition={{ duration: 0.4, delay: index * 0.03, type: "spring", stiffness: 300, damping: 20 }}
+                      initial={isEditing ? false : { opacity: 0, y: 20 }}
+                      whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+                      whileHover={isEditing ? undefined : { y: -2, scale: 1.01 }}
+                      transition={isEditing ? undefined : { duration: 0.4, delay: index * 0.03, type: "spring", stiffness: 300, damping: 20 }}
+                      data-editor-node-id={`live-history-event-${index}`}
+                      data-editor-node-type="card"
+                      data-editor-node-label={`History Event ${index + 1}`}
+                      data-editor-grouped="true"
                       className="min-h-[80px] p-5 bg-secondary/30 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300 group shadow-lg hover:shadow-xl flex items-center"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
-                        <div className="shrink-0 text-muted-foreground font-medium min-w-[100px]">{formatDate(concert.date)}</div>
+                        <div data-editor-node-id={`live-history-event-${index}-date`} data-editor-node-type="text" data-editor-node-label={`History Event ${index + 1} Date`} className="shrink-0 text-muted-foreground font-medium min-w-[100px]">{formatDate(concert.date)}</div>
                         <div className="flex-1">
-                          <div className="font-serif text-lg text-muted-foreground group-hover:text-foreground transition-colors">{concert.venue}</div>
-                          <div className="text-muted-foreground/70 text-sm">{concert.city}, {concert.country}</div>
+                          <div data-editor-node-id={`live-history-event-${index}-venue`} data-editor-node-type="text" data-editor-node-label={`History Event ${index + 1} Venue`} className="font-serif text-lg text-muted-foreground group-hover:text-foreground transition-colors">{concert.venue}</div>
+                          <div data-editor-node-id={`live-history-event-${index}-city`} data-editor-node-type="text" data-editor-node-label={`History Event ${index + 1} Location`} className="text-muted-foreground/70 text-sm">{concert.city}, {concert.country}</div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground/70 sm:ml-auto">
                           <span className="px-3 py-1 bg-secondary/50 rounded-full text-xs">{concert.genre}</span>
