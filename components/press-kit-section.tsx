@@ -31,6 +31,20 @@ export function PressKitSection() {
       download: true,
     },
     {
+      title: "Press Photos",
+      description: "Official high-res band photography",
+      icon: ImageIcon,
+      href: "/images/about-bg-main.jpg",
+      download: true,
+    },
+    {
+      title: "Stage Plot",
+      description: "Live setup technical rider",
+      icon: FolderIcon,
+      href: "/PressKit T40 2025.26_compressed.pdf",
+      download: true,
+    },
+    {
       title: "Linktree",
       description: "All links in one place",
       icon: LinkIcon,
