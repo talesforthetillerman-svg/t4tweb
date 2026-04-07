@@ -1047,12 +1047,12 @@ export function VisualEditorOverlay() {
         const commitStep = data.steps?.find((s) => s.step === "committing")
         const prStep = data.steps?.find((s) => s.step === "creating_pr")
         const branchMessage = branchStep?.message.includes("updated")
-          ? "editor-deploy branch synced with main."
-          : "editor-deploy branch created from main."
+          ? "editor-deploy synced with main."
+          : "editor-deploy created from main."
         const prMessage = prStep?.message.includes("reused")
-          ? `Using existing editor deploy PR.\nPR updated successfully: ${data.prUrl}`
-          : `PR created successfully: ${data.prUrl}`
-        const commitMessage = commitStep?.ok ? "Editor payload committed successfully." : "Editor payload commit failed."
+          ? `Using existing editor deploy PR.\nPR updated: ${data.prUrl}`
+          : `PR created: ${data.prUrl}`
+        const commitMessage = commitStep?.ok ? "Editor payload committed." : "Editor payload commit failed."
         window.alert(
           `${statusTitle}\n\n${branchMessage}\n${commitMessage}\n${prMessage}${warningBlock}${stepTrace}`
         )
