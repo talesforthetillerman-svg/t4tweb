@@ -323,6 +323,10 @@ export function HeroSection({ data }: { data: HeroData }) {
               ? normalizedTitleSegments.map((segment, index) => (
                 <span
                   key={`hero-segment-${index}`}
+                  data-editor-segment-index={index}
+                  data-editor-gradient-enabled={segment.gradientEnabled ? "true" : "false"}
+                  data-editor-gradient-start={segment.gradientStart || ""}
+                  data-editor-gradient-end={segment.gradientEnd || ""}
                   style={{
                     ...(segment.gradientEnabled
                       ? {

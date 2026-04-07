@@ -20,6 +20,10 @@ interface TextSegment {
   opacity: number
   fontSize?: string
   fontFamily?: string
+  /** Filled gradient on this phrase (matches Sanity + public hero) */
+  gradientEnabled?: boolean
+  gradientStart?: string
+  gradientEnd?: string
 }
 
 interface NodeGeometry {
@@ -277,6 +281,13 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
           const childText = childEl.textContent?.trim()
           if (!childText) return
           const childStyle = getComputedStyle(childEl)
+          const fromData = childEl.dataset.editorGradientEnabled === "true"
+          const gradientStart = childEl.dataset.editorGradientStart || childEl.dataset.gradientStart
+          const gradientEnd = childEl.dataset.editorGradientEnd || childEl.dataset.gradientEnd
+          const bgImage = childStyle.backgroundImage || ""
+          const looksLikeGradient =
+            fromData ||
+            (bgImage.includes("gradient") && (childStyle.webkitBackgroundClip === "text" || childStyle.backgroundClip === "text"))
           segments.push({
             text: childText,
             color: rgbToHex(childStyle.color),
@@ -286,11 +297,14 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
             opacity: Number(childStyle.opacity || "1"),
             fontSize: childStyle.fontSize,
             fontFamily: childStyle.fontFamily,
+            gradientEnabled: looksLikeGradient,
+            gradientStart: gradientStart || "#FFB15A",
+            gradientEnd: gradientEnd || "#FF6C00",
           })
         }
       })
       const normalizedSegments = segments.filter((segment) => segment.text.length > 0)
-      if (normalizedSegments.length > 1) {
+      if (normalizedSegments.length > 0) {
         content.textSegments = normalizedSegments
       }
     }
@@ -430,10 +444,21 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       if (node.explicitContent) {
         if (node.id === "hero-title" && Array.isArray(node.content.textSegments) && node.content.textSegments.length > 0) {
           el.innerHTML = ""
-          node.content.textSegments.forEach((segment) => {
+          node.content.textSegments.forEach((segment, segIndex) => {
             const span = document.createElement("span")
             span.textContent = segment.text
-            span.style.color = segment.color
+            span.dataset.editorGradientEnabled = segment.gradientEnabled ? "true" : "false"
+            if (segment.gradientStart) span.dataset.editorGradientStart = segment.gradientStart
+            if (segment.gradientEnd) span.dataset.editorGradientEnd = segment.gradientEnd
+            span.dataset.editorSegmentIndex = String(segIndex)
+            if (segment.gradientEnabled) {
+              span.style.background = `linear-gradient(90deg, ${segment.gradientStart || "#FFB15A"}, ${segment.gradientEnd || "#FF6C00"})`
+              span.style.webkitBackgroundClip = "text"
+              span.style.backgroundClip = "text"
+              span.style.webkitTextFillColor = "transparent"
+            } else {
+              span.style.color = segment.color
+            }
             span.style.fontWeight = segment.bold ? "700" : "400"
             span.style.fontStyle = segment.italic ? "italic" : "normal"
             span.style.textDecoration = segment.underline ? "underline" : "none"
@@ -1401,6 +1426,55 @@ export function VisualEditorOverlay() {
                           />
                         </div>
                       </div>
+                      <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-800">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300"
+                          checked={!!segment.gradientEnabled}
+                          onChange={(e) => {
+                            const next = [...(selectedNode.content.textSegments || [])]
+                            const cur = next[index]
+                            next[index] = {
+                              ...cur,
+                              gradientEnabled: e.target.checked,
+                              gradientStart: cur.gradientStart || "#FFB15A",
+                              gradientEnd: cur.gradientEnd || "#FF6C00",
+                            }
+                            dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { textSegments: next } })
+                          }}
+                        />
+                        Gradient text (this phrase)
+                      </label>
+                      {segment.gradientEnabled && (
+                        <div className="mt-1 grid grid-cols-2 gap-2 rounded border border-orange-200 bg-orange-50/80 p-2">
+                          <div>
+                            <div className="mb-0.5 text-[10px] font-medium text-slate-600">Gradient start</div>
+                            <input
+                              type="color"
+                              className="h-8 w-full rounded border border-slate-200"
+                              value={segment.gradientStart || "#FFB15A"}
+                              onChange={(e) => {
+                                const next = [...(selectedNode.content.textSegments || [])]
+                                next[index] = { ...next[index], gradientStart: e.target.value }
+                                dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { textSegments: next } })
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <div className="mb-0.5 text-[10px] font-medium text-slate-600">Gradient end</div>
+                            <input
+                              type="color"
+                              className="h-8 w-full rounded border border-slate-200"
+                              value={segment.gradientEnd || "#FF6C00"}
+                              onChange={(e) => {
+                                const next = [...(selectedNode.content.textSegments || [])]
+                                next[index] = { ...next[index], gradientEnd: e.target.value }
+                                dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { textSegments: next } })
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           type="button"
@@ -1482,7 +1556,20 @@ export function VisualEditorOverlay() {
                     type="button"
                     className="rounded border px-2 py-1 text-xs"
                     onClick={() => {
-                      const next = [...(selectedNode.content.textSegments || []), { text: "New phrase", color: "#ffffff", bold: true, italic: false, underline: false, opacity: 1 }]
+                      const next = [
+                        ...(selectedNode.content.textSegments || []),
+                        {
+                          text: "New phrase",
+                          color: "#ffffff",
+                          bold: true,
+                          italic: false,
+                          underline: false,
+                          opacity: 1,
+                          gradientEnabled: false,
+                          gradientStart: "#FFB15A",
+                          gradientEnd: "#FF6C00",
+                        },
+                      ]
                       dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { textSegments: next, text: next.map((s) => s.text).join(" ").trim() } })
                     }}
                   >
