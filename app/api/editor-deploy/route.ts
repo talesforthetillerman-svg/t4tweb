@@ -57,6 +57,10 @@ function getEnvDiagnostics(): DeployEnvDiagnostics {
   }
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
 export async function GET() {
   const envDiagnostics = getEnvDiagnostics()
   return NextResponse.json({
@@ -96,10 +100,10 @@ export async function POST(request: Request) {
     })
 
     if (!payload || !Array.isArray(payload.nodes) || !Array.isArray(payload.findings) || !payload.level) {
-      return NextResponse.json({ routeVersion: ROUTE_VERSION, message: "Invalid deploy payload.", publishedDocumentId: "resolved-at-deploy", publishedDocumentType: SANITY_DOC_TYPE, targetSection: TARGET_SECTION, revalidatedPath: REVALIDATED_PATH, diagnostics, envDiagnostics }, { status: 400 })
+      return NextResponse.json({ routeVersion: ROUTE_VERSION, message: "Invalid deploy payload.", publishedDocumentId: "resolved-at-deploy", publishedDocumentType: SANITY_DOC_TYPE, targetSection: TARGET_SECTION, revalidatedPath: REVALIDATED_PATH, persistedNodes: [], skippedNodes: [], failedNodes: ["payload"], diagnostics, envDiagnostics }, { status: 400 })
     }
     if (payload.nodes.length === 0) {
-      return NextResponse.json({ routeVersion: ROUTE_VERSION, message: "Invalid deploy payload: nodes array is empty.", publishedDocumentId: "resolved-at-deploy", publishedDocumentType: SANITY_DOC_TYPE, targetSection: TARGET_SECTION, revalidatedPath: REVALIDATED_PATH, diagnostics, envDiagnostics }, { status: 400 })
+      return NextResponse.json({ routeVersion: ROUTE_VERSION, message: "Invalid deploy payload: nodes array is empty.", publishedDocumentId: "resolved-at-deploy", publishedDocumentType: SANITY_DOC_TYPE, targetSection: TARGET_SECTION, revalidatedPath: REVALIDATED_PATH, persistedNodes: [], skippedNodes: [], failedNodes: ["payload.nodes"], diagnostics, envDiagnostics }, { status: 400 })
     }
 
     if (!projectId) {
@@ -117,6 +121,9 @@ export async function POST(request: Request) {
           publishedDocumentType: SANITY_DOC_TYPE,
           targetSection: TARGET_SECTION,
           revalidatedPath: REVALIDATED_PATH,
+          persistedNodes: [],
+          skippedNodes: [],
+          failedNodes: ["sanity-project-id"],
           diagnostics,
           envDiagnostics,
         },
@@ -139,6 +146,9 @@ export async function POST(request: Request) {
           publishedDocumentType: SANITY_DOC_TYPE,
           targetSection: TARGET_SECTION,
           revalidatedPath: REVALIDATED_PATH,
+          persistedNodes: [],
+          skippedNodes: [],
+          failedNodes: ["sanity-token"],
           diagnostics,
           envDiagnostics,
         },
@@ -155,8 +165,8 @@ export async function POST(request: Request) {
       perspective: "drafts",
     })
 
-    const existingHero = await writeClient.fetch<{ _id: string } | null>(
-      `*[_type == $type][0]{ _id }`,
+    const existingHero = await writeClient.fetch<{ _id: string; title?: string; titleHighlight?: string } | null>(
+      `*[_type == $type][0]{ _id, title, titleHighlight }`,
       { type: SANITY_DOC_TYPE }
     )
 
@@ -176,6 +186,9 @@ export async function POST(request: Request) {
           publishedDocumentType: SANITY_DOC_TYPE,
           targetSection: TARGET_SECTION,
           revalidatedPath: REVALIDATED_PATH,
+          persistedNodes: [],
+          skippedNodes: [],
+          failedNodes: ["hero-section-document"],
           persistedFields: [],
           skippedFields: ["hero-logo", "hero-scroll-indicator", "hero-geometry"],
           diagnostics,
@@ -187,6 +200,9 @@ export async function POST(request: Request) {
 
     const persistedFields: string[] = []
     const skippedFields: string[] = []
+    const persistedNodes: string[] = []
+    const skippedNodes: string[] = []
+    const failedNodes: string[] = []
     const heroPatch: Record<string, string> = {}
 
     const heroTitleNode = payload.nodes.find((node) => node.id === "hero-title" && node.type === "text")
@@ -195,16 +211,13 @@ export async function POST(request: Request) {
     const heroScrollNode = payload.nodes.find((node) => node.id === "hero-scroll-indicator")
 
     if (heroTitleNode?.explicitContent) {
-      const heroTitleText = typeof heroTitleNode.content?.text === "string" ? heroTitleNode.content.text.trim() : ""
-      if (heroTitleText) {
-        heroPatch.title = heroTitleText
-        heroPatch.titleHighlight = ""
-        persistedFields.push("title", "titleHighlight")
-      } else {
-        skippedFields.push("title")
-      }
+      // Hero title currently renders as title + inline styled titleHighlight.
+      // Persisting a flat string from one editable node is not semantically safe yet.
+      skippedFields.push("title")
+      skippedNodes.push("hero-title-rich-inline-accent")
     } else if (heroTitleNode?.explicitPosition || heroTitleNode?.explicitSize || heroTitleNode?.explicitStyle) {
       skippedFields.push("titlePositionOrStyle")
+      skippedNodes.push("hero-title-position-or-style")
     }
 
     if (heroSubtitleNode?.explicitContent) {
@@ -212,23 +225,43 @@ export async function POST(request: Request) {
       if (heroSubtitleText) {
         heroPatch.subtitle = heroSubtitleText
         persistedFields.push("subtitle")
+        persistedNodes.push("hero-subtitle")
       } else {
         skippedFields.push("subtitle")
+        failedNodes.push("hero-subtitle-empty")
       }
     } else if (heroSubtitleNode?.explicitPosition || heroSubtitleNode?.explicitSize || heroSubtitleNode?.explicitStyle) {
       skippedFields.push("subtitlePositionOrStyle")
+      skippedNodes.push("hero-subtitle-position-or-style")
     }
 
     if (heroLogoNode && (heroLogoNode.explicitContent || heroLogoNode.explicitPosition || heroLogoNode.explicitSize || heroLogoNode.explicitStyle)) {
       skippedFields.push("hero-logo")
+      skippedNodes.push("hero-logo")
     }
     if (heroScrollNode && (heroScrollNode.explicitContent || heroScrollNode.explicitPosition || heroScrollNode.explicitSize || heroScrollNode.explicitStyle)) {
       skippedFields.push("hero-scroll-indicator")
+      skippedNodes.push("hero-scroll-indicator")
     }
 
     const positionOnlyEdits = payload.nodes.some((node) => node.explicitPosition || node.explicitSize)
     if (positionOnlyEdits) {
       skippedFields.push("hero-layout")
+      skippedNodes.push("hero-layout")
+    }
+
+    const existingTitle = (existingHero.title || "").trim()
+    const existingHighlight = (existingHero.titleHighlight || "").trim()
+    if (existingTitle && existingHighlight) {
+      const duplicateSuffixPattern = new RegExp(`\\s*${escapeRegExp(existingHighlight)}\\s*$`)
+      if (duplicateSuffixPattern.test(existingTitle)) {
+        const normalizedTitle = existingTitle.replace(duplicateSuffixPattern, "").trim()
+        if (normalizedTitle && normalizedTitle !== existingTitle) {
+          heroPatch.title = normalizedTitle
+          persistedFields.push("title")
+          persistedNodes.push("hero-title-dedup-sanitize")
+        }
+      }
     }
 
     if (Object.keys(heroPatch).length > 0) {
@@ -258,6 +291,9 @@ export async function POST(request: Request) {
       publishedDocumentType: SANITY_DOC_TYPE,
       targetSection: TARGET_SECTION,
       revalidatedPath: REVALIDATED_PATH,
+      persistedNodes,
+      skippedNodes,
+      failedNodes,
       persistedFields,
       skippedFields,
       diagnostics,
@@ -277,6 +313,9 @@ export async function POST(request: Request) {
         publishedDocumentType: SANITY_DOC_TYPE,
         targetSection: TARGET_SECTION,
         revalidatedPath: REVALIDATED_PATH,
+        persistedNodes: [],
+        skippedNodes: [],
+        failedNodes: ["exception"],
         diagnostics,
         envDiagnostics,
       },
