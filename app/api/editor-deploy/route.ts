@@ -155,16 +155,13 @@ export async function POST(request: Request) {
       perspective: "drafts",
     })
 
-    const heroTitleNode = payload.nodes.find((node) => node.id === "hero-title" && node.type === "text")
-    const heroSubtitleNode = payload.nodes.find((node) => node.id === "hero-subtitle" && node.type === "text")
-    const heroPatch: Record<string, string> = {}
-    const heroTitleText = typeof heroTitleNode?.content?.text === "string" ? heroTitleNode.content.text.trim() : ""
-    const heroSubtitleText = typeof heroSubtitleNode?.content?.text === "string" ? heroSubtitleNode.content.text.trim() : ""
-    if (heroTitleText) heroPatch.title = heroTitleText
-    if (heroSubtitleText) heroPatch.subtitle = heroSubtitleText
+    const existingHero = await writeClient.fetch<{ _id: string } | null>(
+      `*[_type == $type][0]{ _id }`,
+      { type: SANITY_DOC_TYPE }
+    )
 
-    if (Object.keys(heroPatch).length === 0) {
-      steps.push({ step: "saving", ok: false, message: "No editable Hero fields were found in payload." })
+    if (!existingHero?._id) {
+      steps.push({ step: "saving", ok: false, message: "Hero section document not found; refusing to create implicit duplicate." })
       return NextResponse.json(
         {
           status: "failed",
@@ -172,13 +169,15 @@ export async function POST(request: Request) {
           step: "saving",
           localSaved: false,
           remoteReady: false,
-          message: "Deploy failed: no Hero node updates (hero-title / hero-subtitle) found in payload.",
+          message: "Deploy failed: heroSection document not found.",
           steps,
           routeVersion: ROUTE_VERSION,
           publishedDocumentId: "resolved-at-deploy",
           publishedDocumentType: SANITY_DOC_TYPE,
           targetSection: TARGET_SECTION,
           revalidatedPath: REVALIDATED_PATH,
+          persistedFields: [],
+          skippedFields: ["hero-logo", "hero-scroll-indicator", "hero-geometry"],
           diagnostics,
           envDiagnostics,
         },
@@ -186,29 +185,60 @@ export async function POST(request: Request) {
       )
     }
 
-    const existingHero = await writeClient.fetch<{ _id: string } | null>(
-      `*[_type == $type][0]{ _id }`,
-      { type: SANITY_DOC_TYPE }
-    )
+    const persistedFields: string[] = []
+    const skippedFields: string[] = []
+    const heroPatch: Record<string, string> = {}
 
-    let publishedDocumentId = existingHero?._id || ""
-    if (existingHero?._id) {
+    const heroTitleNode = payload.nodes.find((node) => node.id === "hero-title" && node.type === "text")
+    const heroSubtitleNode = payload.nodes.find((node) => node.id === "hero-subtitle" && node.type === "text")
+    const heroLogoNode = payload.nodes.find((node) => node.id === "hero-logo")
+    const heroScrollNode = payload.nodes.find((node) => node.id === "hero-scroll-indicator")
+
+    if (heroTitleNode?.explicitContent) {
+      const heroTitleText = typeof heroTitleNode.content?.text === "string" ? heroTitleNode.content.text.trim() : ""
+      if (heroTitleText) {
+        heroPatch.title = heroTitleText
+        heroPatch.titleHighlight = ""
+        persistedFields.push("title", "titleHighlight")
+      } else {
+        skippedFields.push("title")
+      }
+    } else if (heroTitleNode?.explicitPosition || heroTitleNode?.explicitSize || heroTitleNode?.explicitStyle) {
+      skippedFields.push("titlePositionOrStyle")
+    }
+
+    if (heroSubtitleNode?.explicitContent) {
+      const heroSubtitleText = typeof heroSubtitleNode.content?.text === "string" ? heroSubtitleNode.content.text.trim() : ""
+      if (heroSubtitleText) {
+        heroPatch.subtitle = heroSubtitleText
+        persistedFields.push("subtitle")
+      } else {
+        skippedFields.push("subtitle")
+      }
+    } else if (heroSubtitleNode?.explicitPosition || heroSubtitleNode?.explicitSize || heroSubtitleNode?.explicitStyle) {
+      skippedFields.push("subtitlePositionOrStyle")
+    }
+
+    if (heroLogoNode && (heroLogoNode.explicitContent || heroLogoNode.explicitPosition || heroLogoNode.explicitSize || heroLogoNode.explicitStyle)) {
+      skippedFields.push("hero-logo")
+    }
+    if (heroScrollNode && (heroScrollNode.explicitContent || heroScrollNode.explicitPosition || heroScrollNode.explicitSize || heroScrollNode.explicitStyle)) {
+      skippedFields.push("hero-scroll-indicator")
+    }
+
+    const positionOnlyEdits = payload.nodes.some((node) => node.explicitPosition || node.explicitSize)
+    if (positionOnlyEdits) {
+      skippedFields.push("hero-layout")
+    }
+
+    if (Object.keys(heroPatch).length > 0) {
       await writeClient.patch(existingHero._id).set({ ...heroPatch, updatedAt: new Date().toISOString() }).commit()
-      steps.push({ step: "saving", ok: true, message: `Hero section updated: ${existingHero._id}` })
+      steps.push({ step: "saving", ok: true, message: `Hero section patched: ${existingHero._id}` })
     } else {
-      const created = await writeClient.create({
-        _type: SANITY_DOC_TYPE,
-        ...heroPatch,
-        updatedAt: new Date().toISOString(),
-      })
-      publishedDocumentId = created._id
-      steps.push({ step: "saving", ok: true, message: `Hero section created: ${created._id}` })
+      steps.push({ step: "saving", ok: true, message: "No persistible Hero content changes detected; no patch applied." })
     }
 
-    if (!publishedDocumentId) {
-      publishedDocumentId = "unknown"
-    }
-
+    const publishedDocumentId = existingHero._id
     steps.push({ step: "publishing", ok: true, message: `Published Hero document: ${publishedDocumentId}` })
 
     revalidatePath(REVALIDATED_PATH)
@@ -228,6 +258,8 @@ export async function POST(request: Request) {
       publishedDocumentType: SANITY_DOC_TYPE,
       targetSection: TARGET_SECTION,
       revalidatedPath: REVALIDATED_PATH,
+      persistedFields,
+      skippedFields,
       diagnostics,
       envDiagnostics,
     })
