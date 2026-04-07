@@ -1009,11 +1009,12 @@ export function VisualEditorOverlay() {
       const data = (await response.json()) as {
         status?: string
         mode?: "complete" | "incomplete"
-        step?: "checking" | "blocked" | "saving" | "creating_branch" | "committing" | "creating_pr" | "done" | "failed"
+        step?: "checking" | "blocked" | "saving" | "publishing" | "revalidating" | "creating_branch" | "committing" | "creating_pr" | "done" | "failed"
         localSaved?: boolean
         remoteReady?: boolean
         message?: string
         prUrl?: string
+        sanityDocumentId?: string
         steps?: Array<{ step: string; ok: boolean; message: string }>
       }
       if (!response.ok) {
@@ -1036,20 +1037,17 @@ export function VisualEditorOverlay() {
         ? `\n\nStep trace:\n${data.steps.map((s) => `- ${s.step}: ${s.ok ? "ok" : "failed"} (${s.message})`).join("\n")}`
         : ""
 
-      if (data.mode === "complete" && data.prUrl) {
+      if (data.mode === "complete") {
         setDeployStatus("done")
-        const branchStep = data.steps?.find((s) => s.step === "creating_branch")
-        const commitStep = data.steps?.find((s) => s.step === "committing")
-        const prStep = data.steps?.find((s) => s.step === "creating_pr")
-        const branchMessage = branchStep?.message.includes("updated")
-          ? "editor-deploy synced with main."
-          : "editor-deploy created from main."
-        const prMessage = prStep?.message.includes("reused")
-          ? `Using existing editor deploy PR.\nPR updated: ${data.prUrl}`
-          : `PR created: ${data.prUrl}`
-        const commitMessage = commitStep?.ok ? "Editor payload committed." : "Editor payload commit failed."
+        const saveStep = data.steps?.find((s) => s.step === "saving")
+        const publishStep = data.steps?.find((s) => s.step === "publishing")
+        const revalidateStep = data.steps?.find((s) => s.step === "revalidating")
+        const saveMessage = saveStep?.ok ? "Draft saved in Sanity." : "Draft save failed."
+        const publishMessage = publishStep?.ok ? "Draft published automatically." : "Draft publish failed."
+        const revalidateMessage = revalidateStep?.ok ? "Public site revalidated." : "Revalidation pending/manual."
+        const docMessage = data.sanityDocumentId ? `Sanity document: ${data.sanityDocumentId}` : "Sanity document published."
         window.alert(
-          `${statusTitle}\n\n${branchMessage}\n${commitMessage}\n${prMessage}${warningBlock}${stepTrace}`
+          `${statusTitle}\n\n${saveMessage}\n${publishMessage}\n${revalidateMessage}\n${docMessage}${warningBlock}${stepTrace}`
         )
       } else {
         setDeployStatus("failed")
