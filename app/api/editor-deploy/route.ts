@@ -326,6 +326,7 @@ export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as DeployRequestPayload
     const isProductionRuntime = process.env.NODE_ENV === "production" || !!process.env.VERCEL
+    const baseBranch = process.env.GITHUB_BASE_BRANCH || "main"
     const githubConfigured = Boolean(process.env.GITHUB_TOKEN && process.env.GITHUB_REPO)
     const steps: DeployStepResult[] = [{
       step: "checking",
@@ -334,6 +335,11 @@ export async function POST(request: Request) {
         ? "Payload received. Diagnostic deploy mode active (pre-check does not block)."
         : "Payload received.",
     }]
+    steps.push({
+      step: "checking",
+      ok: true,
+      message: `Env diagnostics (server-side): GITHUB_TOKEN detected: ${process.env.GITHUB_TOKEN ? "yes" : "no"}, GITHUB_REPO detected: ${process.env.GITHUB_REPO ? "yes" : "no"}, GITHUB_BASE_BRANCH: ${baseBranch}.`,
+    })
 
     if (!payload || !Array.isArray(payload.nodes) || !Array.isArray(payload.findings) || !payload.level) {
       return NextResponse.json({ message: "Invalid deploy payload." }, { status: 400 })
