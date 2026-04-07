@@ -3,6 +3,16 @@ import { groq } from 'next-sanity'
 export const heroQuery = groq`*[_type == "heroSection"][0]{
   title,
   titleHighlight,
+  titleSegments[]{
+    text,
+    color,
+    bold,
+    italic,
+    underline,
+    opacity,
+    fontSize,
+    fontFamily
+  },
   subtitle,
   description,
   "logoUrl": logo.asset->url,
