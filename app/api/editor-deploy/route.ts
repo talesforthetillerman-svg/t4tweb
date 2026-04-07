@@ -22,15 +22,14 @@ interface DeployRequestPayload {
   nodes: DeployNodePayload[]
 }
 
-interface GithubRefResponse {
-  object?: { sha?: string }
-}
-
 interface DeployStepResult {
   step: "checking" | "saving" | "creating_branch" | "committing" | "creating_pr"
   ok: boolean
   message: string
 }
+
+const PAYLOAD_FILE = "public/data/editor-deploy-state.json"
+const EDITOR_BRANCH = "editor-deploy"
 
 async function githubRequest<T>(url: string, init: RequestInit, token: string): Promise<T> {
   const response = await fetch(url, {
@@ -42,11 +41,36 @@ async function githubRequest<T>(url: string, init: RequestInit, token: string): 
       ...(init.headers || {}),
     },
   })
+
   if (!response.ok) {
     const text = await response.text()
     throw new Error(`GitHub API error ${response.status}: ${text}`)
   }
+
   return response.json() as Promise<T>
+}
+
+async function githubRequestAllow404<T>(url: string, init: RequestInit, token: string): Promise<{ status: number; data?: T; text?: string }> {
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "t4t-editor-deploy",
+      ...(init.headers || {}),
+    },
+  })
+
+  if (response.status === 404) {
+    return { status: 404 }
+  }
+  if (!response.ok) {
+    const text = await response.text()
+    return { status: response.status, text }
+  }
+
+  const data = (await response.json()) as T
+  return { status: response.status, data }
 }
 
 async function runGithubFlow(content: string): Promise<{
@@ -86,31 +110,90 @@ async function runGithubFlow(content: string): Promise<{
     }
   }
 
-  let branchName = ""
+  try {
+    const pulls = await githubRequest<Array<{ number: number; html_url: string }>>(
+      `https://api.github.com/repos/${owner}/${repoName}/pulls?state=open&head=${owner}:${EDITOR_BRANCH}&base=${baseBranch}`,
+      { method: "GET" },
+      token
+    )
+
+    if (pulls.length > 0) {
+      const existingPr = pulls[0]
+      const prFiles = await githubRequest<Array<{ filename: string }>>(
+        `https://api.github.com/repos/${owner}/${repoName}/pulls/${existingPr.number}/files`,
+        { method: "GET" },
+        token
+      )
+      const unexpectedFiles = prFiles
+        .map((f) => f.filename)
+        .filter((name) => name !== PAYLOAD_FILE)
+
+      if (unexpectedFiles.length > 0) {
+        steps.push({
+          step: "creating_branch",
+          ok: false,
+          message: `Conflict in code file, manual review required: ${unexpectedFiles.join(", ")}`,
+        })
+        return {
+          prUrl: existingPr.html_url,
+          steps,
+          error: `Conflict in code file, manual review required: ${unexpectedFiles.join(", ")}`,
+        }
+      }
+    }
+  } catch (error) {
+    steps.push({
+      step: "creating_branch",
+      ok: false,
+      message: error instanceof Error ? error.message : "Failed to inspect existing PR state.",
+    })
+    return {
+      prUrl: null,
+      steps,
+      error: `Failed at create_branch: ${error instanceof Error ? error.message : "Unknown error"}`,
+    }
+  }
 
   try {
-    const refData = await githubRequest<GithubRefResponse>(
+    const baseRef = await githubRequest<{ object?: { sha?: string } }>(
       `https://api.github.com/repos/${owner}/${repoName}/git/ref/heads/${baseBranch}`,
       { method: "GET" },
       token
     )
-    const baseSha = refData.object?.sha
+    const baseSha = baseRef.object?.sha
     if (!baseSha) throw new Error("Could not resolve base branch SHA")
 
-    branchName = `editor-deploy-${Date.now()}`
-    await githubRequest(
-      `https://api.github.com/repos/${owner}/${repoName}/git/refs`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ref: `refs/heads/${branchName}`,
-          sha: baseSha,
-        }),
-      },
+    const existingBranch = await githubRequestAllow404<{ ref: string }>(
+      `https://api.github.com/repos/${owner}/${repoName}/git/ref/heads/${EDITOR_BRANCH}`,
+      { method: "GET" },
       token
     )
-    steps.push({ step: "creating_branch", ok: true, message: `Branch created: ${branchName}` })
+
+    if (existingBranch.status === 404) {
+      await githubRequest(
+        `https://api.github.com/repos/${owner}/${repoName}/git/refs`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ref: `refs/heads/${EDITOR_BRANCH}`, sha: baseSha }),
+        },
+        token
+      )
+      steps.push({ step: "creating_branch", ok: true, message: `Branch created: ${EDITOR_BRANCH}` })
+    } else if (existingBranch.status >= 400) {
+      throw new Error(existingBranch.text || "Failed to inspect editor-deploy branch")
+    } else {
+      await githubRequest(
+        `https://api.github.com/repos/${owner}/${repoName}/git/refs/heads/${EDITOR_BRANCH}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sha: baseSha, force: true }),
+        },
+        token
+      )
+      steps.push({ step: "creating_branch", ok: true, message: `Branch updated from ${baseBranch}: ${EDITOR_BRANCH}` })
+    }
   } catch (error) {
     steps.push({ step: "creating_branch", ok: false, message: error instanceof Error ? error.message : "Unknown branch creation error." })
     return {
@@ -121,20 +204,29 @@ async function runGithubFlow(content: string): Promise<{
   }
 
   try {
+    const existingContent = await githubRequestAllow404<{ sha: string }>(
+      `https://api.github.com/repos/${owner}/${repoName}/contents/${PAYLOAD_FILE}?ref=${EDITOR_BRANCH}`,
+      { method: "GET" },
+      token
+    )
+
     await githubRequest(
-      `https://api.github.com/repos/${owner}/${repoName}/contents/public/data/editor-deploy-state.json`,
+      `https://api.github.com/repos/${owner}/${repoName}/contents/${PAYLOAD_FILE}`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: "chore(editor): persist visual editor deploy state",
           content: Buffer.from(content, "utf8").toString("base64"),
-          branch: branchName,
+          branch: EDITOR_BRANCH,
+          ...(existingContent.status === 200 && existingContent.data?.sha
+            ? { sha: existingContent.data.sha }
+            : {}),
         }),
       },
       token
     )
-    steps.push({ step: "committing", ok: true, message: "Commit created in branch." })
+    steps.push({ step: "committing", ok: true, message: "Editor payload committed." })
   } catch (error) {
     steps.push({ step: "committing", ok: false, message: error instanceof Error ? error.message : "Unknown commit error." })
     return {
@@ -145,25 +237,39 @@ async function runGithubFlow(content: string): Promise<{
   }
 
   try {
-    const pr = await githubRequest<{ html_url?: string }>(
+    const pulls = await githubRequest<Array<{ number: number; html_url: string }>>(
+      `https://api.github.com/repos/${owner}/${repoName}/pulls?state=open&head=${owner}:${EDITOR_BRANCH}&base=${baseBranch}`,
+      { method: "GET" },
+      token
+    )
+
+    if (pulls.length > 0) {
+      const existingPr = pulls[0]
+      steps.push({ step: "creating_pr", ok: true, message: `PR reused: ${existingPr.html_url}` })
+      return { prUrl: existingPr.html_url, steps }
+    }
+
+    const createdPr = await githubRequest<{ html_url?: string }>(
       `https://api.github.com/repos/${owner}/${repoName}/pulls`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: "Editor deploy: persist visual changes",
-          head: branchName,
+          head: EDITOR_BRANCH,
           base: baseBranch,
-          body: "Automated editor deploy payload. GitHub Actions checks will run on this PR.",
+          body: "Automated editor deploy payload on fixed editor-deploy branch. GitHub Actions checks will run on this PR.",
         }),
       },
       token
     )
-    const prUrl = pr.html_url || null
+
+    const prUrl = createdPr.html_url || null
     if (!prUrl) {
       steps.push({ step: "creating_pr", ok: false, message: "PR API returned without html_url." })
       return { prUrl: null, steps, error: "Failed at create_pr: GitHub did not return PR URL." }
     }
+
     steps.push({ step: "creating_pr", ok: true, message: `PR created: ${prUrl}` })
     return { prUrl, steps }
   } catch (error) {
@@ -209,14 +315,14 @@ export async function POST(request: Request) {
     const githubResult = await runGithubFlow(serialized)
     const mergedSteps = steps.concat(githubResult.steps)
 
-    if (githubResult.prUrl) {
+    if (githubResult.prUrl && !githubResult.error) {
       return NextResponse.json({
         status: "ok",
         mode: "complete",
         step: "done",
         localSaved: true,
         remoteReady: true,
-        message: "Branch created, commit pushed, and PR opened successfully.",
+        message: "Branch updated, editor payload committed, and PR ready.",
         prUrl: githubResult.prUrl,
         steps: mergedSteps,
       })
@@ -232,6 +338,7 @@ export async function POST(request: Request) {
       message:
         githubResult.error ||
         "Deploy incomplete: changes were saved locally, but branch/commit/PR could not be completed.",
+      prUrl: githubResult.prUrl,
       steps: mergedSteps,
     })
   } catch (error) {
