@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
@@ -22,7 +22,7 @@ export function PressKitSection() {
 
   const { opacity, y } = useScrollAnimation(sectionRef)
 
-  const resources = [
+  const resources = useMemo(() => [
     {
       title: "Band Logo",
       description: "High-resolution logo files",
@@ -36,7 +36,8 @@ export function PressKitSection() {
       icon: LinkIcon,
       href: "https://linktr.ee/tales4tillerman",
     },
-  ]
+  ], [])
+  const visibleResources = resources.slice(0, 2)
 
   const resourceVariants = {
     hidden: { opacity: 0, y: 12 },
@@ -158,12 +159,13 @@ export function PressKitSection() {
     }
 
     // Register lower cards for selection (drag is handled separately)
+    resourceRefs.current = resourceRefs.current.slice(0, visibleResources.length)
     resourceRefs.current.forEach((ref, index) => {
       if (ref) {
         registerEditable({
           id: `press-kit-resource-${index}`,
           type: 'link',
-          label: `Resource: ${resources[index]?.title || index}`,
+          label: `Resource: ${visibleResources[index]?.title || index}`,
           parentId: 'press-kit-section',
           element: ref,
           originalRect: ref.getBoundingClientRect(),
@@ -194,10 +196,10 @@ export function PressKitSection() {
       unregisterEditable('press-kit-title')
       unregisterEditable('press-kit-description')
       unregisterEditable('press-kit-download-button')
-      resources.forEach((_, i) => unregisterEditable(`press-kit-resource-${i}`))
+      visibleResources.forEach((_, i) => unregisterEditable(`press-kit-resource-${i}`))
       unregisterEditable('press-kit-manager')
     }
-  }, [isEditing, registerEditable, unregisterEditable, resources])
+  }, [isEditing, registerEditable, unregisterEditable, visibleResources])
 
   return (
     <section 
@@ -216,6 +218,7 @@ export function PressKitSection() {
           sizes="100vw"
           data-editor-node-id="press-kit-bg"
           data-editor-node-type="background"
+          data-editor-media-kind="image"
           data-editor-node-label="Background Image"
         />
       </div>
@@ -227,7 +230,7 @@ export function PressKitSection() {
         <div className="relative z-10 mx-auto max-w-7xl">
           <motion.div 
             ref={headerRef}
-            style={{ opacity, y }} 
+            style={isEditing ? undefined : { opacity, y }} 
             className="mb-10 md:mb-12"
           >
             <SectionHeader
@@ -242,10 +245,10 @@ export function PressKitSection() {
 
           <motion.div
             ref={mainCardRef}
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.45 }}
+            initial={isEditing ? false : { opacity: 0, y: 12 }}
+            whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+            viewport={isEditing ? undefined : { once: true, amount: 0.2 }}
+            transition={isEditing ? undefined : { duration: 0.45 }}
             className="mb-10 md:mb-12"
           >
             <div 
@@ -291,18 +294,18 @@ export function PressKitSection() {
           </motion.div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {resources.map((resource, index) => {
+            {visibleResources.map((resource, index) => {
               const Icon = resource.icon
               return (
                 <motion.a
                   ref={(el) => { resourceRefs.current[index] = el }}
                   key={resource.title}
                   custom={index}
-                  initial="hidden"
-                  whileInView="visible"
+                  initial={isEditing ? false : "hidden"}
+                  whileInView={isEditing ? undefined : "visible"}
                   variants={resourceVariants}
-                  whileHover={{ y: -2 }}
-                  transition={{ type: "spring", stiffness: 320, damping: 22 }}
+                  whileHover={isEditing ? undefined : { y: -2 }}
+                  transition={isEditing ? undefined : { type: "spring", stiffness: 320, damping: 22 }}
                   href={resource.href}
                   target={resource.download ? undefined : "_blank"}
                   rel={resource.download ? undefined : "noopener noreferrer"}
@@ -322,7 +325,7 @@ export function PressKitSection() {
               )
             })}
 
-            <ManagerCard managerRef={managerRef} />
+            <ManagerCard managerRef={managerRef} isEditing={isEditing} />
           </div>
         </div>
       </div>
@@ -384,18 +387,21 @@ function DownloadIcon({ className }: { className?: string }) {
   )
 }
 
-function ManagerCard({ managerRef }: { managerRef: React.RefObject<HTMLButtonElement | null> }) {
+function ManagerCard({ managerRef, isEditing }: { managerRef: React.RefObject<HTMLButtonElement | null>; isEditing: boolean }) {
   const [showModal, setShowModal] = useState(false)
   
   return (
     <>
       <motion.button
         ref={managerRef}
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -2 }}
-        transition={{ duration: 0.45, delay: 0.06, type: "spring", stiffness: 320, damping: 22 }}
-        onClick={() => setShowModal(true)}
+        initial={isEditing ? false : { opacity: 0, y: 12 }}
+        whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+        whileHover={isEditing ? undefined : { y: -2 }}
+        transition={isEditing ? undefined : { duration: 0.45, delay: 0.06, type: "spring", stiffness: 320, damping: 22 }}
+        onClick={() => {
+          if (isEditing) return
+          setShowModal(true)
+        }}
         className="group flex w-full flex-col items-start rounded-2xl border border-border bg-card/35 p-6 shadow-md backdrop-blur-sm transition-all duration-300 hover:border-[#FF8C21]/45 hover:shadow-lg cursor-pointer text-left"
         data-editor-node-id="press-kit-manager"
         data-editor-node-type="card"
