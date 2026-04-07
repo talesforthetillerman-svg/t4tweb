@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { SectionHeader } from "@/components/section-header"
+import { useVisualEditor } from "@/components/visual-editor"
 
 import { client } from "@/lib/sanity/client"
 import { bandMembersQuery } from "@/lib/sanity/queries"
@@ -24,6 +25,7 @@ export function BandMembersSection() {
   const [isMobile, setIsMobile] = useState(false)
   const [members, setMembers] = useState(FALLBACK_MEMBERS)
   const { opacity, y } = useScrollAnimation(sectionRef)
+  const { isEditing } = useVisualEditor()
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024)
@@ -61,14 +63,15 @@ export function BandMembersSection() {
       data-editor-node-id="band-members-section"
       data-editor-node-type="section"
       data-editor-node-label="Sección Miembros de la Banda"
-      className="relative min-h-screen w-full overflow-hidden bg-black"
+      className="relative isolate min-h-screen w-full overflow-hidden bg-black"
     >
       {/* Fondo full width */}
       <div 
         data-editor-node-id="band-members-bg"
         data-editor-node-type="background"
+        data-editor-media-kind="image"
         data-editor-node-label="Imagen de fondo banda"
-        className="absolute inset-0 -z-10"
+        className="absolute inset-0 z-0"
       >
         <Image
           src="/images/t4t-2.jpg"
@@ -79,25 +82,24 @@ export function BandMembersSection() {
       </div>
 
       {/* Gradiente superior */}
-      <div className="section-photo-fade-top" />
+      <div className="section-photo-fade-top z-10" />
 
       {/* Gradiente inferior */}
-      <div className="section-photo-fade-bottom" />
+      <div className="section-photo-fade-bottom z-10" />
 
-      <div className="section-photo-scrim" />
+      <div className="section-photo-scrim z-10" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
-        <motion.div
-          style={{ opacity, y }}
-          className="mb-8 md:mb-12 lg:mb-16 text-center"
-        >
+          <motion.div
+            style={isEditing ? undefined : { opacity, y }}
+            className="mb-8 md:mb-12 lg:mb-16 text-center"
+          >
           <SectionHeader
             eyebrow="The Musicians"
             title="Meet the Band"
             description="Five musicians from diverse backgrounds, united by a passion for rhythm and groove."
-            data-editor-node-id="band-members-header"
-            data-editor-node-type="text"
-            data-editor-node-label="Encabezado Miembros"
+            dataEditId="band-members-header"
+            dataEditLabel="Encabezado Miembros"
           />
         </motion.div>
 
@@ -115,36 +117,22 @@ export function BandMembersSection() {
                 transition={{ duration: 0.6, ease: "easeInOut" }}
                 className="absolute inset-0"
               >
-                <div 
-                  data-editor-node-id={`member-photo-${index}`}
-                  data-editor-node-type="image"
-                  data-editor-node-label={`Foto ${member.fullName}`}
-                  className="absolute inset-0"
-                >
+                <div className="absolute inset-0">
                   <Image
                     src={member.image}
                     alt={member.fullName}
                     fill
+                    data-member-photo-index={index}
                     className="object-cover"
                     priority={index === 0}
                   />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
-                  <h3 
-                    data-editor-node-id={`member-name-${index}`}
-                    data-editor-node-type="text"
-                    data-editor-node-label={`Nombre ${member.fullName}`}
-                    className="text-2xl md:text-3xl lg:text-4xl font-serif text-white mb-2 tracking-tight"
-                  >
+                  <h3 data-member-overlay-name-index={index} className="text-2xl md:text-3xl lg:text-4xl font-serif text-white mb-2 tracking-tight">
                     {member.fullName}
                   </h3>
-                  <p 
-                    data-editor-node-id={`member-role-${index}`}
-                    data-editor-node-type="text"
-                    data-editor-node-label={`Rol ${member.fullName}`}
-                    className="text-xl text-orange-400 font-medium"
-                  >
+                  <p data-member-overlay-role-index={index} className="text-xl text-orange-400 font-medium">
                     {member.role}
                   </p>
                 </div>
@@ -158,9 +146,9 @@ export function BandMembersSection() {
                 type="button"
                 key={member.id}
                 onClick={() => handleMemberClick(index)}
-                onMouseEnter={() => !isMobile && setActiveIndex(index)}
-                whileHover={{ scale: 1.02, x: 8 }}
-                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                onMouseEnter={() => (!isEditing && !isMobile) && setActiveIndex(index)}
+                whileHover={isEditing ? undefined : { scale: 1.02, x: 8 }}
+                transition={isEditing ? undefined : { type: "spring", stiffness: 400, damping: 25 }}
                 data-editor-node-id={`member-item-${index}`}
                 data-editor-node-type="card"
                 data-editor-node-label={member.fullName}
@@ -174,9 +162,7 @@ export function BandMembersSection() {
               >
                 <div className="min-w-0 flex-1">
                   <h4
-                    data-editor-node-id={`member-list-name-${index}`}
-                    data-editor-node-type="text"
-                    data-editor-node-label={`Nombre en lista ${member.fullName}`}
+                    data-member-name-index={index}
                     className={`text-base md:text-xl font-medium transition-colors truncate ${
                       activeIndex === index ? "text-white" : "text-white/80 group-hover:text-white"
                     }`}
@@ -184,9 +170,7 @@ export function BandMembersSection() {
                     {member.fullName}
                   </h4>
                   <p
-                    data-editor-node-id={`member-list-role-${index}`}
-                    data-editor-node-type="text"
-                    data-editor-node-label={`Rol en lista ${member.fullName}`}
+                    data-member-role-index={index}
                     className={`text-xs md:text-sm mt-0.5 md:mt-1 transition-colors ${
                       activeIndex === index ? "text-orange-400" : "text-white/50"
                     }`}
@@ -196,6 +180,7 @@ export function BandMembersSection() {
                 </div>
 
                 <div
+                  data-member-number-index={index}
                   className={`w-7 h-7 md:w-8 md:h-8 shrink-0 ml-3 rounded-full flex items-center justify-center text-xs font-mono border transition-all ${
                     activeIndex === index
                       ? "border-orange-500 text-orange-400 bg-orange-950"

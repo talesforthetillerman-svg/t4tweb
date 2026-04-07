@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react"
 import { motion } from "framer-motion"
+import { useVisualEditor } from "@/components/visual-editor"
 
 const view = { once: true, amount: 0.25 as const }
 
@@ -36,15 +37,16 @@ export function SectionHeader({
   dataEditType,
   dataEditLabel,
 }: SectionHeaderProps) {
+  const { isEditing } = useVisualEditor()
   return (
     <div className={`mx-auto max-w-3xl text-center ${className}`}>
       {prepend ? <div className="mb-[var(--spacing-md)]">{prepend}</div> : null}
 
       <motion.span
-        initial={{ opacity: 0, y: 8 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={view}
-        transition={{ duration: 0.4 }}
+        initial={isEditing ? false : { opacity: 0, y: 8 }}
+        whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+        viewport={isEditing ? undefined : view}
+        transition={isEditing ? undefined : { duration: 0.4 }}
         className="mb-[var(--spacing-sm)] block text-[length:var(--text-small)] font-semibold uppercase tracking-[0.2em] text-primary"
         data-editor-node-id={dataEditId ? `${dataEditId}-eyebrow` : undefined}
         data-editor-node-type="text"
@@ -54,10 +56,10 @@ export function SectionHeader({
       </motion.span>
 
       <motion.h2
-        initial={{ opacity: 0, y: 10 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={view}
-        transition={{ duration: 0.45, delay: 0.04 }}
+        initial={isEditing ? false : { opacity: 0, y: 10 }}
+        whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+        viewport={isEditing ? undefined : view}
+        transition={isEditing ? undefined : { duration: 0.45, delay: 0.04 }}
         className={`mb-[var(--spacing-md)] text-balance font-serif text-[length:var(--text-h2)] leading-[var(--line-height-tight)] text-foreground ${titleClassName}`}
         data-editor-node-id={dataEditId ? `${dataEditId}-title` : undefined}
         data-editor-node-type="text"
@@ -68,10 +70,10 @@ export function SectionHeader({
 
       {description ? (
         <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={view}
-          transition={{ duration: 0.45, delay: 0.08 }}
+          initial={isEditing ? false : { opacity: 0, y: 10 }}
+          whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+          viewport={isEditing ? undefined : view}
+          transition={isEditing ? undefined : { duration: 0.45, delay: 0.08 }}
           className={`mx-auto max-w-2xl text-[length:var(--text-body)] leading-[var(--line-height-relaxed)] text-muted-foreground ${descriptionClassName}`}
           data-editor-node-id={dataEditId ? `${dataEditId}-description` : undefined}
           data-editor-node-type="text"
