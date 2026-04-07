@@ -101,6 +101,15 @@ interface AssetItem {
   filename: string
 }
 
+type PrecheckLevel = "green" | "yellow" | "red"
+
+interface PrecheckFinding {
+  element: string
+  issue: string
+  severity: PrecheckLevel
+  blocks: boolean
+}
+
 interface VisualEditorContextType {
   isEditing: boolean
   setIsEditing: (v: boolean) => void
