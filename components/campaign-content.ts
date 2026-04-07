@@ -12,7 +12,8 @@ export const CAMPAIGN_CONTENT = {
   releaseCtaLabel: "Stream the New Single",
   releaseCtaHref: "https://open.spotify.com/intl-es/artist/0FHjK3O0k8HQMrJsF7KQwF",
   showsCtaLabel: "See Upcoming Shows",
-  showsCtaHref: "https://www.bandsintown.com/a/15468933-tales-for-the-tillerman",
+  showsCtaHref:
+    "https://www.bandsintown.com/e/108124718-tales-for-the-tillerman-at-mauerpark?came_from=250&utm_medium=web&utm_source=artist_page&utm_campaign=search_bar",
   urgencyCue: "Next show date update is coming soon · booking requests are open now.",
   releaseTitle: "Latest Release",
   releaseSubtitle: "Fresh groove, built for live stages and late-night playlists.",
