@@ -10,7 +10,7 @@ export function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Refs for editable elements
-  const navRef = useRef<HTMLElement>(null)
+  const navRef = useRef<HTMLDivElement>(null)
   const logoRef = useRef<HTMLDivElement>(null)
   const logoLinkRef = useRef<HTMLAnchorElement>(null)
   const brandNameRef = useRef<HTMLSpanElement>(null)
