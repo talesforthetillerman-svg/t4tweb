@@ -20,6 +20,9 @@ interface TextSegment {
   opacity: number
   fontSize?: string
   fontFamily?: string
+  gradientEnabled?: boolean
+  gradientStart?: string
+  gradientEnd?: string
 }
 
 interface NodeGeometry {
@@ -53,6 +56,9 @@ interface EditorNode {
     minHeight?: string
     paddingTop?: string
     paddingBottom?: string
+    gradientEnabled?: boolean
+    gradientStart?: string
+    gradientEnd?: string
   }
   content: {
     text?: string
@@ -69,7 +75,7 @@ interface EditorNode {
   explicitSize: boolean
 }
 
-export interface RuntimeEntry {
+interface RuntimeEntry {
   id: string
   type: NodeType
   sectionId: string
@@ -314,6 +320,12 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
     }
   }
   const cs = getComputedStyle(el)
+  const hasGradient = cs.backgroundClip === "text" || (cs as unknown as Record<string, string>).webkitBackgroundClip === "text"
+  const bg = cs.backgroundImage || ""
+  const isGradientBg = hasGradient && bg.includes("gradient")
+  const gradientParts = isGradientBg ? bg.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/gi) : null
+  const gradientStart = gradientParts && gradientParts[0] ? rgbToHex(gradientParts[0]) : "#FFB15A"
+  const gradientEnd = gradientParts && gradientParts[1] ? rgbToHex(gradientParts[1]) : "#FF6C00"
   return {
     id: entry.id,
     type: entry.type,
@@ -333,6 +345,11 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
       minHeight: cs.minHeight,
       paddingTop: cs.paddingTop,
       paddingBottom: cs.paddingBottom,
+      ...(isGradientBg ? {
+        gradientEnabled: true,
+        gradientStart: gradientParts && gradientParts[0] ? rgbToHex(gradientParts[0]) : "#FFB15A",
+        gradientEnd: gradientParts && gradientParts[1] ? rgbToHex(gradientParts[1]) : "#FF6C00",
+      } : {}),
     },
     content,
     explicitContent: false,
@@ -433,7 +450,14 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
           node.content.textSegments.forEach((segment) => {
             const span = document.createElement("span")
             span.textContent = segment.text
-            span.style.color = segment.color
+            if (segment.gradientEnabled) {
+              span.style.background = `linear-gradient(90deg, ${segment.gradientStart || "#FFB15A"}, ${segment.gradientEnd || "#FF6C00"})`
+              ;(span.style as unknown as Record<string, string>).webkitBackgroundClip = "text"
+              ;(span.style as unknown as Record<string, string>).webkitTextFillColor = "transparent"
+              ;(span.style as unknown as Record<string, string>).backgroundClip = "text"
+            } else {
+              span.style.color = segment.color
+            }
             span.style.fontWeight = segment.bold ? "700" : "400"
             span.style.fontStyle = segment.italic ? "italic" : "normal"
             span.style.textDecoration = segment.underline ? "underline" : "none"
@@ -448,7 +472,14 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         }
       }
       if (node.explicitStyle) {
-        if (node.style.color) el.style.color = node.style.color
+        if (node.style.gradientEnabled) {
+          el.style.background = `linear-gradient(90deg, ${node.style.gradientStart || "#FFB15A"}, ${node.style.gradientEnd || "#FF6C00"})`
+          ;(el.style as unknown as Record<string, string>).webkitBackgroundClip = "text"
+          ;(el.style as unknown as Record<string, string>).webkitTextFillColor = "transparent"
+          ;(el.style as unknown as Record<string, string>).backgroundClip = "text"
+        } else {
+          if (node.style.color) el.style.color = node.style.color
+        }
         if (node.style.fontSize) el.style.fontSize = node.style.fontSize
         if (node.style.fontFamily) el.style.fontFamily = node.style.fontFamily
         if (node.style.fontWeight) el.style.fontWeight = node.style.fontWeight
@@ -1401,6 +1432,50 @@ export function VisualEditorOverlay() {
                           />
                         </div>
                       </div>
+                      <div className="mt-2">
+                        <label className="mb-1 flex items-center gap-2 text-[10px] font-semibold">
+                          <input
+                            type="checkbox"
+                            checked={segment.gradientEnabled ?? false}
+                            onChange={(e) => {
+                              const next = [...(selectedNode.content.textSegments || [])]
+                              next[index] = { ...next[index], gradientEnabled: e.target.checked }
+                              dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { textSegments: next } })
+                            }}
+                          />
+                          Gradient
+                        </label>
+                        {segment.gradientEnabled && (
+                          <div className="mt-1 grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-slate-500">Start</label>
+                              <input
+                                type="color"
+                                className="h-7 w-full rounded border"
+                                value={segment.gradientStart || "#FFB15A"}
+                                onChange={(e) => {
+                                  const next = [...(selectedNode.content.textSegments || [])]
+                                  next[index] = { ...next[index], gradientStart: e.target.value }
+                                  dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { textSegments: next } })
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-slate-500">End</label>
+                              <input
+                                type="color"
+                                className="h-7 w-full rounded border"
+                                value={segment.gradientEnd || "#FF6C00"}
+                                onChange={(e) => {
+                                  const next = [...(selectedNode.content.textSegments || [])]
+                                  next[index] = { ...next[index], gradientEnd: e.target.value }
+                                  dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { textSegments: next } })
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           type="button"
@@ -1555,6 +1630,36 @@ export function VisualEditorOverlay() {
                     U
                   </button>
                 </div>
+                <label className="mt-2 flex items-center gap-2 text-[10px] font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={selectedNode.style.gradientEnabled ?? false}
+                    onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientEnabled: e.target.checked } })}
+                  />
+                  Gradient
+                </label>
+                {selectedNode.style.gradientEnabled && (
+                  <div className="mt-1 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-slate-500">Start</label>
+                      <input
+                        type="color"
+                        className="h-7 w-full rounded border"
+                        value={selectedNode.style.gradientStart || "#FFB15A"}
+                        onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientStart: e.target.value } })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500">End</label>
+                      <input
+                        type="color"
+                        className="h-7 w-full rounded border"
+                        value={selectedNode.style.gradientEnd || "#FF6C00"}
+                        onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientEnd: e.target.value } })}
+                      />
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -1569,43 +1674,6 @@ export function VisualEditorOverlay() {
               </>
             )}
 
-            {selectedNode.type === "image" && selectedNode.id === "hero-logo" && (
-              <>
-                <label className="text-xs font-semibold">Hero Logo Position & Size</label>
-                <div className="space-y-2 text-xs">
-                  <div>
-                    <label>X Position (px)</label>
-                    <input
-                      type="number"
-                      className="w-full rounded border p-1 text-xs"
-                      value={selectedNode.geometry.x}
-                      onChange={(e) => dispatch({ type: "MOVE_NODE", nodeId: selectedNode.id, dx: Number(e.target.value) - selectedNode.geometry.x, dy: 0, transient: true })}
-                      onBlur={(e) => dispatch({ type: "MOVE_NODE", nodeId: selectedNode.id, dx: Number(e.target.value) - selectedNode.geometry.x, dy: 0 })}
-                    />
-                  </div>
-                  <div>
-                    <label>Y Position (px)</label>
-                    <input
-                      type="number"
-                      className="w-full rounded border p-1 text-xs"
-                      value={selectedNode.geometry.y}
-                      onChange={(e) => dispatch({ type: "MOVE_NODE", nodeId: selectedNode.id, dx: 0, dy: Number(e.target.value) - selectedNode.geometry.y, transient: true })}
-                      onBlur={(e) => dispatch({ type: "MOVE_NODE", nodeId: selectedNode.id, dx: 0, dy: Number(e.target.value) - selectedNode.geometry.y })}
-                    />
-                  </div>
-                  <div>
-                    <label>Width (px)</label>
-                    <input
-                      type="number"
-                      className="w-full rounded border p-1 text-xs"
-                      value={selectedNode.geometry.width}
-                      onChange={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: Number(e.target.value), height: selectedNode.geometry.height, transient: true })}
-                      onBlur={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: Number(e.target.value), height: selectedNode.geometry.height })}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
             {(selectedNode.type === "image" || (selectedNode.type === "background" && selectedNode.content.mediaKind !== "video")) && (
               <>
                 <label className="text-xs font-semibold">Asset</label>

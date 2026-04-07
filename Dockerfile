@@ -1,33 +1,24 @@
-# Build stage
-FROM node:22-alpine AS builder
+# Development/Audit image for t4tweb-1
+# Usage: docker build -t t4tweb:audit .
+
+FROM node:20-slim
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY pnpm-lock.yaml* ./
+# Enable corepack and pnpm
+RUN corepack enable pnpm
 
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+# Copy dependency files
+COPY package.json pnpm-lock.yaml* ./
 
+# Install dependencies (locked versions)
+RUN pnpm install --frozen-lockfile
+
+# Copy project (excluding items in .dockerignore)
 COPY . .
 
-RUN pnpm build
-
-# Production stage
-FROM node:22-alpine
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-COPY package*.json ./
-COPY pnpm-lock.yaml* ./
-
-RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
-
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.js ./
-
+# Expose dev port
 EXPOSE 3000
 
-CMD ["pnpm", "start"]
+# Run dev server with hostname 0.0.0.0 to listen from outside container
+CMD ["pnpm", "dev", "--hostname", "0.0.0.0"]

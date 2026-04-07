@@ -3,9 +3,42 @@
 import { useRef, useEffect, useMemo, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
 import Image from "next/image"
-import { client } from "@/lib/sanity/client"
-import { heroQuery } from "@/lib/sanity/queries"
 import { useVisualEditor } from "@/components/visual-editor"
+import type { HeroData } from "@/lib/sanity/hero-loader"
+
+
+// Helper: convert elementStyles to React style object
+function getElementStyle(elementStyles: Record<string, unknown> | undefined, targetId: string): React.CSSProperties {
+  if (!elementStyles || !elementStyles[targetId]) return {}
+  
+  const styles = elementStyles[targetId] as Record<string, unknown>
+  const result: React.CSSProperties = {}
+  
+  // Map editable props to CSS properties
+  if (typeof styles.x === 'number') result.left = `${styles.x}px`
+  if (typeof styles.y === 'number') result.top = `${styles.y}px`
+  if (typeof styles.width === 'number') result.width = `${styles.width}px`
+  if (typeof styles.height === 'number') result.height = `${styles.height}px`
+  if (typeof styles.fontSize === 'number') result.fontSize = `${styles.fontSize}px`
+  if (typeof styles.fontWeight === 'number') result.fontWeight = styles.fontWeight
+  if (typeof styles.letterSpacing === 'number') result.letterSpacing = `${styles.letterSpacing}px`
+  if (typeof styles.lineHeight === 'number') result.lineHeight = styles.lineHeight
+  if (typeof styles.color === 'string') result.color = styles.color
+  if (typeof styles.scale === 'number') result.transform = `scale(${styles.scale})`
+  if (typeof styles.maxWidth === 'number') result.maxWidth = `${styles.maxWidth}px`
+  
+  return result
+}
+
+interface HeroDebug {
+  sourceUsed: "server"
+  hasTitleSegments: boolean
+  titleSegmentsCount: number
+  titleValue: string
+  titleHighlightValue: string
+  segmentTexts: string[]
+  hasGradientFields: boolean
+}
 
 interface HeroTitleSegment {
   text: string
@@ -16,23 +49,25 @@ interface HeroTitleSegment {
   opacity?: number
   fontSize?: string
   fontFamily?: string
+  gradientEnabled?: boolean
+  gradientStart?: string
+  gradientEnd?: string
 }
 
-const FALLBACK = {
-  title: "A vibrant blend of",
-  titleHighlight: "funk, soul and world music",
-  titleSegments: [
-    { text: "A vibrant blend of", color: "#ffffff", bold: true, italic: false, underline: false, opacity: 1 },
-    { text: "funk, soul and world music", color: "#FF8C21", bold: true, italic: false, underline: false, opacity: 1 },
-  ] as HeroTitleSegment[],
-  subtitle: "BERLIN-BASED LIVE COLLECTIVE",
-  logoUrl: "/images/t4tPics/logo-white.png",
-  bgUrl: "/images/t4tPics/hero-bg.jpg",
-}
-
-export function HeroSection() {
+export function HeroSection({ data }: { data: HeroData }) {
   const sectionRef = useRef<HTMLElement>(null)
-  const [data, setData] = useState<typeof FALLBACK | null>(null)
+  const [isDebugMode, setIsDebugMode] = useState(false)
+
+  // Build debug info from server-passed data
+  const debug = useMemo<HeroDebug>(() => ({
+    sourceUsed: "server",
+    hasTitleSegments: Array.isArray(data.titleSegments) && data.titleSegments.length > 0,
+    titleSegmentsCount: Array.isArray(data.titleSegments) ? data.titleSegments.length : 0,
+    titleValue: data.title || "",
+    titleHighlightValue: data.titleHighlight || "",
+    segmentTexts: Array.isArray(data.titleSegments) ? data.titleSegments.map((s) => s.text || "") : [],
+    hasGradientFields: Array.isArray(data.titleSegments) && data.titleSegments.some((s) => s.gradientEnabled === true),
+  }), [data])
 
   // Editable refs
   const heroSectionRef = useRef<HTMLElement>(null)
@@ -44,6 +79,12 @@ export function HeroSection() {
   const heroScrollRef = useRef<HTMLDivElement>(null)
 
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
+
+  // Sync debug mode from query param (client-side only after hydration)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setIsDebugMode(isEditing || params.get("heroDebug") === "1")
+  }, [isEditing])
 
   // Register editable elements - only on isEditing change
   useEffect(() => {
@@ -171,24 +212,7 @@ export function HeroSection() {
   const backgroundScale = useTransform(scrollYProgress, [0, 1], [1, 1.06])
   const backgroundY = useTransform(scrollYProgress, [0, 1], [0, 35])
 
-  useEffect(() => {
-    client.fetch(heroQuery).then((data) => {
-      if (data && (data.bgUrl || data.title)) {
-        setData({
-          title: data.title || FALLBACK.title,
-          titleHighlight: data.titleHighlight || FALLBACK.titleHighlight,
-          titleSegments: Array.isArray(data.titleSegments) && data.titleSegments.length > 0 ? data.titleSegments : FALLBACK.titleSegments,
-          subtitle: data.subtitle || FALLBACK.subtitle,
-          logoUrl: data.logoUrl || FALLBACK.logoUrl,
-          bgUrl: data.bgUrl || FALLBACK.bgUrl,
-        })
-      } else {
-        setData(FALLBACK)
-      }
-    }).catch(() => setData(FALLBACK))
-  }, [])
-
-  const content = data || FALLBACK
+  const content = data
   const heroTitleMode: "legacy" | "segmented" = Array.isArray(content.titleSegments) && content.titleSegments.length > 0 ? "segmented" : "legacy"
   const normalizedTitleSegments = useMemo(() => {
     if (heroTitleMode !== "segmented") return []
@@ -276,13 +300,21 @@ export function HeroSection() {
             data-editor-node-label="Título Principal"
             data-editor-title-mode={heroTitleMode}
             className="max-w-[880px] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.9rem] mb-6"
+            style={getElementStyle(data.elementStyles, "hero-title")}
           >
             {heroTitleMode === "segmented"
               ? normalizedTitleSegments.map((segment, index) => (
                 <span
                   key={`hero-segment-${index}`}
                   style={{
-                    color: segment.color || "#ffffff",
+                    ...(segment.gradientEnabled
+                      ? {
+                          background: `linear-gradient(90deg, ${segment.gradientStart || "#FFB15A"}, ${segment.gradientEnd || "#FF6C00"})`,
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          backgroundClip: "text",
+                        }
+                      : { color: segment.color || "#ffffff" }),
                     fontWeight: segment.bold ? "700" : "400",
                     fontStyle: segment.italic ? "italic" : "normal",
                     textDecoration: segment.underline ? "underline" : "none",
@@ -312,7 +344,7 @@ export function HeroSection() {
               data-editor-node-type="image"
               data-editor-node-label="Hero Logo"
               className="relative"
-              style={{ width: 141, height: 141 }}
+              style={{ width: 141, height: 141, ...getElementStyle(data.elementStyles, "hero-logo") }}
             >
               <Image
                 src={content.logoUrl}
@@ -329,6 +361,7 @@ export function HeroSection() {
               data-editor-node-type="text"
               data-editor-node-label="Subtítulo"
               className="mt-3 text-sm font-semibold uppercase tracking-[0.38em] text-[#ffd3a3]"
+              style={getElementStyle(data.elementStyles, "hero-subtitle")}
             >
               {content.subtitle}
             </p>
@@ -349,6 +382,20 @@ export function HeroSection() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7" />
         </svg>
       </div>
+
+      {isDebugMode && (
+        <div className="absolute top-4 right-4 z-[9999] rounded-lg bg-black/80 px-3 py-2 text-left text-[10px] font-mono text-white/80 backdrop-blur-sm border border-white/10">
+          <div className="font-bold text-white/90 mb-1">Hero Debug</div>
+          <div>source: <span className="text-green-400">{debug.sourceUsed}</span></div>
+          <div>title: <span className="text-yellow-300">{debug.titleValue || "(empty)"}</span></div>
+          <div>titleHighlight: <span className="text-orange-400">{debug.titleHighlightValue || "(empty)"}</span></div>
+          <div>segments: {debug.titleSegmentsCount}</div>
+          {debug.segmentTexts.map((t, i) => (
+            <div key={i} className="text-white/60 ml-2">  [{i}]: {t}</div>
+          ))}
+          <div>gradient fields: {debug.hasGradientFields ? "yes" : "no"}</div>
+        </div>
+      )}
     </section>
   )
 }

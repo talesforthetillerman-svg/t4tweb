@@ -25,6 +25,9 @@ interface HeroTitleSegment {
   opacity: number
   fontSize?: string
   fontFamily?: string
+  gradientEnabled?: boolean
+  gradientStart?: string
+  gradientEnd?: string
 }
 
 interface DeployRequestPayload {
@@ -32,6 +35,7 @@ interface DeployRequestPayload {
   diagnosticMode?: boolean
   findings: Array<{ element: string; issue: string; severity: "green" | "yellow" | "red"; blocks: boolean }>
   nodes: DeployNodePayload[]
+  heroElementStyles?: Record<string, Record<string, unknown>> // { [targetId]: { text?, color?, fontSize?, x?, y?, ... } }
 }
 
 interface DeployStepResult {
@@ -86,9 +90,54 @@ export async function GET() {
   })
 }
 
+
+/**
+ * Normalize title segments for comparison, ignoring _key and non-render fields.
+ * Only compares: text, color, bold, italic, underline, opacity, gradientEnabled, gradientStart, gradientEnd
+ */
+function normalizeTitleSegments(segments: unknown[]): Array<{
+  text: string
+  color?: string
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  opacity?: number
+  gradientEnabled?: boolean
+  gradientStart?: string
+  gradientEnd?: string
+}> {
+  if (!Array.isArray(segments)) return []
+  
+  return segments
+    .filter((seg) => seg && typeof seg === "object")
+    .map((seg) => {
+      const s = seg as Record<string, unknown>
+      return {
+        text: typeof s.text === "string" ? s.text.trim() : "",
+        color: typeof s.color === "string" ? s.color : undefined,
+        bold: typeof s.bold === "boolean" ? s.bold : undefined,
+        italic: typeof s.italic === "boolean" ? s.italic : undefined,
+        underline: typeof s.underline === "boolean" ? s.underline : undefined,
+        opacity: typeof s.opacity === "number" ? s.opacity : undefined,
+        gradientEnabled: typeof s.gradientEnabled === "boolean" ? s.gradientEnabled : undefined,
+        gradientStart: typeof s.gradientStart === "string" ? s.gradientStart : undefined,
+        gradientEnd: typeof s.gradientEnd === "string" ? s.gradientEnd : undefined,
+      }
+    })
+    .filter((seg) => seg.text.length > 0) // remove empty segments
+}
+
+
 export async function POST(request: Request) {
+  const startTime = Date.now()
+  const log = (msg: string, data?: unknown) => {
+    const elapsed = Date.now() - startTime
+    console.log(`[editor-deploy ${elapsed}ms] ${msg}`, data ? JSON.stringify(data, null, 2) : "")
+  }
+
   try {
     const payload = (await request.json()) as DeployRequestPayload
+    log("payload received", { nodeCount: payload.nodes.length, level: payload.level })
     const sanityProjectId = process.env.SANITY_PROJECT_ID
     const nextPublicSanityProjectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
     const projectId = sanityProjectId || nextPublicSanityProjectId
@@ -98,6 +147,20 @@ export async function POST(request: Request) {
     const sanityToken = sanityApiWriteToken || sanityApiToken
     const diagnostics = getEnvDiagnostics()
     const envDiagnostics = diagnostics
+
+    log("environment", { projectId: projectId ? "set" : "missing", dataset, writeToken: sanityToken ? "set" : "missing" })
+
+    const heroTitleNode = payload.nodes.find((node) => node.id === "hero-title" && node.type === "text")
+    const heroSubtitleNode = payload.nodes.find((node) => node.id === "hero-subtitle" && node.type === "text")
+    const heroLogoNode = payload.nodes.find((node) => node.id === "hero-logo")
+    const heroScrollNode = payload.nodes.find((node) => node.id === "hero-scroll-indicator")
+
+    const incomingSegments = Array.isArray(heroTitleNode?.content?.textSegments)
+      ? (heroTitleNode.content.textSegments as HeroTitleSegment[])
+      : []
+    const validSegments = incomingSegments.filter((segment) => typeof segment?.text === "string" && segment.text.length > 0)
+    const hasSegments = validSegments.length >= 2
+    const hasPlainText = typeof heroTitleNode?.content?.text === "string" && heroTitleNode.content.text.trim().length > 0
 
     const steps: DeployStepResult[] = [{
       step: "checking",
@@ -183,7 +246,8 @@ export async function POST(request: Request) {
       `*[_type == $type][0]{ _id, title, titleHighlight, titleSegments }`,
       { type: SANITY_DOC_TYPE }
     )
-    const heroTitleMode: "legacy" | "segmented" = Array.isArray(existingHero?.titleSegments) && existingHero.titleSegments.length > 0
+    log("document fetch", { found: !!existingHero?._id, docId: existingHero?._id })
+    const heroTitleMode: "legacy" | "segmented" = hasSegments || (Array.isArray(existingHero?.titleSegments) && existingHero.titleSegments.length > 0)
       ? "segmented"
       : "legacy"
 
@@ -220,34 +284,38 @@ export async function POST(request: Request) {
     const skippedFields: string[] = []
     const persistedNodes: string[] = []
     const skippedNodes: string[] = []
+    let elementStylesInPayload: Record<string, Record<string, unknown>> = {}
     const failedNodes: string[] = []
     const heroPatch: Record<string, unknown> = {}
 
-    const heroTitleNode = payload.nodes.find((node) => node.id === "hero-title" && node.type === "text")
-    const heroSubtitleNode = payload.nodes.find((node) => node.id === "hero-subtitle" && node.type === "text")
-    const heroLogoNode = payload.nodes.find((node) => node.id === "hero-logo")
-    const heroScrollNode = payload.nodes.find((node) => node.id === "hero-scroll-indicator")
-
-    if (heroTitleNode?.explicitContent) {
-      if (heroTitleMode === "segmented") {
-        const candidateSegments = Array.isArray(heroTitleNode.content?.textSegments)
-          ? (heroTitleNode.content.textSegments as HeroTitleSegment[])
-          : []
-        const validSegments = candidateSegments.filter((segment) => typeof segment?.text === "string" && segment.text.length > 0)
-        if (validSegments.length > 0) {
-          heroPatch.titleSegments = validSegments
-          persistedFields.push("titleSegments")
-          persistedNodes.push("hero-title")
-        } else {
-          failedNodes.push("hero-title-segments-empty")
-          skippedFields.push("titleSegments")
-          skippedNodes.push("hero-title")
-        }
+    if (heroTitleNode?.explicitContent || hasSegments) {
+      if (hasSegments && heroTitleMode === "segmented") {
+        heroPatch.titleSegments = validSegments
+        persistedFields.push("titleSegments")
+        persistedNodes.push("hero-title")
+        heroPatch.title = validSegments[0].text.trim()
+        if (!persistedFields.includes("title")) persistedFields.push("title")
+        persistedNodes.push("hero-title-main")
+        heroPatch.titleHighlight = validSegments[1].text.trim()
+        if (!persistedFields.includes("titleHighlight")) persistedFields.push("titleHighlight")
+        persistedNodes.push("hero-title-accent")
+      } else if (hasSegments && heroTitleMode === "legacy") {
+        heroPatch.title = validSegments[0].text.trim()
+        if (!persistedFields.includes("title")) persistedFields.push("title")
+        persistedNodes.push("hero-title-main")
+        heroPatch.titleHighlight = validSegments[1].text.trim()
+        if (!persistedFields.includes("titleHighlight")) persistedFields.push("titleHighlight")
+        persistedNodes.push("hero-title-accent")
+      } else if (hasPlainText) {
+        heroPatch.title = (heroTitleNode!.content.text as string).trim()
+        persistedFields.push("title")
+        persistedNodes.push("hero-title")
       } else {
         skippedFields.push("title")
-        skippedNodes.push("hero-title-legacy-no-segment-mapping")
+        failedNodes.push("hero-title-empty")
+        skippedNodes.push("hero-title")
       }
-    } else if (heroTitleNode?.explicitPosition || heroTitleNode?.explicitSize || heroTitleNode?.explicitStyle) {
+    } else if (heroTitleNode && (heroTitleNode.explicitPosition || heroTitleNode.explicitSize || heroTitleNode.explicitStyle)) {
       skippedFields.push("titlePositionOrStyle")
       skippedNodes.push("hero-title-position-or-style")
     }
@@ -267,9 +335,27 @@ export async function POST(request: Request) {
       skippedNodes.push("hero-subtitle-position-or-style")
     }
 
-    if (heroLogoNode && (heroLogoNode.explicitContent || heroLogoNode.explicitPosition || heroLogoNode.explicitSize || heroLogoNode.explicitStyle)) {
+    if (heroLogoNode && (heroLogoNode.explicitPosition || heroLogoNode.explicitSize)) {
+      // Capture hero-logo position and size
+      if (!elementStylesInPayload) elementStylesInPayload = {}
+      elementStylesInPayload["hero-logo"] = elementStylesInPayload["hero-logo"] || {}
+      const logoStyles = elementStylesInPayload["hero-logo"] as Record<string, unknown>
+      
+      if (heroLogoNode.explicitPosition) {
+        logoStyles.x = heroLogoNode.geometry.x
+        logoStyles.y = heroLogoNode.geometry.y
+        log("hero-logo position captured", { x: logoStyles.x, y: logoStyles.y })
+      }
+      if (heroLogoNode.explicitSize) {
+        logoStyles.width = heroLogoNode.geometry.width
+        logoStyles.height = heroLogoNode.geometry.height
+        log("hero-logo size captured", { width: logoStyles.width, height: logoStyles.height })
+      }
+      
+      persistedFields.push("hero-logo-position-size")
+      persistedNodes.push("hero-logo")
+    } else if (heroLogoNode && heroLogoNode.explicitContent) {
       skippedFields.push("hero-logo")
-      skippedNodes.push("hero-logo")
     }
     if (heroScrollNode && (heroScrollNode.explicitContent || heroScrollNode.explicitPosition || heroScrollNode.explicitSize || heroScrollNode.explicitStyle)) {
       skippedFields.push("hero-scroll-indicator")
@@ -282,40 +368,134 @@ export async function POST(request: Request) {
       skippedNodes.push("hero-layout")
     }
 
-    const existingTitle = (existingHero.title || "").trim()
-    const existingHighlight = (existingHero.titleHighlight || "").trim()
-    const incomingSegments = Array.isArray(heroTitleNode?.content?.textSegments) && (heroTitleNode?.content?.textSegments as HeroTitleSegment[]).length > 0
-    if (!incomingSegments && existingTitle && existingHighlight) {
-      const duplicateSuffixPattern = new RegExp(`\\s*${escapeRegExp(existingHighlight)}\\s*$`)
-      if (duplicateSuffixPattern.test(existingTitle)) {
-        const normalizedTitle = existingTitle.replace(duplicateSuffixPattern, "").trim()
-        if (normalizedTitle && normalizedTitle !== existingTitle) {
-          heroPatch.title = normalizedTitle
-          persistedFields.push("title")
-          persistedNodes.push("hero-title-dedup-sanitize")
+    // Process Hero element style overrides (position, size, typography)
+    if (Object.keys(payload.heroElementStyles || {}).length > 0 || Object.keys(elementStylesInPayload).length > 0) {
+      const elementStyles = payload.heroElementStyles || {}
+      
+      log("element styles received", { 
+        targetCount: Object.keys(elementStyles).length,
+        targets: Object.keys(elementStyles)
+      })
+      
+      // Merge element styles into patch
+      const heroElementStyles: Record<string, unknown> = { ...elementStylesInPayload, ...elementStyles }
+      for (const [targetId, styles] of Object.entries(elementStyles)) {
+        if (typeof styles === 'object' && styles !== null) {
+          heroElementStyles[targetId] = styles
+          persistedFields.push(`elementStyle:${targetId}`)
+          persistedNodes.push(targetId)
         }
+      }
+      
+      if (Object.keys(heroElementStyles).length > 0) {
+        heroPatch.elementStyles = heroElementStyles
+        log("element styles patch", { styleCount: Object.keys(heroElementStyles).length })
       }
     }
 
     if (Object.keys(heroPatch).length > 0) {
-      await writeClient.patch(existingHero._id).set({ ...heroPatch, updatedAt: new Date().toISOString() }).commit()
-      steps.push({ step: "saving", ok: true, message: `Hero section patched: ${existingHero._id}` })
+      log("patch apply", { fields: Object.keys(heroPatch), willValidate: true })
+      
+      // Perform patch
+      const patchResponse = await writeClient.patch(existingHero._id).set({ ...heroPatch, updatedAt: new Date().toISOString() }).commit()
+      log("patch committed", { docId: patchResponse._id, modified: new Date(patchResponse._updatedAt) })
+      
+      // Fetch published perspective to verify
+      const readClient = createClient({
+        projectId,
+        dataset,
+        apiVersion: "2024-01-01",
+        useCdn: false,
+        token: sanityToken,
+        perspective: "published",
+      })
+      const verifyQuery = `*[_type == $type][0]{ title, titleHighlight, titleSegments[] }`
+      const verified = await readClient.fetch<{ title?: string; titleHighlight?: string; titleSegments?: HeroTitleSegment[] } | null>(
+        verifyQuery,
+        { type: SANITY_DOC_TYPE }
+      )
+      const normalizedPayloadSegs = heroPatch.titleSegments 
+        ? normalizeTitleSegments(heroPatch.titleSegments as unknown[])
+        : []
+      const normalizedFetchedSegs = verified?.titleSegments 
+        ? normalizeTitleSegments(verified.titleSegments)
+        : []
+      
+      log("post-patch verification", { 
+        title: { sent: heroPatch.title, read: verified?.title, match: verified?.title === heroPatch.title },
+        titleHighlight: { sent: heroPatch.titleHighlight, read: verified?.titleHighlight, match: verified?.titleHighlight === heroPatch.titleHighlight },
+        segments: { 
+          sentCount: Array.isArray(heroPatch.titleSegments) ? heroPatch.titleSegments.length : 0, 
+          readCount: Array.isArray(verified?.titleSegments) ? verified.titleSegments.length : 0,
+          normalizedPayload: normalizedPayloadSegs.slice(0, 1), // first segment only
+          normalizedFetched: normalizedFetchedSegs.slice(0, 1)
+        }
+      })
+      
+      // Validation: check critical fields
+      const titleOk = !heroPatch.title || verified?.title === heroPatch.title
+      const highlightOk = !heroPatch.titleHighlight || verified?.titleHighlight === heroPatch.titleHighlight
+      
+      // Normalize and compare titleSegments (only render-relevant fields)
+      const normalizedPayloadSegments = heroPatch.titleSegments 
+        ? normalizeTitleSegments(heroPatch.titleSegments as unknown[])
+        : []
+      const normalizedFetchedSegments = verified?.titleSegments 
+        ? normalizeTitleSegments(verified.titleSegments)
+        : []
+      const segmentsOk = JSON.stringify(normalizedPayloadSegments) === JSON.stringify(normalizedFetchedSegments)
+      
+      log("segments comparison", {
+        payloadSegmentsCount: Array.isArray(heroPatch.titleSegments) ? heroPatch.titleSegments.length : 0,
+        fetchedSegmentsCount: Array.isArray(verified?.titleSegments) ? verified.titleSegments.length : 0,
+        normalizedPayloadSegments: normalizedPayloadSegments.slice(0, 2), // show first 2 for brevity
+        normalizedFetchedSegments: normalizedFetchedSegments.slice(0, 2),
+        segmentsOk
+      })
+      
+      if (!titleOk || !highlightOk || !segmentsOk) {
+        log("validation failed", { titleOk, highlightOk, segmentsOk })
+        steps.push({ step: "saving", ok: false, message: `Write verification failed: title=${titleOk}, highlight=${highlightOk}, segments=${segmentsOk}` })
+        const errorResponse = {
+          status: "failed",
+          ok: false,
+          step: "saving",
+          message: "Deploy failed: data verification failed after write",
+          steps,
+          routeVersion: ROUTE_VERSION,
+          publishedDocumentId: existingHero._id,
+          publishedDocumentType: SANITY_DOC_TYPE,
+          targetSection: TARGET_SECTION,
+          heroTitleMode,
+          revalidatedPath: REVALIDATED_PATH,
+          persistedNodes,
+          skippedNodes,
+          failedNodes: [...failedNodes, "write-verification"],
+          persistedFields,
+          skippedFields,
+          diagnostics,
+          envDiagnostics,
+        }
+        log("returning error response", { status: errorResponse.status, ok: errorResponse.ok })
+        return NextResponse.json(errorResponse, { status: 500 })
+      }
+      
+      log("validation passed", { fields: Object.keys(heroPatch) })
+      steps.push({ step: "saving", ok: true, message: `Hero section patched and verified: ${existingHero._id}` })
     } else {
+      log("no patch needed", { reason: "no persistible changes" })
       steps.push({ step: "saving", ok: true, message: "No persistible Hero content changes detected; no patch applied." })
     }
 
     const publishedDocumentId = existingHero._id
-    steps.push({ step: "publishing", ok: true, message: `Published Hero document: ${publishedDocumentId}` })
-
+    log("revalidate path", { path: REVALIDATED_PATH })
     revalidatePath(REVALIDATED_PATH)
     steps.push({ step: "revalidating", ok: true, message: "Public site revalidated." })
 
-    return NextResponse.json({
+    const successResponse = {
       status: "ok",
-      mode: "complete",
+      ok: true,
       step: "done",
-      localSaved: false,
-      remoteReady: true,
       message: "Deploy complete: Hero section updated in Sanity and public path revalidated.",
       steps,
       routeVersion: ROUTE_VERSION,
@@ -332,16 +512,21 @@ export async function POST(request: Request) {
       skippedFields,
       diagnostics,
       envDiagnostics,
-    })
+    }
+    log("returning success response", { status: successResponse.status, ok: successResponse.ok })
+    return NextResponse.json(successResponse, { status: 200 })
   } catch (error) {
+    const elapsed = Date.now() - startTime
     const diagnostics = getEnvDiagnostics()
     const envDiagnostics = diagnostics
+    const message = error instanceof Error ? error.message : "Unknown error"
+    console.error(`[editor-deploy ${elapsed}ms] exception:`, message, error)
     return NextResponse.json(
       {
         status: "failed",
-        mode: "incomplete",
+        ok: false,
         step: "saving",
-        message: error instanceof Error ? error.message : "Editor deploy route failed.",
+        message: `Deploy failed with exception: ${message}`,
         routeVersion: ROUTE_VERSION,
         publishedDocumentId: "resolved-at-deploy",
         publishedDocumentType: SANITY_DOC_TYPE,

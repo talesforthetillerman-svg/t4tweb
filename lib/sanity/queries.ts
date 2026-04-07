@@ -11,13 +11,15 @@ export const heroQuery = groq`*[_type == "heroSection"][0]{
     underline,
     opacity,
     fontSize,
-    fontFamily
+    fontFamily,
+    gradientEnabled,
+    gradientStart,
+    gradientEnd
   },
   subtitle,
   description,
   "logoUrl": logo.asset->url,
-  "bgUrl": backgroundImage.asset->url,
-  ctaButtons[]{ label, href, variant }
+  "bgUrl": backgroundImage.asset->url
 }`
 
 export const aboutQuery = groq`*[_type == "aboutSection"][0]{
