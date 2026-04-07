@@ -47,6 +47,40 @@ function getElementStyle(elementStyles: Record<string, unknown> | undefined, tar
   return result
 }
 
+/** Scroll indicator is centered with `left-1/2 -translate-x-1/2`; saved x/y are offsets from that — match editor without breaking center. */
+function scrollIndicatorHasLayout(elementStyles: Record<string, unknown> | undefined): boolean {
+  const s = elementStyles?.["hero-scroll-indicator"]
+  if (!s || typeof s !== "object") return false
+  const o = s as Record<string, unknown>
+  return (
+    typeof o.x === "number" ||
+    typeof o.y === "number" ||
+    typeof o.width === "number" ||
+    typeof o.height === "number" ||
+    (typeof o.scale === "number" && o.scale !== 1)
+  )
+}
+
+function getScrollIndicatorStyle(elementStyles: Record<string, unknown> | undefined): React.CSSProperties {
+  if (!elementStyles?.["hero-scroll-indicator"]) return {}
+  const styles = elementStyles["hero-scroll-indicator"] as Record<string, unknown>
+  const tx = typeof styles.x === "number" ? styles.x : 0
+  const ty = typeof styles.y === "number" ? styles.y : 0
+  const scaleVal = typeof styles.scale === "number" ? styles.scale : 1
+  const needScale = typeof styles.scale === "number" && scaleVal !== 1
+  const parts: string[] = [`translate(calc(-50% + ${tx}px), ${ty}px)`]
+  if (needScale) parts.push(`scale(${scaleVal})`)
+  const result: React.CSSProperties = {
+    left: "50%",
+    bottom: "1rem",
+    transform: parts.join(" "),
+    transformOrigin: "center bottom",
+  }
+  if (typeof styles.width === "number") result.width = styles.width
+  if (typeof styles.height === "number") result.height = styles.height
+  return result
+}
+
 interface HeroDebug {
   sourceUsed: "server"
   hasTitleSegments: boolean
@@ -230,6 +264,7 @@ export function HeroSection({ data }: { data: HeroData }) {
   const backgroundY = useTransform(scrollYProgress, [0, 1], [0, 35])
 
   const content = data
+  const scrollLayoutSaved = scrollIndicatorHasLayout(content.elementStyles)
   const heroTitleMode: "legacy" | "segmented" = Array.isArray(content.titleSegments) && content.titleSegments.length > 0 ? "segmented" : "legacy"
   const normalizedTitleSegments = useMemo(() => {
     if (heroTitleMode !== "segmented") return []
@@ -270,6 +305,7 @@ export function HeroSection({ data }: { data: HeroData }) {
       data-editor-node-type="section"
       data-editor-node-label="Hero Section"
       className="relative flex min-h-screen w-full items-stretch overflow-hidden bg-black"
+      style={getElementStyle(content.elementStyles, "hero-section")}
     >
       <div className="absolute inset-0 z-0">
         <motion.div
@@ -283,6 +319,7 @@ export function HeroSection({ data }: { data: HeroData }) {
             data-editor-media-kind="image"
             data-editor-node-label="Hero Background"
             className="absolute inset-0"
+            style={getElementStyle(content.elementStyles, "hero-bg-image")}
           >
             <Image
               src={content.bgUrl}
@@ -396,7 +433,12 @@ export function HeroSection({ data }: { data: HeroData }) {
         data-editor-node-type="card"
         data-editor-node-label="Scroll Indicator"
         data-editor-grouped="true"
-        className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 text-white/80"
+        className={
+          scrollLayoutSaved
+            ? "absolute z-30 hidden sm:flex flex-col items-center gap-1 text-white/80"
+            : "absolute bottom-4 left-1/2 z-30 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 text-white/80"
+        }
+        style={scrollLayoutSaved ? getScrollIndicatorStyle(content.elementStyles) : undefined}
       >
         <span className="text-lg uppercase tracking-[0.42em]">SCROLL</span>
         <svg className="h-9 w-9" fill="none" stroke="currentColor" strokeWidth={2.7} viewBox="0 0 24 24">

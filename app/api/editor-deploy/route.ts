@@ -152,9 +152,6 @@ export async function POST(request: Request) {
 
     const heroTitleNode = payload.nodes.find((node) => node.id === "hero-title" && node.type === "text")
     const heroSubtitleNode = payload.nodes.find((node) => node.id === "hero-subtitle" && node.type === "text")
-    const heroLogoNode = payload.nodes.find((node) => node.id === "hero-logo")
-    const heroScrollNode = payload.nodes.find((node) => node.id === "hero-scroll-indicator")
-
     const incomingSegments = Array.isArray(heroTitleNode?.content?.textSegments)
       ? (heroTitleNode.content.textSegments as HeroTitleSegment[])
       : []
@@ -321,9 +318,6 @@ export async function POST(request: Request) {
         failedNodes.push("hero-title-empty")
         skippedNodes.push("hero-title")
       }
-    } else if (heroTitleNode && (heroTitleNode.explicitPosition || heroTitleNode.explicitSize || heroTitleNode.explicitStyle)) {
-      skippedFields.push("titlePositionOrStyle")
-      skippedNodes.push("hero-title-position-or-style")
     }
 
     if (heroSubtitleNode?.explicitContent) {
@@ -336,54 +330,38 @@ export async function POST(request: Request) {
         skippedFields.push("subtitle")
         failedNodes.push("hero-subtitle-empty")
       }
-    } else if (heroSubtitleNode?.explicitPosition || heroSubtitleNode?.explicitSize || heroSubtitleNode?.explicitStyle) {
-      skippedFields.push("subtitlePositionOrStyle")
-      skippedNodes.push("hero-subtitle-position-or-style")
     }
 
-    const logoHasScale =
-      heroLogoNode &&
-      heroLogoNode.explicitStyle &&
-      typeof (heroLogoNode.style as { scale?: number })?.scale === "number"
+    /** Persist layout (translate/scale/size) for every hero block the visual editor can move — same as logo/title. */
+    const HERO_LAYOUT_IDS = new Set([
+      "hero-section",
+      "hero-bg-image",
+      "hero-title",
+      "hero-subtitle",
+      "hero-logo",
+      "hero-scroll-indicator",
+      "hero-buttons",
+    ])
 
-    if (
-      heroLogoNode &&
-      (heroLogoNode.explicitPosition || heroLogoNode.explicitSize || logoHasScale)
-    ) {
-      // Capture hero-logo position, size, and scale (editor uses transform translate + scale)
-      if (!elementStylesInPayload) elementStylesInPayload = {}
-      elementStylesInPayload["hero-logo"] = elementStylesInPayload["hero-logo"] || {}
-      const logoStyles = elementStylesInPayload["hero-logo"] as Record<string, unknown>
+    for (const node of payload.nodes) {
+      if (!HERO_LAYOUT_IDS.has(node.id)) continue
+      const scaleVal = (node.style as { scale?: number })?.scale
+      const hasScale = node.explicitStyle && typeof scaleVal === "number"
+      if (!node.explicitPosition && !node.explicitSize && !hasScale) continue
 
-      if (heroLogoNode.explicitPosition) {
-        logoStyles.x = heroLogoNode.geometry.x
-        logoStyles.y = heroLogoNode.geometry.y
-        log("hero-logo position captured", { x: logoStyles.x, y: logoStyles.y })
+      elementStylesInPayload[node.id] = { ...(elementStylesInPayload[node.id] || {}) }
+      const s = elementStylesInPayload[node.id] as Record<string, unknown>
+      if (node.explicitPosition) {
+        s.x = node.geometry.x
+        s.y = node.geometry.y
       }
-      if (heroLogoNode.explicitSize) {
-        logoStyles.width = heroLogoNode.geometry.width
-        logoStyles.height = heroLogoNode.geometry.height
-        log("hero-logo size captured", { width: logoStyles.width, height: logoStyles.height })
+      if (node.explicitSize) {
+        s.width = node.geometry.width
+        s.height = node.geometry.height
       }
-      if (logoHasScale) {
-        logoStyles.scale = (heroLogoNode.style as { scale: number }).scale
-        log("hero-logo scale captured", { scale: logoStyles.scale })
-      }
-
-      persistedFields.push("hero-logo-position-size")
-      persistedNodes.push("hero-logo")
-    } else if (heroLogoNode && heroLogoNode.explicitContent) {
-      skippedFields.push("hero-logo")
-    }
-    if (heroScrollNode && (heroScrollNode.explicitContent || heroScrollNode.explicitPosition || heroScrollNode.explicitSize || heroScrollNode.explicitStyle)) {
-      skippedFields.push("hero-scroll-indicator")
-      skippedNodes.push("hero-scroll-indicator")
-    }
-
-    const positionOnlyEdits = payload.nodes.some((node) => node.explicitPosition || node.explicitSize)
-    if (positionOnlyEdits) {
-      skippedFields.push("hero-layout")
-      skippedNodes.push("hero-layout")
+      if (hasScale) s.scale = scaleVal
+      log("hero layout captured", { id: node.id, x: s.x, y: s.y, w: s.width, h: s.height, scale: s.scale })
+      if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
     }
 
     // Process Hero element style overrides (position, size, typography)
