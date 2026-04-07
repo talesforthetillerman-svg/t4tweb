@@ -1043,7 +1043,19 @@ export function VisualEditorOverlay() {
 
       if (data.mode === "complete" && data.prUrl) {
         setDeployStatus("done")
-        window.alert(`${statusTitle}\n\n${data.message || "Branch created, committed, and PR opened."}${warningBlock}\n\nPR created:\n${data.prUrl}${stepTrace}`)
+        const branchStep = data.steps?.find((s) => s.step === "creating_branch")
+        const commitStep = data.steps?.find((s) => s.step === "committing")
+        const prStep = data.steps?.find((s) => s.step === "creating_pr")
+        const branchMessage = branchStep?.message.includes("updated")
+          ? "editor-deploy branch synced with main."
+          : "editor-deploy branch created from main."
+        const prMessage = prStep?.message.includes("reused")
+          ? `Using existing editor deploy PR.\nPR updated successfully: ${data.prUrl}`
+          : `PR created successfully: ${data.prUrl}`
+        const commitMessage = commitStep?.ok ? "Editor payload committed successfully." : "Editor payload commit failed."
+        window.alert(
+          `${statusTitle}\n\n${branchMessage}\n${commitMessage}\n${prMessage}${warningBlock}${stepTrace}`
+        )
       } else {
         setDeployStatus("failed")
         const localState = data.localSaved ? "Saved locally, but no PR was created." : "Changes were not saved."
