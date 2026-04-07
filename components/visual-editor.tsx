@@ -805,6 +805,8 @@ function SelectionOverlay({ entry }: { entry: RuntimeEntry }) {
 export function VisualEditorOverlay() {
   const { isEditing, setIsEditing, selectedId, nodes, registry, dispatch, openPanel, setOpenPanel, undo, redo, canUndo, canRedo, assets, getEditableAtPosition } = useVisualEditor()
   const [deployStatus, setDeployStatus] = useState<string | null>(null)
+  const [deployDetails, setDeployDetails] = useState<string | null>(null)
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
 
   const selectedEntry = selectedId ? registry.get(selectedId) || null : null
   const selectedNode = selectedId ? nodes.get(selectedId) || null : null
@@ -921,7 +923,7 @@ export function VisualEditorOverlay() {
         lines.push(`message: ${data.message || "missing"}`)
         lines.push(`envDiagnostics: ${JSON.stringify(envDiagnostics || null)}`)
         lines.push(`rawResponse: ${JSON.stringify(data)}`)
-        window.alert(lines.join("\n"))
+        setDeployDetails(lines.join("\n"))
         return
       }
 
@@ -934,11 +936,21 @@ export function VisualEditorOverlay() {
       lines.push(`message: ${data.message || "missing"}`)
       lines.push(`envDiagnostics: ${JSON.stringify(envDiagnostics || null)}`)
       lines.push(`rawResponse: ${JSON.stringify(data)}`)
-      window.alert(lines.join("\n"))
+      setDeployDetails(lines.join("\n"))
     } catch (error) {
       setDeployStatus("failed")
       const message = error instanceof Error ? error.message : "Unknown error"
-      window.alert(`failed\nrouteVersion: missing\nstep: connecting\nmessage: ${message}\nenvDiagnostics: null`)
+      setDeployDetails(`failed\nrouteVersion: missing\nstep: connecting\nmessage: ${message}\nenvDiagnostics: null`)
+    }
+  }
+
+  const onCopyDeployDetails = async () => {
+    if (!deployDetails) return
+    try {
+      await navigator.clipboard.writeText(deployDetails)
+      setCopyState("copied")
+    } catch {
+      setCopyState("failed")
     }
   }
 
@@ -1199,6 +1211,31 @@ export function VisualEditorOverlay() {
           </span>
         )}
       </div>
+
+      {deployDetails && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[80vh] w-full max-w-2xl rounded-lg bg-white p-4 text-slate-900 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Deploy result</h3>
+              <button
+                type="button"
+                onClick={() => { setDeployDetails(null); setCopyState("idle") }}
+                className="rounded border px-2 py-1 text-xs"
+              >
+                Close
+              </button>
+            </div>
+            <pre className="max-h-[55vh] overflow-auto whitespace-pre-wrap rounded border bg-slate-50 p-3 text-xs select-text">{deployDetails}</pre>
+            <div className="mt-3 flex items-center gap-2">
+              <button type="button" onClick={onCopyDeployDetails} className="rounded border px-3 py-1.5 text-xs font-medium">
+                Copy details
+              </button>
+              {copyState === "copied" && <span className="text-xs">Copied</span>}
+              {copyState === "failed" && <span className="text-xs">Copy failed</span>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedEntry && <SelectionOverlay entry={selectedEntry} />}
 
