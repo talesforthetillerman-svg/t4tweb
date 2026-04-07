@@ -252,7 +252,7 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
   const content: EditorNode["content"] = {}
   if (entry.type === "text" || entry.type === "button" || entry.type === "card") {
     content.text = el.textContent?.trim() || ""
-    if (entry.id === "hero-title" && el.dataset.editorTitleMode === "segmented") {
+    if (entry.id === "hero-title") {
       const baseStyle = getComputedStyle(el)
       const baseSegment: TextSegment = {
         text: (el.textContent || "").trim(),
@@ -290,7 +290,9 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
         }
       })
       const normalizedSegments = segments.filter((segment) => segment.text.length > 0)
-      if (normalizedSegments.length > 0) content.textSegments = normalizedSegments
+      if (normalizedSegments.length > 1) {
+        content.textSegments = normalizedSegments
+      }
     }
   }
   if (entry.type === "button") {
