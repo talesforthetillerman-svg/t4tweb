@@ -56,7 +56,12 @@ interface DeployEnvDiagnostics {
 const ROUTE_VERSION = "sanity-debug-v3-brutal"
 const TARGET_SECTION = "hero"
 const SANITY_DOC_TYPE = "heroSection"
+const SANITY_DOC_NAV = "navigation"
 const REVALIDATED_PATH = "/"
+
+function isNavLayoutId(id: string): boolean {
+  return id === "navigation" || id === "navigation-inner" || id.startsWith("nav-")
+}
 
 function getEnvDiagnostics(): DeployEnvDiagnostics {
   const sanityProjectId = process.env.SANITY_PROJECT_ID
@@ -240,17 +245,20 @@ export async function POST(request: Request) {
       perspective: "drafts",
     })
 
-    const existingHero = await writeClient.fetch<{
-      _id: string
-      title?: string
-      titleHighlight?: string
-      titleSegments?: HeroTitleSegment[]
-      elementStyles?: Record<string, Record<string, unknown>>
-    } | null>(
-      `*[_type == $type][0]{ _id, title, titleHighlight, titleSegments, elementStyles }`,
-      { type: SANITY_DOC_TYPE }
-    )
-    log("document fetch", { found: !!existingHero?._id, docId: existingHero?._id })
+    const [existingHero, existingNavigation] = await Promise.all([
+      writeClient.fetch<{
+        _id: string
+        title?: string
+        titleHighlight?: string
+        titleSegments?: HeroTitleSegment[]
+        elementStyles?: Record<string, Record<string, unknown>>
+      } | null>(`*[_type == $type][0]{ _id, title, titleHighlight, titleSegments, elementStyles }`, { type: SANITY_DOC_TYPE }),
+      writeClient.fetch<{ _id: string; elementStyles?: Record<string, Record<string, unknown>> } | null>(
+        `*[_type == $navType][0]{ _id, elementStyles }`,
+        { navType: SANITY_DOC_NAV }
+      ),
+    ])
+    log("document fetch", { hero: !!existingHero?._id, navigation: !!existingNavigation?._id })
     const heroTitleMode: "legacy" | "segmented" = hasSegments || (Array.isArray(existingHero?.titleSegments) && existingHero.titleSegments.length > 0)
       ? "segmented"
       : "legacy"
@@ -289,6 +297,7 @@ export async function POST(request: Request) {
     const persistedNodes: string[] = []
     const skippedNodes: string[] = []
     let elementStylesInPayload: Record<string, Record<string, unknown>> = {}
+    const navElementStylesInPayload: Record<string, Record<string, unknown>> = {}
     const failedNodes: string[] = []
     const heroPatch: Record<string, unknown> = {}
 
