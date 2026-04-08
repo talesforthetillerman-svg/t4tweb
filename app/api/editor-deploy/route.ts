@@ -74,7 +74,7 @@ const INTRO_LAYOUT_IDS = new Set([
  * document id — never `drafts.*`, or the live site will keep reading stale data while
  * Studio shows edits on the draft layer.
  */
-function publishedDocumentId(id: string): string {
+function toPublishedDocumentId(id: string): string {
   return id.startsWith("drafts.") ? id.slice("drafts.".length) : id
 }
 
@@ -617,7 +617,7 @@ export async function POST(request: Request) {
       }
       if (hasNavLayout) setPayload.elementStyles = mergedNavigationElementStyles
       Object.assign(setPayload, navContentPatch)
-      const navPatchResponse = await writeClient.patch(existingNavigation._id).set(setPayload).commit()
+      const navPatchResponse = await writeClient.patch(toPublishedDocumentId(existingNavigation._id)).set(setPayload).commit()
       navigationDocumentId = navPatchResponse._id
       log("navigation patch committed", { docId: navigationDocumentId, hasNavLayout, hasNavContent })
       const navParts: string[] = []
@@ -658,7 +658,7 @@ export async function POST(request: Request) {
       }
       if (hasIntroLayout) introSetPayload.elementStyles = mergedIntroElementStyles
       Object.assign(introSetPayload, introContentPatch)
-      const introPatchResponse = await writeClient.patch(publishedDocumentId(existingIntro._id)).set(introSetPayload).commit()
+      const introPatchResponse = await writeClient.patch(toPublishedDocumentId(existingIntro._id)).set(introSetPayload).commit()
       introDocumentId = introPatchResponse._id
       log("intro patch committed", { docId: introDocumentId, hasIntroLayout, hasIntroContent })
       const introParts: string[] = []
@@ -732,7 +732,7 @@ export async function POST(request: Request) {
       
       // Perform patch
       const patchResponse = await writeClient
-        .patch(publishedDocumentId(existingHero._id))
+        .patch(toPublishedDocumentId(existingHero._id))
         .set({ ...heroPatch, updatedAt: new Date().toISOString() })
         .commit()
       log("patch committed", { docId: patchResponse._id, modified: new Date(patchResponse._updatedAt) })
