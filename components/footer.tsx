@@ -74,7 +74,7 @@ export function Footer() {
       if (socialGroupRef.current) {
         registerEditable({
           id: 'footer-social-group',
-          type: 'box',
+          type: 'card',
           label: 'Footer Social Links',
           parentId: null,
           element: socialGroupRef.current,
@@ -87,7 +87,7 @@ export function Footer() {
       if (dividerRef.current) {
         registerEditable({
           id: 'footer-divider',
-          type: 'box',
+          type: 'card',
           label: 'Footer Divider',
           parentId: null,
           element: dividerRef.current,
