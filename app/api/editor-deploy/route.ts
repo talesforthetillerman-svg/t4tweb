@@ -69,6 +69,15 @@ const INTRO_LAYOUT_IDS = new Set([
   "intro-press-button",
 ])
 
+/**
+ * Public loaders use `perspective: "published"`. Deploy must patch the **published**
+ * document id — never `drafts.*`, or the live site will keep reading stale data while
+ * Studio shows edits on the draft layer.
+ */
+function publishedDocumentId(id: string): string {
+  return id.startsWith("drafts.") ? id.slice("drafts.".length) : id
+}
+
 function isNavLayoutId(id: string): boolean {
   return id === "navigation" || id === "navigation-inner" || id.startsWith("nav-")
 }
@@ -355,7 +364,8 @@ export async function POST(request: Request) {
       apiVersion: "2024-01-01",
       useCdn: false,
       token: sanityToken,
-      perspective: "drafts",
+      /** Must match loaders (`perspective: "published"`) so patches hit what the public site reads. */
+      perspective: "published",
     })
 
     const [existingHero, existingNavigation, existingIntro] = await Promise.all([
@@ -648,7 +658,7 @@ export async function POST(request: Request) {
       }
       if (hasIntroLayout) introSetPayload.elementStyles = mergedIntroElementStyles
       Object.assign(introSetPayload, introContentPatch)
-      const introPatchResponse = await writeClient.patch(existingIntro._id).set(introSetPayload).commit()
+      const introPatchResponse = await writeClient.patch(publishedDocumentId(existingIntro._id)).set(introSetPayload).commit()
       introDocumentId = introPatchResponse._id
       log("intro patch committed", { docId: introDocumentId, hasIntroLayout, hasIntroContent })
       const introParts: string[] = []
@@ -721,7 +731,10 @@ export async function POST(request: Request) {
       log("patch apply", { fields: Object.keys(heroPatch), willValidate: true })
       
       // Perform patch
-      const patchResponse = await writeClient.patch(existingHero._id).set({ ...heroPatch, updatedAt: new Date().toISOString() }).commit()
+      const patchResponse = await writeClient
+        .patch(publishedDocumentId(existingHero._id))
+        .set({ ...heroPatch, updatedAt: new Date().toISOString() })
+        .commit()
       log("patch committed", { docId: patchResponse._id, modified: new Date(patchResponse._updatedAt) })
       
       // Fetch published perspective to verify
