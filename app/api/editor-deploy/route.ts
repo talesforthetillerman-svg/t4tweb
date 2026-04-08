@@ -140,6 +140,8 @@ function isImageSrcPersistable(src: string): boolean {
 }
 
 function shouldPersistInCentralHomeState(node: DeployNodePayload): boolean {
+  const isImageLikeNode = node.type === "image" || node.type === "background"
+  if (isImageLikeNode && node.explicitContent) return true
   if (HERO_NODE_IDS.has(node.id)) return false
   if (isNavLayoutId(node.id)) return false
   if (INTRO_NODE_IDS.has(node.id)) return false
@@ -488,7 +490,7 @@ export async function POST(request: Request) {
       perspective: "published",
     })
 
-    const [existingHero, existingNavigation, existingIntro] = await Promise.all([
+    const [existingHero, existingNavigation, existingIntro, existingHomeEditorState] = await Promise.all([
       writeClient.fetch<{
         _id: string
         title?: string
@@ -518,6 +520,10 @@ export async function POST(request: Request) {
       } | null>(
         `*[_type == $introType][0]{ _id, bannerText, gifUrl, bookLabel, bookHref, pressLabel, pressHref, elementStyles }`,
         { introType: SANITY_DOC_INTRO }
+      ),
+      writeClient.fetch<{ _id: string; nodes?: HomeEditorNodeOverride[] } | null>(
+        `*[_type == $homeType && _id == $homeId][0]{ _id, nodes }`,
+        { homeType: SANITY_DOC_HOME_EDITOR_STATE, homeId: HOME_EDITOR_STATE_DOCUMENT_ID }
       ),
     ])
     log("document fetch", { hero: !!existingHero?._id, navigation: !!existingNavigation?._id, intro: !!existingIntro?._id })
@@ -830,18 +836,28 @@ export async function POST(request: Request) {
 
     let homeEditorStateDocumentId: string | null = null
     if (centralHomeNodes.length > 0) {
+      const existingNodes = Array.isArray(existingHomeEditorState?.nodes) ? existingHomeEditorState.nodes : []
+      const mergedById = new Map<string, HomeEditorNodeOverride>()
+      existingNodes.forEach((node) => {
+        if (!node?.nodeId) return
+        mergedById.set(node.nodeId, node)
+      })
+      centralHomeNodes.forEach((node) => {
+        mergedById.set(node.nodeId, node)
+      })
+      const mergedNodes = Array.from(mergedById.values()).sort((a, b) => a.nodeId.localeCompare(b.nodeId))
       const homeStateDocument = {
         _id: HOME_EDITOR_STATE_DOCUMENT_ID,
         _type: SANITY_DOC_HOME_EDITOR_STATE,
         updatedAt: new Date().toISOString(),
-        nodes: centralHomeNodes,
+        nodes: mergedNodes,
       }
       const homeStateResponse = await writeClient.createOrReplace(homeStateDocument)
       homeEditorStateDocumentId = homeStateResponse._id
       steps.push({
         step: "saving",
         ok: true,
-        message: `Home editor central state saved: ${HOME_EDITOR_STATE_DOCUMENT_ID} (${centralHomeNodes.length} nodes).`,
+        message: `Home editor central state saved: ${HOME_EDITOR_STATE_DOCUMENT_ID} (${mergedNodes.length} nodes).`,
       })
       persistedFields.push("homeEditorState.nodes")
       skippedFields.push(...skippedNodeDiagnostics)
