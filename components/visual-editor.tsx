@@ -1108,7 +1108,8 @@ export function VisualEditorOverlay() {
   }
 
   const onDeploy = async () => {
-    setDeployStatus("connecting")
+    setDeployStatus("saving")
+    setDeployDetails(null)
     try {
       const payload = {
         level: "green" as const,
@@ -1133,71 +1134,48 @@ export function VisualEditorOverlay() {
         body: JSON.stringify(payload),
       })
       const data = (await response.json()) as {
-        step?: "checking" | "saving" | "publishing" | "revalidating" | "done" | "failed"
         message?: string
         routeVersion?: string
-        envDiagnostics?: {
-          SANITY_PROJECT_ID: "yes" | "no"
-          NEXT_PUBLIC_SANITY_PROJECT_ID: "yes" | "no"
-          SANITY_DATASET: "yes" | "no"
-          SANITY_API_WRITE_TOKEN: "yes" | "no"
-          SANITY_API_TOKEN: "yes" | "no"
-        }
-        diagnostics?: {
-          SANITY_PROJECT_ID: "yes" | "no"
-          NEXT_PUBLIC_SANITY_PROJECT_ID: "yes" | "no"
-          SANITY_DATASET: "yes" | "no"
-          SANITY_API_WRITE_TOKEN: "yes" | "no"
-          SANITY_API_TOKEN: "yes" | "no"
-        }
+        step?: string
+        skippedNodes?: string[]
+        failedNodes?: string[]
+        persistedNodes?: string[]
         steps?: Array<{ step: string; ok: boolean; message: string }>
       }
-      const envDiagnostics = data.envDiagnostics || data.diagnostics
 
-      console.info("[editor-deploy] raw response", {
-        endpoint: "/api/editor-deploy",
-        statusCode: response.status,
-        ok: response.ok,
-        body: data,
-      })
-
-      const lines: string[] = ["connecting"]
-      if (Array.isArray(data.steps) && data.steps.length > 0) {
-        data.steps.forEach((item) => {
-          lines.push(item.step)
-          setDeployStatus(item.step)
-        })
-      } else if (data.step) {
-        lines.push(data.step)
-        setDeployStatus(data.step)
-      }
+      const skippedCount = Array.isArray(data.skippedNodes) ? data.skippedNodes.length : 0
+      const failedCount = Array.isArray(data.failedNodes) ? data.failedNodes.length : 0
+      const persistedCount = Array.isArray(data.persistedNodes) ? data.persistedNodes.length : 0
 
       if (!response.ok) {
         setDeployStatus("failed")
-        lines.push("failed")
-        lines.push(`routeVersion: ${data.routeVersion || "missing"}`)
-        lines.push(`step: ${data.step || "missing"}`)
-        lines.push(`message: ${data.message || "missing"}`)
-        lines.push(`envDiagnostics: ${JSON.stringify(envDiagnostics || null)}`)
-        lines.push(`rawResponse: ${JSON.stringify(data)}`)
-        setDeployDetails(lines.join("\n"))
+        setDeployDetails(JSON.stringify({
+          message: data.message || "Changes not saved",
+          step: data.step || "failed",
+          skippedNodes: data.skippedNodes || [],
+          failedNodes: data.failedNodes || [],
+          routeVersion: data.routeVersion || "unknown",
+        }, null, 2))
         return
       }
 
-      if (data.step === "done" || lines.includes("revalidating")) {
-        setDeployStatus("done")
-        if (!lines.includes("done")) lines.push("done")
+      if (failedCount > 0 || skippedCount > 0) {
+        setDeployStatus("partial")
+      } else {
+        setDeployStatus("success")
       }
-      lines.push(`routeVersion: ${data.routeVersion || "missing"}`)
-      lines.push(`step: ${data.step || "missing"}`)
-      lines.push(`message: ${data.message || "missing"}`)
-      lines.push(`envDiagnostics: ${JSON.stringify(envDiagnostics || null)}`)
-      lines.push(`rawResponse: ${JSON.stringify(data)}`)
-      setDeployDetails(lines.join("\n"))
+
+      setDeployDetails(JSON.stringify({
+        message: data.message || "Changes published",
+        persistedNodes: persistedCount,
+        skippedNodes: data.skippedNodes || [],
+        failedNodes: data.failedNodes || [],
+        routeVersion: data.routeVersion || "unknown",
+      }, null, 2))
     } catch (error) {
       setDeployStatus("failed")
       const message = error instanceof Error ? error.message : "Unknown error"
-      setDeployDetails(`failed\nrouteVersion: missing\nstep: connecting\nmessage: ${message}\nenvDiagnostics: null`)
+      setDeployDetails(JSON.stringify({ message }, null, 2))
     }
   }
 
@@ -1457,8 +1435,16 @@ export function VisualEditorOverlay() {
           ⎋
         </button>
         {deployStatus && (
-          <span className="ml-1 rounded bg-black/25 px-2 py-0.5 text-[10px] uppercase tracking-wide">
-            {deployStatus}
+          <span className={`ml-1 rounded px-2 py-0.5 text-[10px] uppercase tracking-wide ${
+            deployStatus === "success" ? "bg-emerald-600/80" :
+            deployStatus === "partial" ? "bg-amber-500/80" :
+            deployStatus === "failed" ? "bg-red-600/80" :
+            "bg-black/25"
+          }`}>
+            {deployStatus === "success" ? "Success — changes published" :
+              deployStatus === "partial" ? "Partial — some changes saved" :
+              deployStatus === "failed" ? "Failed — changes not saved" :
+              "Saving..."}
           </span>
         )}
       </div>
@@ -1476,14 +1462,17 @@ export function VisualEditorOverlay() {
                 Close
               </button>
             </div>
-            <pre className="max-h-[55vh] overflow-auto whitespace-pre-wrap rounded border border-white/15 bg-black/35 p-3 text-xs text-slate-100 select-text">{deployDetails}</pre>
-            <div className="mt-3 flex items-center gap-2">
-              <button type="button" onClick={onCopyDeployDetails} className="rounded border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10">
-                Copy details
-              </button>
-              {copyState === "copied" && <span className="text-xs text-emerald-300">Copied</span>}
-              {copyState === "failed" && <span className="text-xs text-red-300">Copy failed</span>}
-            </div>
+            <details>
+              <summary className="cursor-pointer text-xs text-slate-200">Technical details</summary>
+              <pre className="mt-2 max-h-[55vh] overflow-auto whitespace-pre-wrap rounded border border-white/15 bg-black/35 p-3 text-xs text-slate-100 select-text">{deployDetails}</pre>
+              <div className="mt-3 flex items-center gap-2">
+                <button type="button" onClick={onCopyDeployDetails} className="rounded border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10">
+                  Copy details
+                </button>
+                {copyState === "copied" && <span className="text-xs text-emerald-300">Copied</span>}
+                {copyState === "failed" && <span className="text-xs text-red-300">Copy failed</span>}
+              </div>
+            </details>
           </div>
         </div>
       )}

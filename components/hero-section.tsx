@@ -96,7 +96,7 @@ export function HeroSection({ data }: { data: HeroData }) {
   // Sync debug mode from query param (client-side only after hydration)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    setIsDebugMode(isEditing || params.get("heroDebug") === "1")
+    setIsDebugMode(params.get("heroDebug") === "1")
   }, [isEditing])
 
   // Register editable elements - only on isEditing change

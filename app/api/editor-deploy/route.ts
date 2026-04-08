@@ -824,6 +824,19 @@ export async function POST(request: Request) {
     const centralHomeNodes: HomeEditorNodeOverride[] = []
     const skippedNodeDiagnostics: string[] = []
     for (const node of payload.nodes) {
+      const isImageLikeNode = node.type === "image" || node.type === "background"
+      if (isImageLikeNode && (node.explicitStyle || node.explicitPosition || node.explicitSize) && !node.explicitContent) {
+        const reason = `${node.id}:explicitContent(false)-image-not-persisted`
+        skippedNodeDiagnostics.push(reason)
+        if (!skippedNodes.includes(node.id)) skippedNodes.push(node.id)
+      }
+      if (isImageLikeNode && node.explicitContent && (!node.content?.src || String(node.content.src).trim().length === 0)) {
+        const reason = `${node.id}:missing-content-src`
+        skippedNodeDiagnostics.push(reason)
+        if (!skippedNodes.includes(node.id)) skippedNodes.push(node.id)
+        if (!failedNodes.includes(reason)) failedNodes.push(reason)
+        continue
+      }
       if (!shouldPersistInCentralHomeState(node)) continue
       const built = buildHomeEditorStateNode(node)
       centralHomeNodes.push(built.node)
