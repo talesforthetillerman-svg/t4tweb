@@ -26,53 +26,58 @@ export default async function Home() {
   ])
 
   return (
-    <main className="relative bg-black">
+    <main
+      data-editor-node-id="home-page-main"
+      data-editor-node-type="section"
+      data-editor-node-label="Home Page Main"
+      className="relative bg-black"
+    >
       <RibbonsBlock />
       <Navigation data={navigationData} />
 
       <HeroSectionWrapper data={heroData} />
 
-      <SectionDivider />
+      <SectionDivider editorId="section-divider-hero-intro" />
 
       <IntroBannerSection data={introBannerData} />
 
-      <SectionDivider />
+      <SectionDivider editorId="section-divider-intro-release" />
 
       <SceneSection id="latest-release">
         <LatestReleaseSection />
       </SceneSection>
 
-      <SectionDivider />
+      <SectionDivider editorId="section-divider-release-about" />
 
       <SceneSection id="about">
         <AboutSection />
       </SceneSection>
 
-      <SectionDivider />
+      <SectionDivider editorId="section-divider-about-press" />
 
       <SceneSection id="press-kit">
         <PressKitSection />
       </SceneSection>
 
-      <SectionDivider />
+      <SectionDivider editorId="section-divider-press-band" />
 
       <SceneSection id="band">
         <BandMembersSection />
       </SceneSection>
 
-      <SectionDivider />
+      <SectionDivider editorId="section-divider-band-live" />
 
       <SceneSection id="live">
         <LiveSection />
       </SceneSection>
 
-      <SectionDivider />
+      <SectionDivider editorId="section-divider-live-contact" />
 
       <SceneSection id="contact">
         <ContactSection />
       </SceneSection>
 
-      <SectionDivider />
+      <SectionDivider editorId="section-divider-contact-footer" />
 
       <Footer />
     </main>

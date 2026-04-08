@@ -70,7 +70,7 @@ export function Navigation({ data }: { data: NavigationData }) {
       if (ref) {
         registerEditable({
           id: `nav-link-${index}`,
-          type: 'link',
+          type: 'button',
           label: navLinks[index]?.label || `Link ${index}`,
           parentId: 'navigation',
           element: ref,
@@ -98,7 +98,7 @@ export function Navigation({ data }: { data: NavigationData }) {
       if (ref) {
         registerEditable({
           id: `nav-mobile-link-${index}`,
-          type: 'link',
+          type: 'button',
           label: `Mobile ${navLinks[index]?.label || `Link ${index}`}`,
           parentId: 'navigation',
           element: ref,
@@ -131,7 +131,7 @@ export function Navigation({ data }: { data: NavigationData }) {
       navLinks.forEach((_, i) => unregisterEditable(`nav-mobile-link-${i}`))
       unregisterEditable('nav-mobile-book-button')
     }
-  }, [isEditing, registerEditable, unregisterEditable])
+  }, [isEditing, navLinks, registerEditable, unregisterEditable])
 
   useEffect(() => {
     const handleScroll = () => {
