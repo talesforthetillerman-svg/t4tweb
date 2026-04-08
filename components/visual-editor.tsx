@@ -15,7 +15,7 @@ type NodeType = "section" | "background" | "card" | "text" | "button" | "image"
 type Point = { x: number; y: number }
 
 type Size = { width: number; height: number }
-type ConcertField = "date" | "venue" | "city" | "country" | "genre" | "price" | "status" | "time" | "capacity"
+type ConcertField = "date" | "venue" | "city" | "country" | "genre" | "price" | "status" | "time" | "capacity" | "locationUrl"
 
 interface TextSegment {
   text: string
@@ -73,6 +73,9 @@ interface EditorNode {
     alt?: string
     videoUrl?: string
     mediaKind?: "image" | "video"
+    gradientEnabled?: boolean
+    gradientStart?: string
+    gradientEnd?: string
   }
   explicitContent: boolean
   explicitStyle: boolean
@@ -191,6 +194,15 @@ function normalizeType(raw: string): NodeType {
 
 function parseGrouped(value: string | null): boolean {
   return value === "true"
+}
+
+function extractConcertCardId(nodeId: string | null | undefined): string | null {
+  if (!nodeId) return null
+  const direct = nodeId.match(/^live-(upcoming|history)-event-(\d+)$/)
+  if (direct) return nodeId
+  const nested = nodeId.match(/^live-(upcoming|history)-event-(\d+)-/)
+  if (!nested) return null
+  return `live-${nested[1]}-event-${nested[2]}`
 }
 
 function rgbToHex(rgb: string): string {
@@ -649,7 +661,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
             let isContentEdit = !!n.explicitContent
             let isStyleEdit = !!n.explicitStyle
             Object.entries(command.patch).forEach(([k, v]) => {
-              if (["text", "textSegments", "titleSegments", "href", "src", "alt", "videoUrl"].includes(k)) {
+              if (["text", "textSegments", "titleSegments", "href", "src", "alt", "videoUrl", "gradientEnabled", "gradientStart", "gradientEnd"].includes(k)) {
                 isContentEdit = true;
                 (content as Record<string, unknown>)[k] = v
               }
@@ -757,6 +769,14 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     for (const candidate of els) {
       if (!(candidate instanceof HTMLElement)) continue
       if (candidate.closest("[data-editor-toolbar]") || candidate.closest("[data-editor-panel]")) continue
+
+      // Concert card editing always wins over parent grouped lists and generic card handlers.
+      const concertCard = candidate.closest<HTMLElement>("[data-concert-card='true'][data-editor-node-id]")
+      if (concertCard?.dataset.editorNodeId) {
+        const concertEntry = registry.get(concertCard.dataset.editorNodeId)
+        if (concertEntry?.eligible) return concertEntry
+      }
+
       const bound = candidate.closest<HTMLElement>("[data-editor-node-id]")
       if (!bound?.dataset.editorNodeId) continue
       const entry = registry.get(bound.dataset.editorNodeId)
@@ -783,6 +803,12 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
     const best = candidates[0]
     if (best) {
+      const concertCardAncestor = best.element.closest<HTMLElement>("[data-concert-card='true'][data-editor-node-id]")
+      if (concertCardAncestor?.dataset.editorNodeId) {
+        const concertCardEntry = registry.get(concertCardAncestor.dataset.editorNodeId)
+        if (concertCardEntry) return concertCardEntry
+      }
+
       const groupedAncestor = best.element.parentElement?.closest<HTMLElement>("[data-editor-grouped='true'][data-editor-node-id]")
       if (groupedAncestor?.dataset.editorNodeId && groupedAncestor.dataset.editorNodeId !== best.id) {
         const groupedEntry = registry.get(groupedAncestor.dataset.editorNodeId)
@@ -822,6 +848,28 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         registryRafRef.current = null
       }
     }
+  }, [isEditing, registry])
+
+  useEffect(() => {
+    if (!isEditing) return
+    setNodes((prev) => {
+      const next = new Map(prev)
+      let changed = false
+
+      registry.forEach((entry, id) => {
+        if (next.has(id)) return
+        next.set(id, buildNodeFromEntry(entry))
+        changed = true
+      })
+
+      for (const id of next.keys()) {
+        if (registry.has(id)) continue
+        next.delete(id)
+        changed = true
+      }
+
+      return changed ? next : prev
+    })
   }, [isEditing, registry])
 
   const value: VisualEditorContextType = {
@@ -961,10 +1009,20 @@ export function VisualEditorOverlay() {
   const selectedBandMemberIndex = selectedNode?.id.startsWith("member-item-")
     ? Number(selectedNode.id.replace("member-item-", ""))
     : null
-  const selectedConcertCardId = selectedNode && /^live-(upcoming|history)-event-\d+$/.test(selectedNode.id)
-    ? selectedNode.id
-    : null
+  const selectedConcertCardId = extractConcertCardId(selectedNode?.id)
   const [concertDraft, setConcertDraft] = useState<Record<ConcertField, string> | null>(null)
+
+  const selectedIsLinkGroup = selectedNode?.id === "live-stream-platforms-group" || selectedNode?.id === "live-social-platforms-group"
+  const selectedLinkGroupSummary = selectedIsLinkGroup
+    ? document.querySelector<HTMLElement>(`[data-editor-node-id="${selectedNode.id}"]`)?.dataset.linkGroupSummary || ""
+    : ""
+  const selectedLinkGroupItems = selectedIsLinkGroup
+    ? Array.from(document.querySelectorAll<HTMLAnchorElement>(`[data-editor-node-id="${selectedNode.id}"] [data-link-item="true"]`)).map((el) => ({
+        id: el.dataset.editorNodeId || "",
+        name: el.dataset.linkItemName || el.textContent?.trim() || "Unknown",
+        href: el.href || "",
+      }))
+    : []
 
   const getBandMemberFieldValue = useCallback((index: number, field: "number" | "name" | "role" | "photo"): string => {
     if (typeof document === "undefined") return ""
@@ -992,7 +1050,8 @@ export function VisualEditorOverlay() {
     if (field === "price") return card.dataset.concertPrice || ""
     if (field === "status") return card.dataset.concertStatus || ""
     if (field === "time") return card.dataset.concertTime || ""
-    return card.dataset.concertCapacity || ""
+    if (field === "capacity") return card.dataset.concertCapacity || ""
+    return card.dataset.concertLocationUrl || ""
   }, [])
 
   const updateConcertCardField = useCallback((cardId: string, field: ConcertField, value: string) => {
@@ -1009,6 +1068,7 @@ export function VisualEditorOverlay() {
     if (field === "status") card.dataset.concertStatus = value
     if (field === "time") card.dataset.concertTime = value
     if (field === "capacity") card.dataset.concertCapacity = value
+    if (field === "locationUrl") card.dataset.concertLocationUrl = value
 
     const dateEl = card.querySelector<HTMLElement>('[data-concert-field="date"]')
     const venueEl = card.querySelector<HTMLElement>('[data-concert-field="venue"]')
@@ -1036,6 +1096,13 @@ export function VisualEditorOverlay() {
     }))
   }, [formatConcertDate])
 
+  const updateLinkItemHref = useCallback((itemId: string, href: string) => {
+    if (typeof document === "undefined") return
+    const linkEl = document.querySelector<HTMLAnchorElement>(`[data-editor-node-id="${itemId}"]`)
+    if (!linkEl) return
+    linkEl.href = href
+  }, [])
+
   useEffect(() => {
     if (!selectedConcertCardId) {
       setConcertDraft(null)
@@ -1051,6 +1118,7 @@ export function VisualEditorOverlay() {
       status: getConcertCardFieldValue(selectedConcertCardId, "status"),
       time: getConcertCardFieldValue(selectedConcertCardId, "time"),
       capacity: getConcertCardFieldValue(selectedConcertCardId, "capacity"),
+      locationUrl: getConcertCardFieldValue(selectedConcertCardId, "locationUrl"),
     })
   }, [selectedConcertCardId, getConcertCardFieldValue])
 
@@ -1533,16 +1601,34 @@ export function VisualEditorOverlay() {
 
             {selectedConcertCardId && concertDraft && (
               <div className="space-y-2 rounded border border-slate-200 p-2">
-                <label className="text-[11px] font-semibold">Concert Date (YYYY-MM-DD)</label>
-                <input
-                  className="w-full rounded border p-1 text-xs"
-                  value={concertDraft.date}
-                  onChange={(e) => {
-                    const next = { ...concertDraft, date: e.target.value }
-                    setConcertDraft(next)
-                    updateConcertCardField(selectedConcertCardId, "date", e.target.value)
-                  }}
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-semibold">Date</label>
+                    <input
+                      type="date"
+                      className="w-full rounded border p-1 text-xs"
+                      value={concertDraft.date}
+                      onChange={(e) => {
+                        const next = { ...concertDraft, date: e.target.value }
+                        setConcertDraft(next)
+                        updateConcertCardField(selectedConcertCardId, "date", e.target.value)
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold">Time</label>
+                    <input
+                      type="time"
+                      className="w-full rounded border p-1 text-xs"
+                      value={concertDraft.time}
+                      onChange={(e) => {
+                        const next = { ...concertDraft, time: e.target.value }
+                        setConcertDraft(next)
+                        updateConcertCardField(selectedConcertCardId, "time", e.target.value)
+                      }}
+                    />
+                  </div>
+                </div>
                 <label className="text-[11px] font-semibold">Venue</label>
                 <input
                   className="w-full rounded border p-1 text-xs"
@@ -1579,10 +1665,22 @@ export function VisualEditorOverlay() {
                     />
                   </div>
                 </div>
+                <label className="text-[11px] font-semibold">Google Maps URL</label>
+                <input
+                  type="url"
+                  className="w-full rounded border p-1 text-xs"
+                  placeholder="Paste Google Maps link here"
+                  value={concertDraft.locationUrl}
+                  onChange={(e) => {
+                    const next = { ...concertDraft, locationUrl: e.target.value }
+                    setConcertDraft(next)
+                    updateConcertCardField(selectedConcertCardId, "locationUrl", e.target.value)
+                  }}
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[11px] font-semibold">Genre</label>
-                    <input
+                    <select
                       className="w-full rounded border p-1 text-xs"
                       value={concertDraft.genre}
                       onChange={(e) => {
@@ -1590,7 +1688,17 @@ export function VisualEditorOverlay() {
                         setConcertDraft(next)
                         updateConcertCardField(selectedConcertCardId, "genre", e.target.value)
                       }}
-                    />
+                    >
+                      <option value="World Music">World Music</option>
+                      <option value="Funk">Funk</option>
+                      <option value="Soul">Soul</option>
+                      <option value="Jazz">Jazz</option>
+                      <option value="Fusion">Fusion</option>
+                      <option value="Afrobeat">Afrobeat</option>
+                      <option value="Latin">Latin</option>
+                      <option value="Disco">Disco</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
                   <div>
                     <label className="text-[11px] font-semibold">Price</label>
@@ -1601,44 +1709,6 @@ export function VisualEditorOverlay() {
                         const next = { ...concertDraft, price: e.target.value }
                         setConcertDraft(next)
                         updateConcertCardField(selectedConcertCardId, "price", e.target.value)
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="text-[11px] font-semibold">Status</label>
-                    <input
-                      className="w-full rounded border p-1 text-xs"
-                      value={concertDraft.status}
-                      onChange={(e) => {
-                        const next = { ...concertDraft, status: e.target.value }
-                        setConcertDraft(next)
-                        updateConcertCardField(selectedConcertCardId, "status", e.target.value)
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-semibold">Time</label>
-                    <input
-                      className="w-full rounded border p-1 text-xs"
-                      value={concertDraft.time}
-                      onChange={(e) => {
-                        const next = { ...concertDraft, time: e.target.value }
-                        setConcertDraft(next)
-                        updateConcertCardField(selectedConcertCardId, "time", e.target.value)
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-semibold">Capacity</label>
-                    <input
-                      className="w-full rounded border p-1 text-xs"
-                      value={concertDraft.capacity}
-                      onChange={(e) => {
-                        const next = { ...concertDraft, capacity: e.target.value }
-                        setConcertDraft(next)
-                        updateConcertCardField(selectedConcertCardId, "capacity", e.target.value)
                       }}
                     />
                   </div>
@@ -1916,6 +1986,52 @@ export function VisualEditorOverlay() {
                     U
                   </button>
                 </div>
+                <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-800">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300"
+                    checked={!!selectedNode.content.gradientEnabled}
+                    onChange={(e) => {
+                      const gradientEnabled = e.target.checked
+                      dispatch({ 
+                        type: "UPDATE_TEXT", 
+                        nodeId: selectedNode.id, 
+                        patch: { 
+                          gradientEnabled,
+                          gradientStart: gradientEnabled ? (selectedNode.content.gradientStart || "#FFB15A") : undefined,
+                          gradientEnd: gradientEnabled ? (selectedNode.content.gradientEnd || "#FF6C00") : undefined,
+                        } 
+                      })
+                    }}
+                  />
+                  Gradient text
+                </label>
+                {selectedNode.content.gradientEnabled && (
+                  <div className="mt-1 grid grid-cols-2 gap-2 rounded border border-orange-200 bg-orange-50/80 p-2">
+                    <div>
+                      <div className="mb-0.5 text-[10px] font-medium text-slate-600">Gradient start</div>
+                      <input
+                        type="color"
+                        className="h-8 w-full rounded border border-slate-200"
+                        value={selectedNode.content.gradientStart || "#FFB15A"}
+                        onChange={(e) => {
+                          dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { gradientStart: e.target.value } })
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <div className="mb-0.5 text-[10px] font-medium text-slate-600">Gradient end</div>
+                      <input
+                        type="color"
+                        className="h-8 w-full rounded border border-slate-200"
+                        value={selectedNode.content.gradientEnd || "#FF6C00"}
+                        onChange={(e) => {
+                          dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { gradientEnd: e.target.value } })
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -2159,7 +2275,27 @@ export function VisualEditorOverlay() {
               </>
             )}
 
-            {selectedNode.type === "card" && (
+            {selectedNode.type === "card" && selectedIsLinkGroup && (
+              <>
+                <div className="rounded border border-slate-200 p-2 bg-slate-50">
+                  <div className="text-xs font-semibold text-slate-700 mb-2">{selectedLinkGroupSummary}</div>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {selectedLinkGroupItems.map((item) => (
+                      <div key={item.id} className="flex flex-col gap-1">
+                        <label className="text-[10px] font-medium text-slate-600">{item.name}</label>
+                        <input
+                          className="w-full rounded border p-1 text-xs"
+                          defaultValue={item.href}
+                          onChange={(e) => updateLinkItemHref(item.id, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {selectedNode.type === "card" && !selectedIsLinkGroup && !selectedConcertCardId && (
               <>
                 <label className="text-xs font-semibold">Card Text</label>
                 <textarea

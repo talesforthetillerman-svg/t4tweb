@@ -18,8 +18,9 @@ interface Concert {
   genre: string
   capacity: string
   price: string
+  locationUrl: string
 }
-type ConcertEditableField = "date" | "venue" | "city" | "country" | "genre" | "price" | "status" | "time" | "capacity"
+type ConcertEditableField = "date" | "venue" | "city" | "country" | "genre" | "price" | "status" | "time" | "capacity" | "locationUrl"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -83,6 +84,7 @@ export function LiveSection() {
             genre: values[6] || "",
             capacity: values[7] || "",
             price: values[8] || "Free",
+            locationUrl: values[9] || "",
           }
         })
         const sorted = parsed.sort((a, b) =>
@@ -221,62 +223,64 @@ export function LiveSection() {
                 dataEditLabel="Live Stream Header"
               />
 
-              <div className="mb-10" data-editor-node-id="live-stream-platforms-group" data-editor-node-type="card" data-editor-node-label="Live Streaming Platforms Group" data-editor-grouped="true">
+              <div className="mb-10" data-editor-node-id="live-stream-platforms-group" data-editor-node-type="card" data-editor-node-label="Live Streaming Platforms Group" data-editor-grouped="true" data-link-group="true" data-link-group-summary="Spotify, Apple Music & More">
                 <h4 data-editor-node-id="live-stream-platforms-title" data-editor-node-type="text" data-editor-node-label="Spotify Apple Music and More" className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block">
                   Spotify, Apple Music & More
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-{platforms.filter(p => p.category === "streaming").map((platform, index) => (
-  <motion.a
-    data-editor-node-id={`live-streaming-${platform.name.toLowerCase().replace(/\s+/g, '-')}`}
-    data-editor-node-type="card"
-    data-editor-node-label={`Streaming: ${platform.name}`}
-    data-editor-grouped="true"
-    key={platform.name}
-    initial={isEditing ? false : { opacity: 0, y: 20 }}
-    whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
-    whileHover={isEditing ? undefined : { y: -2, scale: 1.02 }}
-    transition={isEditing ? undefined : { duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
-    href={platform.href}
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label={`Listen on ${platform.name}`}
-    title={platform.name}
-    className={`flex flex-col items-center justify-center p-4 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${platform.color}`}
-  >
-    <platform.icon />
-    <span className="text-xs font-medium text-center mt-2">{platform.name}</span>
-  </motion.a>
-))}
+                  {platforms.filter(p => p.category === "streaming").map((platform, index) => (
+                    <motion.a
+                      data-editor-node-id={`live-streaming-${platform.name.toLowerCase().replace(/\s+/g, '-')}`}
+                      data-editor-node-type="card"
+                      data-editor-node-label={`Streaming: ${platform.name}`}
+                      data-link-item="true"
+                      data-link-item-name={platform.name}
+                      key={platform.name}
+                      initial={isEditing ? false : { opacity: 0, y: 20 }}
+                      whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+                      whileHover={isEditing ? undefined : { y: -2, scale: 1.02 }}
+                      transition={isEditing ? undefined : { duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
+                      href={platform.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Listen on ${platform.name}`}
+                      title={platform.name}
+                      className={`flex flex-col items-center justify-center p-4 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${platform.color}`}
+                    >
+                      <platform.icon />
+                      <span className="text-xs font-medium text-center mt-2">{platform.name}</span>
+                    </motion.a>
+                  ))}
                 </div>
               </div>
 
-              <div data-editor-node-id="live-social-platforms-group" data-editor-node-type="card" data-editor-node-label="Live Social Platforms Group" data-editor-grouped="true">
+              <div data-editor-node-id="live-social-platforms-group" data-editor-node-type="card" data-editor-node-label="Live Social Platforms Group" data-editor-grouped="true" data-link-group="true" data-link-group-summary="Follow us">
                 <h4 data-editor-node-id="live-social-platforms-title" data-editor-node-type="text" data-editor-node-label="Follow Us Title" className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block">
                   Follow Us
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-{platforms.filter(p => p.category === "social").map((platform, index) => (
-  <motion.a
-    data-editor-node-id={`live-social-${platform.name.toLowerCase().replace(/\s+/g, '-')}`}
-    data-editor-node-type="card"
-    data-editor-node-label={`Social: ${platform.name}`}
-    data-editor-grouped="true"
-    key={platform.name}
-    initial={isEditing ? false : { opacity: 0, y: 20 }}
-    whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
-    whileHover={isEditing ? undefined : { y: -2, scale: 1.02 }}
-    transition={isEditing ? undefined : { duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
-    href={platform.href}
-    target="_blank"
-    rel="noopener noreferrer"
-    title={platform.name}
-    className={`flex flex-col items-center justify-center p-5 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl ${platform.color}`}
-  >
-    <platform.icon />
-    <span className="text-xs font-medium text-center mt-2">{platform.name}</span>
-  </motion.a>
-))}
+                  {platforms.filter(p => p.category === "social").map((platform, index) => (
+                    <motion.a
+                      data-editor-node-id={`live-social-${platform.name.toLowerCase().replace(/\s+/g, '-')}`}
+                      data-editor-node-type="card"
+                      data-editor-node-label={`Social: ${platform.name}`}
+                      data-link-item="true"
+                      data-link-item-name={platform.name}
+                      key={platform.name}
+                      initial={isEditing ? false : { opacity: 0, y: 20 }}
+                      whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+                      whileHover={isEditing ? undefined : { y: -2, scale: 1.02 }}
+                      transition={isEditing ? undefined : { duration: 0.35, delay: index * 0.04, type: "spring", stiffness: 320, damping: 22 }}
+                      href={platform.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={platform.name}
+                      className={`flex flex-col items-center justify-center p-5 bg-secondary/50 border border-border rounded-xl text-foreground transition-all duration-300 hover:border-transparent hover:text-white shadow-lg hover:shadow-xl ${platform.color}`}
+                    >
+                      <platform.icon />
+                      <span className="text-xs font-medium text-center mt-2">{platform.name}</span>
+                    </motion.a>
+                  ))}
                 </div>
               </div>
             </motion.div>
@@ -325,7 +329,6 @@ export function LiveSection() {
                       data-editor-node-id={`live-upcoming-event-${index}`}
                       data-editor-node-type="card"
                       data-editor-node-label={`Upcoming Event ${index + 1}`}
-                      data-editor-grouped="true"
                       data-concert-card="true"
                       data-concert-list-type="upcoming"
                       data-concert-date={concert.date}
@@ -337,6 +340,7 @@ export function LiveSection() {
                       data-concert-status={concert.status}
                       data-concert-time={concert.time}
                       data-concert-capacity={concert.capacity}
+                      data-concert-location-url={concert.locationUrl}
                       className="min-h-[80px] p-5 bg-secondary/50 rounded-xl border border-border hover:border-primary/30 transition-all duration-300 group shadow-lg hover:shadow-xl flex items-center"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
@@ -388,15 +392,6 @@ export function LiveSection() {
                             {concert.price === "Free" ? "Free" : `€${concert.price}`}
                           </span>
                           <span
-                            data-editor-node-id={`live-upcoming-event-${index}-status`}
-                            data-editor-node-type="text"
-                            data-editor-node-label={`Upcoming Event ${index + 1} Status`}
-                            data-concert-field="status"
-                            className="text-xs uppercase tracking-wide"
-                          >
-                            {concert.status}
-                          </span>
-                          <span
                             data-editor-node-id={`live-upcoming-event-${index}-time`}
                             data-editor-node-type="text"
                             data-editor-node-label={`Upcoming Event ${index + 1} Time`}
@@ -404,15 +399,6 @@ export function LiveSection() {
                             className="text-xs"
                           >
                             {concert.time}
-                          </span>
-                          <span
-                            data-editor-node-id={`live-upcoming-event-${index}-capacity`}
-                            data-editor-node-type="text"
-                            data-editor-node-label={`Upcoming Event ${index + 1} Capacity`}
-                            data-concert-field="capacity"
-                            className="text-xs"
-                          >
-                            {concert.capacity}
                           </span>
                         </div>
                       </div>
@@ -474,7 +460,6 @@ export function LiveSection() {
                       data-editor-node-id={`live-history-event-${index}`}
                       data-editor-node-type="card"
                       data-editor-node-label={`History Event ${index + 1}`}
-                      data-editor-grouped="true"
                       data-concert-card="true"
                       data-concert-list-type="history"
                       data-concert-date={concert.date}
@@ -486,6 +471,7 @@ export function LiveSection() {
                       data-concert-status={concert.status}
                       data-concert-time={concert.time}
                       data-concert-capacity={concert.capacity}
+                      data-concert-location-url={concert.locationUrl}
                       className="min-h-[80px] p-5 bg-secondary/30 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300 group shadow-lg hover:shadow-xl flex items-center"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
@@ -537,15 +523,6 @@ export function LiveSection() {
                             {concert.price === "Free" ? "Free" : `€${concert.price}`}
                           </span>
                           <span
-                            data-editor-node-id={`live-history-event-${index}-status`}
-                            data-editor-node-type="text"
-                            data-editor-node-label={`History Event ${index + 1} Status`}
-                            data-concert-field="status"
-                            className="text-xs uppercase tracking-wide"
-                          >
-                            {concert.status}
-                          </span>
-                          <span
                             data-editor-node-id={`live-history-event-${index}-time`}
                             data-editor-node-type="text"
                             data-editor-node-label={`History Event ${index + 1} Time`}
@@ -553,15 +530,6 @@ export function LiveSection() {
                             className="text-xs"
                           >
                             {concert.time}
-                          </span>
-                          <span
-                            data-editor-node-id={`live-history-event-${index}-capacity`}
-                            data-editor-node-type="text"
-                            data-editor-node-label={`History Event ${index + 1} Capacity`}
-                            data-concert-field="capacity"
-                            className="text-xs"
-                          >
-                            {concert.capacity}
                           </span>
                         </div>
                       </div>
