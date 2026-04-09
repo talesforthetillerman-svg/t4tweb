@@ -1,17 +1,9 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 
 const VERCEL_DEPLOY_HOOK = process.env.VERCEL_DEPLOY_HOOK
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
-    const cookieStore = await cookies()
-    const authCookie = cookieStore.get('t4t-editor-auth')
-
-    if (!authCookie || authCookie.value !== 'authorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     if (!VERCEL_DEPLOY_HOOK) {
       return NextResponse.json(
         { error: 'Vercel deploy hook not configured. Add VERCEL_DEPLOY_HOOK to your .env.local and Vercel project settings.' },

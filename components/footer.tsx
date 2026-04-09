@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react"
 import Image from "next/image"
 import { useVisualEditor } from "@/components/visual-editor"
+import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
 
 export function Footer() {
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
@@ -13,6 +14,7 @@ export function Footer() {
   const socialGroupRef = useRef<HTMLDivElement>(null)
   const dividerRef = useRef<HTMLDivElement>(null)
   const copyrightRef = useRef<HTMLParagraphElement>(null)
+  const resolvedFooterLogoSrc = useHomeEditorImageSrc("footer-logo", "/images/t4tPics/logo-white.png")
 
   useEffect(() => {
     if (!isEditing) return
@@ -202,7 +204,7 @@ export function Footer() {
           className="mb-6"
         >
           <Image
-            src="/images/t4tPics/logo-white.png"
+            src={resolvedFooterLogoSrc}
             alt="Tales for the Tillerman"
             width={160}
             height={160}

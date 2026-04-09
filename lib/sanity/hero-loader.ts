@@ -49,7 +49,7 @@ export async function loadHeroData(): Promise<HeroData> {
   try {
     const client = createClient({
       projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'qtpb6qpz',
-      dataset: process.env.SANITY_DATASET || 'production',
+      dataset: process.env.SANITY_DATASET || process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
       apiVersion: '2024-01-01',
       // API origin by default so post-deploy reads match what we wrote (opt into CDN with SANITY_USE_CDN=true).
       useCdn: process.env.SANITY_USE_CDN === 'true',

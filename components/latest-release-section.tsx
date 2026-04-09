@@ -1,11 +1,58 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useState, type CSSProperties } from "react"
 import { motion } from "framer-motion"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
 import { useVisualEditor } from "@/components/visual-editor"
+import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 
-export function LatestReleaseSection() {
+interface LatestReleaseSectionProps {
+  overrides?: Record<string, HomeEditorNodeOverride>
+}
+
+function buildInlineStyleFromOverride(override?: HomeEditorNodeOverride): CSSProperties | undefined {
+  if (!override) return undefined
+  const style: CSSProperties = {}
+  const scale = typeof override.style.scale === "number" ? Math.max(0.1, override.style.scale) : 1
+  if (override.explicitPosition || (override.explicitStyle && scale !== 1)) {
+    style.transform = scale !== 1
+      ? `translate(${Math.round(override.geometry.x)}px, ${Math.round(override.geometry.y)}px) scale(${scale})`
+      : `translate(${Math.round(override.geometry.x)}px, ${Math.round(override.geometry.y)}px)`
+    style.transformOrigin = "top left"
+  }
+  if (override.explicitSize) {
+    style.width = `${Math.max(8, Math.round(override.geometry.width))}px`
+    style.height = `${Math.max(8, Math.round(override.geometry.height))}px`
+  }
+  if (override.explicitStyle) {
+    if (override.style.opacity !== undefined) style.opacity = override.style.opacity
+    if (override.style.backgroundColor) style.backgroundColor = override.style.backgroundColor
+    if (override.style.color) style.color = override.style.color
+    if (override.style.fontSize) style.fontSize = override.style.fontSize
+    if (override.style.fontFamily) style.fontFamily = override.style.fontFamily
+    if (override.style.fontWeight) style.fontWeight = override.style.fontWeight as CSSProperties["fontWeight"]
+    if (override.style.fontStyle) style.fontStyle = override.style.fontStyle as CSSProperties["fontStyle"]
+    if (override.style.textDecoration) style.textDecoration = override.style.textDecoration as CSSProperties["textDecoration"]
+    if (override.style.minHeight) style.minHeight = override.style.minHeight
+    if (override.style.paddingTop) style.paddingTop = override.style.paddingTop
+    if (override.style.paddingBottom) style.paddingBottom = override.style.paddingBottom
+  }
+  return Object.keys(style).length > 0 ? style : undefined
+}
+
+function resolveTextOverride(node: HomeEditorNodeOverride | undefined, fallback: string): string {
+  if (!node?.explicitContent) return fallback
+  const text = node.content.text?.trim()
+  return text ? text : fallback
+}
+
+function resolveHrefOverride(node: HomeEditorNodeOverride | undefined, fallback: string): string {
+  if (!node?.explicitContent) return fallback
+  const href = node.content.href?.trim()
+  return href ? href : fallback
+}
+
+export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionProps) {
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
   const [isIosMobile, setIsIosMobile] = useState(false)
   const [isAndroidMobile, setIsAndroidMobile] = useState(false)
@@ -17,6 +64,23 @@ export function LatestReleaseSection() {
   const subtitleRef = useRef<HTMLParagraphElement>(null)
   const watchButtonRef = useRef<HTMLAnchorElement>(null)
   const showsButtonRef = useRef<HTMLAnchorElement>(null)
+  const sectionOverride = overrides["latest-release-section"]
+  const bgOverride = overrides["latest-release-bg"]
+  const cardOverride = overrides["latest-release-card"]
+  const titleOverride = overrides["latest-release-title"]
+  const subtitleOverride = overrides["latest-release-subtitle"]
+  const watchButtonOverride = overrides["latest-release-watch-button"]
+  const showsButtonOverride = overrides["latest-release-shows-button"]
+
+  const releaseTitle = resolveTextOverride(titleOverride, CAMPAIGN_CONTENT.releaseTitle)
+  const releaseSubtitle = resolveTextOverride(subtitleOverride, CAMPAIGN_CONTENT.releaseSubtitle)
+  const releaseWatchLabel = resolveTextOverride(watchButtonOverride, CAMPAIGN_CONTENT.releaseCtaLabel)
+  const releaseShowsLabel = resolveTextOverride(showsButtonOverride, CAMPAIGN_CONTENT.showsCtaLabel)
+  const releaseWatchHref = resolveHrefOverride(watchButtonOverride, CAMPAIGN_CONTENT.releaseCtaHref)
+  const releaseShowsHref = resolveHrefOverride(showsButtonOverride, CAMPAIGN_CONTENT.showsCtaHref)
+  const renderStaticCard = isEditing || !!(
+    cardOverride && (cardOverride.explicitPosition || cardOverride.explicitSize || cardOverride.explicitStyle)
+  )
 
   useEffect(() => {
     const userAgent = navigator.userAgent || ""
@@ -148,6 +212,7 @@ export function LatestReleaseSection() {
       data-editor-node-type="section"
       data-editor-node-label="Release Section"
       className="relative overflow-hidden bg-black"
+      style={buildInlineStyleFromOverride(sectionOverride)}
     >
       <div 
         ref={bgRef}
@@ -155,7 +220,8 @@ export function LatestReleaseSection() {
         data-editor-node-type="background"
         data-editor-media-kind="video"
         data-editor-node-label="Fondo Video YouTube"
-        className="absolute inset-0 z-0"
+        className="absolute left-0 top-0 z-0 h-full w-full"
+        style={buildInlineStyleFromOverride(bgOverride)}
       >
         {isIosMobile ? (
           <img
@@ -184,16 +250,78 @@ export function LatestReleaseSection() {
 
       <div className="relative z-10 flex min-h-screen items-center justify-center">
         <div className="mx-auto max-w-6xl">
+          {renderStaticCard ? (
+            <div
+              ref={cardRef}
+              data-editor-node-id="latest-release-card"
+              data-editor-node-type="card"
+              data-editor-node-label="Release Card"
+              className="flex w-full max-w-4xl flex-col items-center rounded-2xl border border-primary/28 bg-black/24 p-6 text-center shadow-md backdrop-blur-sm md:p-8"
+              style={buildInlineStyleFromOverride(cardOverride)}
+            >
+              <h2 
+                ref={titleRef}
+                data-editor-node-id="latest-release-title"
+                data-editor-node-type="text"
+                data-editor-node-label="Título del Lanzamiento"
+                className="mb-[var(--spacing-sm)] w-full text-center font-serif text-[length:var(--text-h2)] leading-[var(--line-height-tight)] text-foreground"
+                style={buildInlineStyleFromOverride(titleOverride)}
+              >
+                {releaseTitle}
+              </h2>
+
+              <p 
+                ref={subtitleRef}
+                data-editor-node-id="latest-release-subtitle"
+                data-editor-node-type="text"
+                data-editor-node-label="Subtítulo del Lanzamiento"
+                className="mb-6 w-full text-center text-[length:var(--text-body)] text-muted-foreground"
+                style={buildInlineStyleFromOverride(subtitleOverride)}
+              >
+                {releaseSubtitle}
+              </p>
+
+              <div className="flex w-full flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <a
+                  ref={watchButtonRef}
+                  href={releaseWatchHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-editor-node-id="latest-release-watch-button"
+                  data-editor-node-type="button"
+                  data-editor-node-label="Watch Video Button"
+                  className={`rounded-xl px-6 py-3 text-center text-base font-semibold shadow-md min-h-[48px] ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
+                  style={buildInlineStyleFromOverride(watchButtonOverride)}
+                >
+                  {releaseWatchLabel}
+                </a>
+                <a
+                  ref={showsButtonRef}
+                  href={releaseShowsHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-editor-node-id="latest-release-shows-button"
+                  data-editor-node-type="button"
+                  data-editor-node-label="See Shows Button"
+                  className="rounded-xl border border-primary/35 px-6 py-3 text-center text-base font-semibold text-primary transition-colors hover:bg-primary/10 min-h-[48px]"
+                  style={buildInlineStyleFromOverride(showsButtonOverride)}
+                >
+                  {releaseShowsLabel}
+                </a>
+              </div>
+            </div>
+          ) : (
           <motion.div
             ref={cardRef}
             data-editor-node-id="latest-release-card"
             data-editor-node-type="card"
             data-editor-node-label="Release Card"
-            initial={isEditing ? false : { opacity: 0, y: 10 }}
-            whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
-            viewport={isEditing ? undefined : { once: true, amount: 0.25 }}
-            transition={isEditing ? undefined : { duration: 0.45 }}
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.45 }}
             className="flex w-full max-w-4xl flex-col items-center rounded-2xl border border-primary/28 bg-black/24 p-6 text-center shadow-md backdrop-blur-sm md:p-8"
+            style={buildInlineStyleFromOverride(cardOverride)}
           >
             <h2 
               ref={titleRef}
@@ -201,8 +329,9 @@ export function LatestReleaseSection() {
               data-editor-node-type="text"
               data-editor-node-label="Título del Lanzamiento"
               className="mb-[var(--spacing-sm)] w-full text-center font-serif text-[length:var(--text-h2)] leading-[var(--line-height-tight)] text-foreground"
+              style={buildInlineStyleFromOverride(titleOverride)}
             >
-              {CAMPAIGN_CONTENT.releaseTitle}
+              {releaseTitle}
             </h2>
 
             <p 
@@ -211,37 +340,41 @@ export function LatestReleaseSection() {
               data-editor-node-type="text"
               data-editor-node-label="Subtítulo del Lanzamiento"
               className="mb-6 w-full text-center text-[length:var(--text-body)] text-muted-foreground"
+              style={buildInlineStyleFromOverride(subtitleOverride)}
             >
-              {CAMPAIGN_CONTENT.releaseSubtitle}
+              {releaseSubtitle}
             </p>
 
             <div className="flex w-full flex-col items-center gap-3 sm:flex-row sm:justify-center">
               <a
                 ref={watchButtonRef}
-                href="https://www.youtube.com/watch?v=xofflmVqYGs"
+                href={releaseWatchHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 data-editor-node-id="latest-release-watch-button"
                 data-editor-node-type="button"
                 data-editor-node-label="Watch Video Button"
                 className={`rounded-xl px-6 py-3 text-center text-base font-semibold shadow-md min-h-[48px] ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
+                style={buildInlineStyleFromOverride(watchButtonOverride)}
               >
-                {CAMPAIGN_CONTENT.releaseCtaLabel}
+                {releaseWatchLabel}
               </a>
               <a
                 ref={showsButtonRef}
-                href={CAMPAIGN_CONTENT.showsCtaHref}
+                href={releaseShowsHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 data-editor-node-id="latest-release-shows-button"
                 data-editor-node-type="button"
                 data-editor-node-label="See Shows Button"
                 className="rounded-xl border border-primary/35 px-6 py-3 text-center text-base font-semibold text-primary transition-colors hover:bg-primary/10 min-h-[48px]"
+                style={buildInlineStyleFromOverride(showsButtonOverride)}
               >
-                {CAMPAIGN_CONTENT.showsCtaLabel}
+                {releaseShowsLabel}
               </a>
             </div>
           </motion.div>
+          )}
         </div>
       </div>
     </section>

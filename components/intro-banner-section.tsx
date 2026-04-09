@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { useVisualEditor } from "@/components/visual-editor"
+import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
 import { getElementLayoutStyle } from "@/lib/hero-layout-styles"
 import type { IntroBannerData } from "@/lib/sanity/intro-banner-loader"
 
@@ -9,12 +10,25 @@ export function IntroBannerSection({ data }: { data: IntroBannerData }) {
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
 
   const sectionRef = useRef<HTMLDivElement>(null)
-  const bannerGifRef = useRef<HTMLImageElement>(null)
+  const bannerGifRef = useRef<HTMLDivElement>(null)
   const bannerTextRef = useRef<HTMLParagraphElement>(null)
   const bookButtonRef = useRef<HTMLAnchorElement>(null)
   const pressButtonRef = useRef<HTMLAnchorElement>(null)
 
   const es = data.elementStyles
+  const resolvedIntroGifSrc = useHomeEditorImageSrc("intro-banner-gif", data.gifUrl)
+
+  useEffect(() => {
+    console.info("[INTRO-TRACE][intro-component][render-input]", {
+      gifUrlFromDoc: data.gifUrl,
+      resolvedIntroGifSrc,
+      introSectionStyle: es?.["intro-section"] || null,
+      introGifStyle: es?.["intro-banner-gif"] || null,
+      introTextStyle: es?.["intro-banner-text"] || null,
+      introBookStyle: es?.["intro-book-button"] || null,
+      introPressStyle: es?.["intro-press-button"] || null,
+    })
+  }, [data.gifUrl, es, resolvedIntroGifSrc])
 
   useEffect(() => {
     if (!isEditing) return
@@ -102,16 +116,20 @@ export function IntroBannerSection({ data }: { data: IntroBannerData }) {
       style={getElementLayoutStyle(es, "intro-section")}
       className="relative flex flex-col items-center justify-center gap-4 px-2 pt-8 pb-12 sm:px-4 sm:pt-12 sm:pb-16"
     >
-      <img
+      <div
         ref={bannerGifRef}
-        src={data.gifUrl}
-        alt="Animated banner"
         data-editor-node-id="intro-banner-gif"
         data-editor-node-type="image"
         data-editor-node-label="Banner GIF"
         style={getElementLayoutStyle(es, "intro-banner-gif")}
-        className="absolute inset-0 h-full w-full object-cover opacity-30"
-      />
+        className="absolute left-0 top-0 z-0 h-full w-full overflow-hidden opacity-30"
+      >
+        <img
+          src={resolvedIntroGifSrc}
+          alt="Animated banner"
+          className="h-full w-full object-cover"
+        />
+      </div>
       <div className="relative z-10 flex flex-col items-center justify-center gap-4">
         <p
           ref={bannerTextRef}

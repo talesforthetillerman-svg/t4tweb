@@ -33,7 +33,7 @@ export async function loadNavigationData(): Promise<NavigationData> {
   try {
     const client = createClient({
       projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "qtpb6qpz",
-      dataset: process.env.SANITY_DATASET || "production",
+      dataset: process.env.SANITY_DATASET || process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
       apiVersion: "2024-01-01",
       useCdn: process.env.SANITY_USE_CDN === "true",
       perspective: "published",

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "next-sanity"
 import { roundLayoutPx } from "@/lib/hero-layout-styles"
 import { DEFAULT_NAV_LINKS } from "@/lib/sanity/navigation-loader"
+import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 
 interface DeployNodePayload {
   id: string
@@ -10,8 +11,48 @@ interface DeployNodePayload {
   label: string
   isGrouped: boolean
   geometry: { x: number; y: number; width: number; height: number }
-  style: Record<string, unknown>
-  content: Record<string, unknown>
+  style: {
+    color?: string
+    backgroundColor?: string
+    opacity?: number
+    contrast?: number
+    saturation?: number
+    brightness?: number
+    negative?: boolean
+    fontSize?: string
+    fontFamily?: string
+    fontWeight?: string
+    fontStyle?: string
+    textDecoration?: string
+    textAlign?: "left" | "center" | "right"
+    scale?: number
+    minHeight?: string
+    paddingTop?: string
+    paddingBottom?: string
+  }
+  content: {
+    text?: string
+    textSegments?: HeroTitleSegment[]
+    titleSegments?: HeroTitleSegment[]
+    href?: string
+    src?: string
+    alt?: string
+    videoUrl?: string
+    mediaKind?: "image" | "video"
+    gradientEnabled?: boolean
+    gradientStart?: string
+    gradientEnd?: string
+    date?: string
+    venue?: string
+    city?: string
+    country?: string
+    genre?: string
+    price?: string
+    status?: string
+    time?: string
+    capacity?: string
+    locationUrl?: string
+  }
   explicitContent: boolean
   explicitStyle: boolean
   explicitPosition: boolean
@@ -50,6 +91,7 @@ interface DeployEnvDiagnostics {
   SANITY_PROJECT_ID: "yes" | "no"
   NEXT_PUBLIC_SANITY_PROJECT_ID: "yes" | "no"
   SANITY_DATASET: "yes" | "no"
+  NEXT_PUBLIC_SANITY_DATASET: "yes" | "no"
   SANITY_API_WRITE_TOKEN: "yes" | "no"
   SANITY_API_TOKEN: "yes" | "no"
 }
@@ -59,7 +101,14 @@ const TARGET_SECTION = "hero"
 const SANITY_DOC_TYPE = "heroSection"
 const SANITY_DOC_NAV = "navigation"
 const SANITY_DOC_INTRO = "introBanner"
+const SANITY_DOC_HOME_EDITOR_STATE = "homeEditorState"
+const HOME_EDITOR_STATE_DOCUMENT_ID = "homeEditorState"
 const REVALIDATED_PATH = "/"
+const INTRO_DOCUMENT_ID = "introBanner"
+const SHOULD_REVALIDATE_PATH = process.env.EDITOR_DEPLOY_REVALIDATE_LOCAL_PATH !== "false"
+const PUBLIC_REVALIDATE_URL = process.env.EDITOR_DEPLOY_PUBLIC_REVALIDATE_URL || ""
+const PUBLIC_REVALIDATE_SECRET = process.env.EDITOR_DEPLOY_PUBLIC_REVALIDATE_SECRET || ""
+const VERCEL_DEPLOY_HOOK = process.env.VERCEL_DEPLOY_HOOK || ""
 
 const INTRO_LAYOUT_IDS = new Set([
   "intro-section",
@@ -80,6 +129,121 @@ function toPublishedDocumentId(id: string): string {
 
 function isNavLayoutId(id: string): boolean {
   return id === "navigation" || id === "navigation-inner" || id.startsWith("nav-")
+}
+
+const HERO_NODE_IDS = new Set([
+  "hero-section",
+  "hero-bg-image",
+  "hero-title",
+  "hero-title-main",
+  "hero-title-accent",
+  "hero-subtitle",
+  "hero-logo",
+  "hero-scroll-indicator",
+  "hero-buttons",
+])
+
+const INTRO_NODE_IDS = new Set([
+  "intro-section",
+  "intro-banner-gif",
+  "intro-banner-text",
+  "intro-book-button",
+  "intro-press-button",
+])
+
+const RELEASE_NODE_IDS = new Set([
+  "latest-release-section",
+  "latest-release-bg",
+  "latest-release-card",
+  "latest-release-title",
+  "latest-release-subtitle",
+  "latest-release-watch-button",
+  "latest-release-shows-button",
+])
+
+function isImageSrcPersistable(src: string): boolean {
+  const value = src.trim()
+  if (!value) return false
+  if (value.startsWith("blob:") || value.startsWith("data:") || value.startsWith("javascript:")) return false
+  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) return true
+  return false
+}
+
+function shouldPersistInCentralHomeState(node: DeployNodePayload): boolean {
+  if (node.id === "intro-banner-gif") return false
+  const isImageLikeNode = node.type === "image" || node.type === "background"
+  if (isImageLikeNode && node.explicitContent) return true
+  if (HERO_NODE_IDS.has(node.id)) return false
+  if (isNavLayoutId(node.id)) return false
+  if (INTRO_NODE_IDS.has(node.id)) return false
+  return node.explicitContent || node.explicitStyle || node.explicitPosition || node.explicitSize
+}
+
+function buildHomeEditorStateNode(node: DeployNodePayload): { node: HomeEditorNodeOverride; skippedImageSrc: boolean } {
+  const skippedImageSrc = typeof node.content?.src === "string" && !!node.content.src && !isImageSrcPersistable(node.content.src)
+
+  const content: HomeEditorNodeOverride["content"] = {
+    text: typeof node.content?.text === "string" ? node.content.text : undefined,
+    textSegments: Array.isArray(node.content?.textSegments) ? node.content.textSegments : undefined,
+    titleSegments: Array.isArray(node.content?.titleSegments) ? node.content.titleSegments : undefined,
+    href: typeof node.content?.href === "string" ? node.content.href : undefined,
+    src: skippedImageSrc ? undefined : (typeof node.content?.src === "string" ? node.content.src : undefined),
+    alt: typeof node.content?.alt === "string" ? node.content.alt : undefined,
+    videoUrl: typeof node.content?.videoUrl === "string" ? node.content.videoUrl : undefined,
+    mediaKind: node.content?.mediaKind === "video" ? "video" : "image",
+    gradientEnabled: typeof node.content?.gradientEnabled === "boolean" ? node.content.gradientEnabled : undefined,
+    gradientStart: typeof node.content?.gradientStart === "string" ? node.content.gradientStart : undefined,
+    gradientEnd: typeof node.content?.gradientEnd === "string" ? node.content.gradientEnd : undefined,
+    date: typeof node.content?.date === "string" ? node.content.date : undefined,
+    venue: typeof node.content?.venue === "string" ? node.content.venue : undefined,
+    city: typeof node.content?.city === "string" ? node.content.city : undefined,
+    country: typeof node.content?.country === "string" ? node.content.country : undefined,
+    genre: typeof node.content?.genre === "string" ? node.content.genre : undefined,
+    price: typeof node.content?.price === "string" ? node.content.price : undefined,
+    status: typeof node.content?.status === "string" ? node.content.status : undefined,
+    time: typeof node.content?.time === "string" ? node.content.time : undefined,
+    capacity: typeof node.content?.capacity === "string" ? node.content.capacity : undefined,
+    locationUrl: typeof node.content?.locationUrl === "string" ? node.content.locationUrl : undefined,
+  }
+
+  return {
+    node: {
+      nodeId: node.id,
+      nodeType: node.type as HomeEditorNodeOverride["nodeType"],
+      geometry: {
+        x: roundLayoutPx(node.geometry.x),
+        y: roundLayoutPx(node.geometry.y),
+        width: roundLayoutPx(node.geometry.width),
+        height: roundLayoutPx(node.geometry.height),
+      },
+      style: {
+        color: typeof node.style?.color === "string" ? node.style.color : undefined,
+        backgroundColor: typeof node.style?.backgroundColor === "string" ? node.style.backgroundColor : undefined,
+        opacity: typeof node.style?.opacity === "number" ? node.style.opacity : undefined,
+        contrast: typeof node.style?.contrast === "number" ? node.style.contrast : undefined,
+        saturation: typeof node.style?.saturation === "number" ? node.style.saturation : undefined,
+        brightness: typeof node.style?.brightness === "number" ? node.style.brightness : undefined,
+        negative: typeof node.style?.negative === "boolean" ? node.style.negative : undefined,
+        fontSize: typeof node.style?.fontSize === "string" ? node.style.fontSize : undefined,
+        fontFamily: typeof node.style?.fontFamily === "string" ? node.style.fontFamily : undefined,
+        fontWeight: typeof node.style?.fontWeight === "string" ? node.style.fontWeight : undefined,
+        fontStyle: typeof node.style?.fontStyle === "string" ? node.style.fontStyle : undefined,
+        textDecoration: typeof node.style?.textDecoration === "string" ? node.style.textDecoration : undefined,
+        textAlign: typeof node.style?.textAlign === "string" ? (node.style.textAlign as "left" | "center" | "right") : undefined,
+        scale: typeof node.style?.scale === "number" ? Math.round(node.style.scale * 1000) / 1000 : undefined,
+        minHeight: typeof node.style?.minHeight === "string" ? node.style.minHeight : undefined,
+        paddingTop: typeof node.style?.paddingTop === "string" ? node.style.paddingTop : undefined,
+        paddingBottom: typeof node.style?.paddingBottom === "string" ? node.style.paddingBottom : undefined,
+      },
+      content,
+      explicitContent: node.explicitContent,
+      explicitStyle: node.explicitStyle,
+      explicitPosition: node.explicitPosition,
+      explicitSize: node.explicitSize,
+      updatedAt: new Date().toISOString(),
+    },
+    skippedImageSrc,
+  }
 }
 
 /** Persist brand name, CTA, and link rows from editor nodes (explicitContent). */
@@ -157,8 +321,9 @@ function mergeDeployVisualStyleIntoTarget(target: Record<string, unknown>, node:
   }
 }
 
-function buildIntroContentPatch(nodes: DeployNodePayload[]): Record<string, unknown> {
+function buildIntroContentPatch(nodes: DeployNodePayload[]): { patch: Record<string, unknown>; skipped: string[] } {
   const patch: Record<string, unknown> = {}
+  const skipped: string[] = []
   for (const node of nodes) {
     if (!node.explicitContent) continue
     if (node.id === "intro-banner-text") {
@@ -167,7 +332,11 @@ function buildIntroContentPatch(nodes: DeployNodePayload[]): Record<string, unkn
     }
     if (node.id === "intro-banner-gif") {
       const src = typeof node.content?.src === "string" ? node.content.src.trim() : ""
-      if (src) patch.gifUrl = src
+      if (src && isImageSrcPersistable(src)) {
+        patch.gifUrl = src
+      } else if (src) {
+        skipped.push("intro-banner-gif:src(blob/data url)")
+      }
     }
     if (node.id === "intro-book-button") {
       const text = typeof node.content?.text === "string" ? node.content.text.trim() : ""
@@ -182,7 +351,7 @@ function buildIntroContentPatch(nodes: DeployNodePayload[]): Record<string, unkn
       if (href) patch.pressHref = href
     }
   }
-  return patch
+  return { patch, skipped }
 }
 
 function getEnvDiagnostics(): DeployEnvDiagnostics {
@@ -195,6 +364,7 @@ function getEnvDiagnostics(): DeployEnvDiagnostics {
     SANITY_PROJECT_ID: sanityProjectId ? "yes" : "no",
     NEXT_PUBLIC_SANITY_PROJECT_ID: nextPublicSanityProjectId ? "yes" : "no",
     SANITY_DATASET: process.env.SANITY_DATASET ? "yes" : "no",
+    NEXT_PUBLIC_SANITY_DATASET: process.env.NEXT_PUBLIC_SANITY_DATASET ? "yes" : "no",
     SANITY_API_WRITE_TOKEN: sanityApiWriteToken ? "yes" : "no",
     SANITY_API_TOKEN: sanityApiToken ? "yes" : "no",
   }
@@ -202,6 +372,75 @@ function getEnvDiagnostics(): DeployEnvDiagnostics {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+async function triggerPublicRevalidate(log: (msg: string, data?: unknown) => void): Promise<{ attempted: boolean; ok: boolean; message: string }> {
+  if (!PUBLIC_REVALIDATE_URL) {
+    return { attempted: false, ok: false, message: "Public revalidate URL not configured." }
+  }
+
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    if (PUBLIC_REVALIDATE_SECRET) {
+      headers["x-webhook-secret"] = PUBLIC_REVALIDATE_SECRET
+      headers.Authorization = `Bearer ${PUBLIC_REVALIDATE_SECRET}`
+    }
+
+    const res = await fetch(PUBLIC_REVALIDATE_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        source: "editor-deploy",
+        path: REVALIDATED_PATH,
+        at: new Date().toISOString(),
+      }),
+      cache: "no-store",
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      const message = `Public revalidate failed (${res.status}): ${text.slice(0, 240)}`
+      log("public revalidate failed", { status: res.status, body: text.slice(0, 240) })
+      return { attempted: true, ok: false, message }
+    }
+
+    const bodyText = await res.text()
+    log("public revalidate success", { status: res.status, body: bodyText.slice(0, 240) })
+    return { attempted: true, ok: true, message: "Public site revalidate hook triggered." }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error"
+    log("public revalidate exception", { message })
+    return { attempted: true, ok: false, message: `Public revalidate exception: ${message}` }
+  }
+}
+
+async function triggerVercelDeploy(log: (msg: string, data?: unknown) => void): Promise<{ attempted: boolean; ok: boolean; message: string }> {
+  if (!VERCEL_DEPLOY_HOOK) {
+    return { attempted: false, ok: false, message: "Vercel deploy hook not configured." }
+  }
+
+  try {
+    const res = await fetch(VERCEL_DEPLOY_HOOK, {
+      method: "POST",
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      const message = `Vercel deploy hook failed (${res.status}): ${text.slice(0, 240)}`
+      log("vercel deploy hook failed", { status: res.status, body: text.slice(0, 240) })
+      return { attempted: true, ok: false, message }
+    }
+
+    const bodyText = await res.text()
+    log("vercel deploy hook success", { status: res.status, body: bodyText.slice(0, 240) })
+    return { attempted: true, ok: true, message: "Vercel deploy hook triggered." }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error"
+    log("vercel deploy hook exception", { message })
+    return { attempted: true, ok: false, message: `Vercel deploy hook exception: ${message}` }
+  }
 }
 
 export async function GET() {
@@ -213,6 +452,9 @@ export async function GET() {
     targetSection: TARGET_SECTION,
     heroTitleMode: "unknown",
     revalidatedPath: REVALIDATED_PATH,
+    localRevalidateEnabled: SHOULD_REVALIDATE_PATH,
+    publicRevalidateUrlConfigured: !!PUBLIC_REVALIDATE_URL,
+    vercelDeployHookConfigured: !!VERCEL_DEPLOY_HOOK,
     diagnostics: envDiagnostics,
     envDiagnostics,
   })
@@ -266,10 +508,38 @@ export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as DeployRequestPayload
     log("payload received", { nodeCount: payload.nodes.length, level: payload.level })
+    const releasePayloadNodes = payload.nodes.filter((node) => RELEASE_NODE_IDS.has(node.id))
+    log("[RELEASE-TRACE][route][payload]", {
+      releaseNodeCount: releasePayloadNodes.length,
+      releaseNodes: releasePayloadNodes.map((node) => ({
+        id: node.id,
+        geometry: node.geometry,
+        content: node.content,
+        style: node.style,
+        explicitContent: node.explicitContent,
+        explicitStyle: node.explicitStyle,
+        explicitPosition: node.explicitPosition,
+        explicitSize: node.explicitSize,
+      })),
+    })
+    const introPayloadNodes = payload.nodes.filter((node) => INTRO_NODE_IDS.has(node.id))
+    log("[INTRO-TRACE][route][payload]", {
+      introNodeCount: introPayloadNodes.length,
+      introNodes: introPayloadNodes.map((node) => ({
+        id: node.id,
+        geometry: node.geometry,
+        content: node.content,
+        style: node.style,
+        explicitContent: node.explicitContent,
+        explicitStyle: node.explicitStyle,
+        explicitPosition: node.explicitPosition,
+        explicitSize: node.explicitSize,
+      })),
+    })
     const sanityProjectId = process.env.SANITY_PROJECT_ID
     const nextPublicSanityProjectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID
     const projectId = sanityProjectId || nextPublicSanityProjectId
-    const dataset = process.env.SANITY_DATASET || "production"
+    const dataset = process.env.SANITY_DATASET || process.env.NEXT_PUBLIC_SANITY_DATASET || "production"
     const sanityApiWriteToken = process.env.SANITY_API_WRITE_TOKEN
     const sanityApiToken = process.env.SANITY_API_TOKEN
     const sanityToken = sanityApiWriteToken || sanityApiToken
@@ -296,7 +566,7 @@ export async function POST(request: Request) {
     steps.push({
       step: "checking",
       ok: true,
-      message: `Env diagnostics (server-side): SANITY_PROJECT_ID: ${diagnostics.SANITY_PROJECT_ID}; NEXT_PUBLIC_SANITY_PROJECT_ID: ${diagnostics.NEXT_PUBLIC_SANITY_PROJECT_ID}; SANITY_DATASET: ${diagnostics.SANITY_DATASET}; SANITY_API_WRITE_TOKEN: ${diagnostics.SANITY_API_WRITE_TOKEN}; SANITY_API_TOKEN: ${diagnostics.SANITY_API_TOKEN}; dataset value used: ${dataset}.`,
+      message: `Env diagnostics (server-side): SANITY_PROJECT_ID: ${diagnostics.SANITY_PROJECT_ID}; NEXT_PUBLIC_SANITY_PROJECT_ID: ${diagnostics.NEXT_PUBLIC_SANITY_PROJECT_ID}; SANITY_DATASET: ${diagnostics.SANITY_DATASET}; NEXT_PUBLIC_SANITY_DATASET: ${diagnostics.NEXT_PUBLIC_SANITY_DATASET}; SANITY_API_WRITE_TOKEN: ${diagnostics.SANITY_API_WRITE_TOKEN}; SANITY_API_TOKEN: ${diagnostics.SANITY_API_TOKEN}; dataset value used: ${dataset}.`,
     })
 
     if (!payload || !Array.isArray(payload.nodes) || !Array.isArray(payload.findings) || !payload.level) {
@@ -368,7 +638,7 @@ export async function POST(request: Request) {
       perspective: "published",
     })
 
-    const [existingHero, existingNavigation, existingIntro] = await Promise.all([
+    const [existingHero, existingNavigation, existingIntro, existingHomeEditorState] = await Promise.all([
       writeClient.fetch<{
         _id: string
         title?: string
@@ -398,6 +668,10 @@ export async function POST(request: Request) {
       } | null>(
         `*[_type == $introType][0]{ _id, bannerText, gifUrl, bookLabel, bookHref, pressLabel, pressHref, elementStyles }`,
         { introType: SANITY_DOC_INTRO }
+      ),
+      writeClient.fetch<{ _id: string; nodes?: HomeEditorNodeOverride[] } | null>(
+        `*[_type == $homeType && _id == $homeId][0]{ _id, nodes }`,
+        { homeType: SANITY_DOC_HOME_EDITOR_STATE, homeId: HOME_EDITOR_STATE_DOCUMENT_ID }
       ),
     ])
     log("document fetch", { hero: !!existingHero?._id, navigation: !!existingNavigation?._id, intro: !!existingIntro?._id })
@@ -580,8 +854,8 @@ export async function POST(request: Request) {
     }
 
     let mergedIntroElementStyles: Record<string, unknown> | null = null
-    if (Object.keys(introElementStylesInPayload).length > 0 && existingIntro?._id) {
-      const priorRaw = existingIntro.elementStyles
+    if (Object.keys(introElementStylesInPayload).length > 0) {
+      const priorRaw = existingIntro?.elementStyles
       const prior =
         priorRaw && typeof priorRaw === "object" && !Array.isArray(priorRaw) ? { ...priorRaw } : {}
       mergedIntroElementStyles = { ...prior }
@@ -646,10 +920,16 @@ export async function POST(request: Request) {
       }
     }
 
-    const introContentPatch = existingIntro?._id ? buildIntroContentPatch(payload.nodes) : {}
+    const introContentResult: { patch: Record<string, unknown>; skipped: string[] } = existingIntro?._id
+      ? buildIntroContentPatch(payload.nodes)
+      : { patch: {}, skipped: [] }
+    const introContentPatch = introContentResult.patch
+    log("[INTRO-TRACE][route][introContentPatch]", introContentPatch)
+    log("[INTRO-TRACE][route][introElementStylesInPayload]", introElementStylesInPayload)
     const hasIntroLayout =
       mergedIntroElementStyles !== null && Object.keys(mergedIntroElementStyles).length > 0
     const hasIntroContent = Object.keys(introContentPatch).length > 0
+    log("[INTRO-TRACE][route][mergedIntroElementStyles]", mergedIntroElementStyles)
 
     let introDocumentId: string | null = null
     if (existingIntro?._id && (hasIntroLayout || hasIntroContent)) {
@@ -658,9 +938,11 @@ export async function POST(request: Request) {
       }
       if (hasIntroLayout) introSetPayload.elementStyles = mergedIntroElementStyles
       Object.assign(introSetPayload, introContentPatch)
+      log("[INTRO-TRACE][route][introSetPayload-before-commit]", introSetPayload)
       const introPatchResponse = await writeClient.patch(toPublishedDocumentId(existingIntro._id)).set(introSetPayload).commit()
       introDocumentId = introPatchResponse._id
       log("intro patch committed", { docId: introDocumentId, hasIntroLayout, hasIntroContent })
+      log("[INTRO-TRACE][route][introPatchResponse]", introPatchResponse)
       const introParts: string[] = []
       if (hasIntroLayout) introParts.push("layout")
       if (hasIntroContent) introParts.push("content")
@@ -685,6 +967,133 @@ export async function POST(request: Request) {
           if (!persistedFields.includes(k)) persistedFields.push(k)
         }
       }
+
+      const introReadback = await writeClient.fetch<{
+        _id: string
+        gifUrl?: string
+        elementStyles?: Record<string, Record<string, unknown>>
+      } | null>(
+        `*[_type == $introType][0]{ _id, gifUrl, elementStyles }`,
+        { introType: SANITY_DOC_INTRO }
+      )
+      log("[INTRO-TRACE][route][introReadback-after-commit]", {
+        docId: introReadback?._id || null,
+        gifUrl: introReadback?.gifUrl || null,
+        gifStyle: introReadback?.elementStyles?.["intro-banner-gif"] || null,
+        textStyle: introReadback?.elementStyles?.["intro-banner-text"] || null,
+        bookStyle: introReadback?.elementStyles?.["intro-book-button"] || null,
+        pressStyle: introReadback?.elementStyles?.["intro-press-button"] || null,
+      })
+    }
+    if (!existingIntro?._id && (hasIntroLayout || hasIntroContent)) {
+      const introCreatePayload: Record<string, unknown> & { _id: string; _type: string } = {
+        _id: INTRO_DOCUMENT_ID,
+        _type: SANITY_DOC_INTRO,
+        updatedAt: new Date().toISOString(),
+      }
+      if (hasIntroLayout) introCreatePayload.elementStyles = mergedIntroElementStyles
+      Object.assign(introCreatePayload, introContentPatch)
+      log("[INTRO-TRACE][route][introCreatePayload-before-commit]", introCreatePayload)
+      const introCreateResponse = await writeClient.createOrReplace(introCreatePayload)
+      introDocumentId = introCreateResponse._id
+      log("[INTRO-TRACE][route][introCreateResponse]", introCreateResponse)
+      steps.push({
+        step: "saving",
+        ok: true,
+        message: `Intro banner document created: ${introDocumentId}`,
+      })
+
+      const introReadback = await writeClient.fetch<{
+        _id: string
+        gifUrl?: string
+        elementStyles?: Record<string, Record<string, unknown>>
+      } | null>(
+        `*[_type == $introType][0]{ _id, gifUrl, elementStyles }`,
+        { introType: SANITY_DOC_INTRO }
+      )
+      log("[INTRO-TRACE][route][introReadback-after-create]", {
+        docId: introReadback?._id || null,
+        gifUrl: introReadback?.gifUrl || null,
+        gifStyle: introReadback?.elementStyles?.["intro-banner-gif"] || null,
+        textStyle: introReadback?.elementStyles?.["intro-banner-text"] || null,
+        bookStyle: introReadback?.elementStyles?.["intro-book-button"] || null,
+        pressStyle: introReadback?.elementStyles?.["intro-press-button"] || null,
+      })
+    }
+
+    if (introContentResult.skipped.length > 0) {
+      skippedFields.push(...introContentResult.skipped)
+      if (!skippedNodes.includes("intro-banner-gif")) skippedNodes.push("intro-banner-gif")
+    }
+
+    const centralHomeNodes: HomeEditorNodeOverride[] = []
+    const skippedNodeDiagnostics: string[] = []
+    for (const node of payload.nodes) {
+      const isImageLikeNode = node.type === "image" || node.type === "background"
+      if (isImageLikeNode && node.explicitContent && (!node.content?.src || String(node.content.src).trim().length === 0)) {
+        const reason = `${node.id}:missing-content-src`
+        skippedNodeDiagnostics.push(reason)
+        if (!skippedNodes.includes(node.id)) skippedNodes.push(node.id)
+        if (!failedNodes.includes(reason)) failedNodes.push(reason)
+        continue
+      }
+      if (isImageLikeNode && node.explicitContent && typeof node.content?.src === "string" && !isImageSrcPersistable(node.content.src)) {
+        const reason = `${node.id}:src(blob/data url)`
+        skippedNodeDiagnostics.push(reason)
+        if (!skippedNodes.includes(node.id)) skippedNodes.push(node.id)
+        continue
+      }
+      if (!shouldPersistInCentralHomeState(node)) continue
+      const built = buildHomeEditorStateNode(node)
+      centralHomeNodes.push(built.node)
+      if (built.skippedImageSrc) {
+        skippedNodeDiagnostics.push(`${node.id}:src(blob/data url)`)
+        if (!skippedNodes.includes(node.id)) skippedNodes.push(node.id)
+      }
+      if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
+    }
+
+    let homeEditorStateDocumentId: string | null = null
+    if (centralHomeNodes.length > 0) {
+      const existingNodes = Array.isArray(existingHomeEditorState?.nodes) ? existingHomeEditorState.nodes : []
+      const mergedById = new Map<string, HomeEditorNodeOverride>()
+      existingNodes.forEach((node) => {
+        if (!node?.nodeId) return
+        mergedById.set(node.nodeId, node)
+      })
+      centralHomeNodes.forEach((node) => {
+        mergedById.set(node.nodeId, node)
+      })
+      const mergedNodes = Array.from(mergedById.values()).sort((a, b) => a.nodeId.localeCompare(b.nodeId))
+      log("[RELEASE-TRACE][route][central-merge]", {
+        mergedReleaseNodes: mergedNodes
+          .filter((node) => RELEASE_NODE_IDS.has(node.nodeId))
+          .map((node) => ({
+            nodeId: node.nodeId,
+            geometry: node.geometry,
+            style: node.style,
+            content: node.content,
+            explicitContent: node.explicitContent,
+            explicitStyle: node.explicitStyle,
+            explicitPosition: node.explicitPosition,
+            explicitSize: node.explicitSize,
+          })),
+      })
+      const homeStateDocument = {
+        _id: HOME_EDITOR_STATE_DOCUMENT_ID,
+        _type: SANITY_DOC_HOME_EDITOR_STATE,
+        updatedAt: new Date().toISOString(),
+        nodes: mergedNodes,
+      }
+      const homeStateResponse = await writeClient.createOrReplace(homeStateDocument)
+      homeEditorStateDocumentId = homeStateResponse._id
+      steps.push({
+        step: "saving",
+        ok: true,
+        message: `Home editor central state saved: ${HOME_EDITOR_STATE_DOCUMENT_ID} (${mergedNodes.length} nodes).`,
+      })
+      persistedFields.push("homeEditorState.nodes")
+      skippedFields.push(...skippedNodeDiagnostics)
     }
 
     // Process Hero element style overrides (position, size, typography)
@@ -830,20 +1239,55 @@ export async function POST(request: Request) {
     }
 
     const publishedDocumentId = existingHero._id
-    log("revalidate path", { path: REVALIDATED_PATH })
-    revalidatePath(REVALIDATED_PATH)
-    steps.push({ step: "revalidating", ok: true, message: "Public site revalidated." })
+    let localRevalidateOk = false
+    if (SHOULD_REVALIDATE_PATH) {
+      log("revalidate path", { path: REVALIDATED_PATH })
+      revalidatePath(REVALIDATED_PATH)
+      steps.push({ step: "revalidating", ok: true, message: "Local Next.js cache revalidated for '/'." })
+      localRevalidateOk = true
+    } else {
+      log("revalidate path skipped", { path: REVALIDATED_PATH })
+      steps.push({ step: "revalidating", ok: true, message: "Revalidation skipped in local editor mode." })
+    }
+
+    const publicRevalidate = await triggerPublicRevalidate(log)
+    if (publicRevalidate.attempted) {
+      steps.push({
+        step: "revalidating",
+        ok: publicRevalidate.ok,
+        message: publicRevalidate.message,
+      })
+    }
+    const vercelDeploy = await triggerVercelDeploy(log)
+    if (vercelDeploy.attempted) {
+      steps.push({
+        step: "publishing",
+        ok: vercelDeploy.ok,
+        message: vercelDeploy.message,
+      })
+    }
 
     const heroPatched = Object.keys(heroPatch).length > 0
     const navPatched = navigationDocumentId != null
     const introPatched = introDocumentId != null
+    const homeStatePatched = homeEditorStateDocumentId != null
+    const publicPropagationConfigured = !!PUBLIC_REVALIDATE_URL || !!VERCEL_DEPLOY_HOOK
+    const publicPropagationOk = publicRevalidate.ok || vercelDeploy.ok
     const parts: string[] = []
     if (heroPatched) parts.push("Hero")
     if (navPatched) parts.push("Navigation")
     if (introPatched) parts.push("Intro banner")
-    let deployMessage = "Deploy complete: public path revalidated."
-    if (parts.length > 0) {
-      deployMessage = `Deploy complete: ${parts.join(", ")} updated in Sanity; public path revalidated.`
+    if (homeStatePatched) parts.push("Home editor state")
+    const baseMessage = parts.length > 0
+      ? `${parts.join(", ")} updated in Sanity`
+      : "No persistible changes detected"
+    let deployMessage: string
+    if (!publicPropagationConfigured) {
+      deployMessage = `Deploy complete: ${baseMessage}; local cache revalidated, but external public propagation is not configured.`
+    } else if (!publicPropagationOk) {
+      deployMessage = `Deploy complete: ${baseMessage}; external propagation was attempted but did not succeed.`
+    } else {
+      deployMessage = `Deploy complete: ${baseMessage}; external public propagation triggered.`
     }
 
     const successResponse = {
@@ -858,9 +1302,22 @@ export async function POST(request: Request) {
       publishedDocumentType: SANITY_DOC_TYPE,
       navigationDocumentId: navigationDocumentId ?? undefined,
       introDocumentId: introDocumentId ?? undefined,
+      homeEditorStateDocumentId: homeEditorStateDocumentId ?? undefined,
       targetSection: TARGET_SECTION,
       heroTitleMode,
       revalidatedPath: REVALIDATED_PATH,
+      localRevalidateEnabled: SHOULD_REVALIDATE_PATH,
+      localRevalidateOk,
+      publicRevalidateAttempted: publicRevalidate.attempted,
+      publicRevalidateOk: publicRevalidate.ok,
+      publicRevalidateMessage: publicRevalidate.message,
+      publicRevalidateUrlConfigured: !!PUBLIC_REVALIDATE_URL,
+      vercelDeployAttempted: vercelDeploy.attempted,
+      vercelDeployOk: vercelDeploy.ok,
+      vercelDeployMessage: vercelDeploy.message,
+      vercelDeployHookConfigured: !!VERCEL_DEPLOY_HOOK,
+      publicPropagationConfigured,
+      publicPropagationOk,
       persistedNodes,
       skippedNodes,
       failedNodes,

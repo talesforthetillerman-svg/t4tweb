@@ -8,6 +8,7 @@ import contactSection from './contactSection'
 import latestRelease from './latestRelease'
 import navigation from './navigation'
 import introBanner from './introBanner'
+import homeEditorState from './homeEditorState'
 
 export const schemas = [
   siteSettings,
@@ -20,4 +21,5 @@ export const schemas = [
   latestRelease,
   navigation,
   introBanner,
+  homeEditorState,
 ]

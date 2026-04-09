@@ -28,7 +28,7 @@ export async function loadIntroBannerData(): Promise<IntroBannerData> {
   try {
     const client = createClient({
       projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "qtpb6qpz",
-      dataset: process.env.SANITY_DATASET || "production",
+      dataset: process.env.SANITY_DATASET || process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
       apiVersion: "2024-01-01",
       useCdn: process.env.SANITY_USE_CDN === "true",
       perspective: "published",
@@ -45,6 +45,30 @@ export async function loadIntroBannerData(): Promise<IntroBannerData> {
     }`
 
     const fetched = await client.fetch<Partial<IntroBannerData> | null>(query)
+    console.info("[INTRO-TRACE][loader] fetched introBanner", {
+      hasDoc: !!fetched,
+      gifUrl: fetched?.gifUrl || null,
+      elementStyleKeys:
+        fetched?.elementStyles && typeof fetched.elementStyles === "object" && !Array.isArray(fetched.elementStyles)
+          ? Object.keys(fetched.elementStyles as Record<string, unknown>)
+          : [],
+      gifStyle:
+        fetched?.elementStyles && typeof fetched.elementStyles === "object" && !Array.isArray(fetched.elementStyles)
+          ? (fetched.elementStyles as Record<string, Record<string, unknown>>)["intro-banner-gif"] || null
+          : null,
+      textStyle:
+        fetched?.elementStyles && typeof fetched.elementStyles === "object" && !Array.isArray(fetched.elementStyles)
+          ? (fetched.elementStyles as Record<string, Record<string, unknown>>)["intro-banner-text"] || null
+          : null,
+      bookStyle:
+        fetched?.elementStyles && typeof fetched.elementStyles === "object" && !Array.isArray(fetched.elementStyles)
+          ? (fetched.elementStyles as Record<string, Record<string, unknown>>)["intro-book-button"] || null
+          : null,
+      pressStyle:
+        fetched?.elementStyles && typeof fetched.elementStyles === "object" && !Array.isArray(fetched.elementStyles)
+          ? (fetched.elementStyles as Record<string, Record<string, unknown>>)["intro-press-button"] || null
+          : null,
+    })
 
     if (!fetched) return FALLBACK
 
