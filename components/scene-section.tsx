@@ -20,6 +20,9 @@ export function SceneSection({ id, children, className = "" }: SceneSectionProps
     <section
       ref={sectionRef}
       id={id}
+      data-editor-node-id={`scene-section-${id}`}
+      data-editor-node-type="section"
+      data-editor-node-label={`Scene Section: ${id}`}
       className={`relative min-h-screen w-full overflow-hidden ${className}`}
     >
       <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
