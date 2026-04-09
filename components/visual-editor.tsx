@@ -648,19 +648,39 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         }
       }
       if (node.explicitStyle) {
-        if (node.style.color) el.style.color = node.style.color
+        if (node.content.gradientEnabled) {
+          el.style.background = `linear-gradient(90deg, ${node.content.gradientStart || "#FFB15A"}, ${node.content.gradientEnd || "#FF6C00"})`
+          el.style.webkitBackgroundClip = "text"
+          el.style.backgroundClip = "text"
+          el.style.webkitTextFillColor = "transparent"
+          el.style.color = "transparent"
+        } else {
+          el.style.removeProperty("background")
+          el.style.removeProperty("-webkit-background-clip")
+          el.style.removeProperty("background-clip")
+          el.style.removeProperty("-webkit-text-fill-color")
+          if (node.style.color) el.style.color = node.style.color
+        }
         if (node.style.fontSize) el.style.fontSize = node.style.fontSize
         if (node.style.fontFamily) el.style.fontFamily = node.style.fontFamily
         if (node.style.fontWeight) el.style.fontWeight = node.style.fontWeight
         if (node.style.fontStyle) el.style.fontStyle = node.style.fontStyle
         if (node.style.textDecoration) el.style.textDecoration = node.style.textDecoration
+        if (node.style.textAlign) el.style.textAlign = node.style.textAlign
       }
     }
     if (node.type === "button") {
       if (node.explicitContent && node.content.href !== undefined && (el.tagName === "A" || el.tagName === "BUTTON")) {
         el.setAttribute("href", node.content.href)
       }
-      if (node.explicitStyle && node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
+      if (node.explicitStyle) {
+        if (node.content.gradientEnabled) {
+          el.style.background = `linear-gradient(135deg, ${node.content.gradientStart || "#111111"}, ${node.content.gradientEnd || "#000000"})`
+        } else {
+          el.style.removeProperty("background")
+          if (node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
+        }
+      }
     }
     if (node.type === "card") {
       if (node.explicitContent && node.content.href !== undefined && (el.tagName === "A" || el.tagName === "BUTTON")) {
@@ -1317,8 +1337,8 @@ export function VisualEditorOverlay() {
     if (field === "number") return document.querySelector<HTMLElement>(`[data-member-number-index="${index}"]`)?.textContent?.trim() || ""
     if (field === "name") return document.querySelector<HTMLElement>(`[data-member-name-index="${index}"]`)?.textContent?.trim() || ""
     if (field === "role") return document.querySelector<HTMLElement>(`[data-member-role-index="${index}"]`)?.textContent?.trim() || ""
-    return document.querySelector<HTMLImageElement>(`[data-member-photo-index="${index}"]`)?.src || ""
-  }, [])
+    return getBandMemberNode(index, "photo")?.content.src || document.querySelector<HTMLImageElement>(`[data-member-photo-index="${index}"]`)?.src || ""
+  }, [getBandMemberNode])
 
   const updateBandMemberCardStyle = useCallback((index: number, patch: Partial<EditorNode["content"] & EditorNode["style"]>) => {
     dispatch({
@@ -2605,7 +2625,7 @@ export function VisualEditorOverlay() {
               </>
             )}
 
-            {(selectedNode.type === "text" || selectedNode.type === "button") && !(selectedNode.type === "text" && selectedNode.id === "hero-title" && heroTitleSegments.length > 0) && (
+            {(selectedNode.type === "text" || selectedNode.type === "button") && !selectedIsBandMemberCard && !(selectedNode.type === "text" && selectedNode.id === "hero-title" && heroTitleSegments.length > 0) && (
               <>
                 <label className="text-xs font-semibold">Content</label>
                 <textarea

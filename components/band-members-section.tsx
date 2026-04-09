@@ -40,7 +40,11 @@ function buildInlineStyleFromOverride(override?: HomeEditorNodeOverride): CSSPro
   }
   if (override.explicitStyle) {
     if (override.style.opacity !== undefined) style.opacity = override.style.opacity
-    if (override.style.backgroundColor) style.backgroundColor = override.style.backgroundColor
+    if (override.content.gradientEnabled) {
+      style.background = `linear-gradient(135deg, ${override.content.gradientStart || "#111111"}, ${override.content.gradientEnd || "#000000"})`
+    } else if (override.style.backgroundColor) {
+      style.backgroundColor = override.style.backgroundColor
+    }
     if (override.style.color) style.color = override.style.color
     if (override.style.fontSize) style.fontSize = override.style.fontSize
     if (override.style.fontFamily) style.fontFamily = override.style.fontFamily

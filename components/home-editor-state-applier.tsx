@@ -129,7 +129,15 @@ export function HomeEditorStateApplier({ nodes }: { nodes: HomeEditorNodeOverrid
 
       if (node.explicitStyle) {
         if (node.style.opacity !== undefined) el.style.opacity = String(node.style.opacity)
-        if (node.style.color) el.style.color = node.style.color
+        if ((node.nodeType === "text" || node.nodeType === "button") && node.content.gradientEnabled) {
+          el.style.background = `linear-gradient(90deg, ${node.content.gradientStart || "#FFB15A"}, ${node.content.gradientEnd || "#FF6C00"})`
+          el.style.webkitBackgroundClip = "text"
+          el.style.backgroundClip = "text"
+          el.style.webkitTextFillColor = "transparent"
+          el.style.color = "transparent"
+        } else {
+          if (node.style.color) el.style.color = node.style.color
+        }
         if (node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
         if (node.style.fontSize) el.style.fontSize = node.style.fontSize
         if (node.style.fontFamily) el.style.fontFamily = node.style.fontFamily
@@ -171,6 +179,9 @@ export function HomeEditorStateApplier({ nodes }: { nodes: HomeEditorNodeOverrid
         }
 
         if (node.nodeType === "card") {
+          if (node.content.gradientEnabled) {
+            el.style.background = `linear-gradient(135deg, ${node.content.gradientStart || "#111111"}, ${node.content.gradientEnd || "#000000"})`
+          }
           if (node.content.date !== undefined) el.dataset.concertDate = node.content.date
           if (node.content.venue !== undefined) el.dataset.concertVenue = node.content.venue
           if (node.content.city !== undefined) el.dataset.concertCity = node.content.city

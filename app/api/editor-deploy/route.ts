@@ -169,6 +169,44 @@ function isImageSrcPersistable(src: string): boolean {
   return false
 }
 
+function parseSanityImageRefFromUrl(src: string, projectId: string, dataset: string): string | null {
+  try {
+    const url = new URL(src)
+    if (url.hostname !== "cdn.sanity.io") return null
+    const parts = url.pathname.split("/").filter(Boolean)
+    // /images/{projectId}/{dataset}/{fileName.ext}
+    if (parts.length < 4) return null
+    if (parts[0] !== "images") return null
+    if (parts[1] !== projectId) return null
+    if (parts[2] !== dataset) return null
+    const fileName = parts.slice(3).join("/")
+    const extIndex = fileName.lastIndexOf(".")
+    if (extIndex <= 0) return null
+    const idPart = fileName.slice(0, extIndex).replace(/\//g, "-")
+    const extPart = fileName.slice(extIndex + 1)
+    if (!idPart || !extPart) return null
+    return `image-${idPart}-${extPart}`
+  } catch {
+    return null
+  }
+}
+
+function buildSanityImageFieldFromSrc(
+  src: string,
+  projectId: string,
+  dataset: string
+): { _type: "image"; asset: { _type: "reference"; _ref: string } } | null {
+  const ref = parseSanityImageRefFromUrl(src, projectId, dataset)
+  if (!ref) return null
+  return {
+    _type: "image",
+    asset: {
+      _type: "reference",
+      _ref: ref,
+    },
+  }
+}
+
 function shouldPersistInCentralHomeState(node: DeployNodePayload): boolean {
   if (node.id === "intro-banner-gif") return false
   const isImageLikeNode = node.type === "image" || node.type === "background"
@@ -759,6 +797,46 @@ export async function POST(request: Request) {
       }
     }
 
+    // Doc-driven image writers: keep these nodes out of homeEditorState and persist directly
+    // into the same Sanity docs consumed by loaders.
+    const heroBgImageNode = payload.nodes.find((node) => node.id === "hero-bg-image")
+    if (heroBgImageNode?.explicitContent) {
+      const src = typeof heroBgImageNode.content?.src === "string" ? heroBgImageNode.content.src.trim() : ""
+      if (!src) {
+        skippedNodes.push("hero-bg-image:missing-content-src")
+      } else if (!isImageSrcPersistable(src)) {
+        skippedNodes.push("hero-bg-image:src(blob/data url)")
+      } else {
+        const imageField = buildSanityImageFieldFromSrc(src, projectId, dataset)
+        if (!imageField) {
+          skippedNodes.push("hero-bg-image:src(non-sanity-cdn url)")
+        } else {
+          heroPatch.backgroundImage = imageField
+          if (!persistedFields.includes("backgroundImage")) persistedFields.push("backgroundImage")
+          if (!persistedNodes.includes("hero-bg-image")) persistedNodes.push("hero-bg-image")
+        }
+      }
+    }
+
+    const heroLogoNode = payload.nodes.find((node) => node.id === "hero-logo")
+    if (heroLogoNode?.explicitContent) {
+      const src = typeof heroLogoNode.content?.src === "string" ? heroLogoNode.content.src.trim() : ""
+      if (!src) {
+        skippedNodes.push("hero-logo:missing-content-src")
+      } else if (!isImageSrcPersistable(src)) {
+        skippedNodes.push("hero-logo:src(blob/data url)")
+      } else {
+        const imageField = buildSanityImageFieldFromSrc(src, projectId, dataset)
+        if (!imageField) {
+          skippedNodes.push("hero-logo:src(non-sanity-cdn url)")
+        } else {
+          heroPatch.logo = imageField
+          if (!persistedFields.includes("logo")) persistedFields.push("logo")
+          if (!persistedNodes.includes("hero-logo")) persistedNodes.push("hero-logo")
+        }
+      }
+    }
+
     /** Persist layout (translate/scale/size) for every hero block the visual editor can move — same as logo/title. */
     const HERO_LAYOUT_IDS = new Set([
       "hero-section",
@@ -879,10 +957,29 @@ export async function POST(request: Request) {
           ctaHref: existingNavigation.ctaHref,
         })
       : {}
+    const navImagePatch: Record<string, unknown> = {}
+    const navLogoNode = payload.nodes.find((node) => node.id === "nav-logo")
+    if (navLogoNode?.explicitContent) {
+      const src = typeof navLogoNode.content?.src === "string" ? navLogoNode.content.src.trim() : ""
+      if (!src) {
+        skippedNodes.push("nav-logo:missing-content-src")
+      } else if (!isImageSrcPersistable(src)) {
+        skippedNodes.push("nav-logo:src(blob/data url)")
+      } else {
+        const imageField = buildSanityImageFieldFromSrc(src, projectId, dataset)
+        if (!imageField) {
+          skippedNodes.push("nav-logo:src(non-sanity-cdn url)")
+        } else {
+          navImagePatch.brandLogo = imageField
+          if (!persistedFields.includes("brandLogo")) persistedFields.push("brandLogo")
+          if (!persistedNodes.includes("nav-logo")) persistedNodes.push("nav-logo")
+        }
+      }
+    }
 
     const hasNavLayout =
       mergedNavigationElementStyles !== null && Object.keys(mergedNavigationElementStyles).length > 0
-    const hasNavContent = Object.keys(navContentPatch).length > 0
+    const hasNavContent = Object.keys(navContentPatch).length > 0 || Object.keys(navImagePatch).length > 0
 
     let navigationDocumentId: string | null = null
     if (existingNavigation?._id && (hasNavLayout || hasNavContent)) {
@@ -891,6 +988,7 @@ export async function POST(request: Request) {
       }
       if (hasNavLayout) setPayload.elementStyles = mergedNavigationElementStyles
       Object.assign(setPayload, navContentPatch)
+      Object.assign(setPayload, navImagePatch)
       const navPatchResponse = await writeClient.patch(toPublishedDocumentId(existingNavigation._id)).set(setPayload).commit()
       navigationDocumentId = navPatchResponse._id
       log("navigation patch committed", { docId: navigationDocumentId, hasNavLayout, hasNavContent })
@@ -907,6 +1005,7 @@ export async function POST(request: Request) {
           if (!node.explicitContent) continue
           if (
             node.id === "nav-brand-name" ||
+            node.id === "nav-logo" ||
             node.id === "nav-book-button" ||
             node.id === "nav-mobile-book-button" ||
             /^nav-(link|mobile-link)-\d+$/.test(node.id)
