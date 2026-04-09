@@ -164,6 +164,20 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
     }).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    const onEditorBandMemberFocus = (event: Event) => {
+      const custom = event as CustomEvent<{ index?: number }>
+      const index = custom.detail?.index
+      if (typeof index !== "number" || Number.isNaN(index)) return
+      if (index < 0 || index >= members.length) return
+      setActiveIndex(index)
+    }
+    window.addEventListener("editor-band-member-focus", onEditorBandMemberFocus as EventListener)
+    return () => {
+      window.removeEventListener("editor-band-member-focus", onEditorBandMemberFocus as EventListener)
+    }
+  }, [members.length])
+
   const handleMemberClick = (index: number) => {
     setActiveIndex(index)
     if (isMobile) {

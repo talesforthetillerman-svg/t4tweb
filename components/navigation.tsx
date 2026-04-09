@@ -171,10 +171,11 @@ export function Navigation({ data }: { data: NavigationData }) {
       data-editor-node-label="Navigation"
       className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${
         isScrolled
-          ? "bg-black/80 backdrop-blur-2xl border-b border-white/10 shadow-xl shadow-black/25"
+          ? "backdrop-blur-2xl border-b border-white/10 shadow-xl shadow-black/25"
           : "bg-transparent"
       }`}
         style={{
+          backgroundColor: isScrolled ? "rgb(0 0 0 / var(--nav-scroll-bg-opacity, 0.8))" : "transparent",
           boxShadow: isScrolled ? "0 10px 30px rgba(0,0,0,0.25)" : "none",
           ...getElementLayoutStyle(data.elementStyles, "navigation"),
         }}

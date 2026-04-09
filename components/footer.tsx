@@ -163,21 +163,25 @@ export function Footer() {
 
   const socialLinks = [
     {
+      id: "footer-social-instagram",
       name: "Instagram",
       href: "https://www.instagram.com/tales4tillerman",
       icon: InstagramIcon,
     },
     {
+      id: "footer-social-youtube",
       name: "YouTube",
       href: "https://www.youtube.com/channel/UCiSLr9s4NLC1kzHBqJirsrQ",
       icon: YouTubeIcon,
     },
     {
+      id: "footer-social-telegram",
       name: "Telegram",
       href: "https://t.me/talesforthetillerman",
       icon: TelegramIcon,
     },
     {
+      id: "footer-social-linktree",
       name: "Linktree",
       href: "https://linktr.ee/tales4tillerman",
       icon: LinktreeIcon,
@@ -241,11 +245,17 @@ export function Footer() {
           data-editor-node-type="card"
           data-editor-node-label="Footer Social Links"
           data-editor-grouped="true"
+          data-link-group-summary="Footer Social Links"
           className="flex flex-wrap items-center justify-center gap-3 mb-8"
         >
           {socialLinks.map((link) => (
             <a
-              key={link.name}
+              key={link.id}
+              data-editor-node-id={link.id}
+              data-editor-node-type="button"
+              data-editor-node-label={`Footer ${link.name}`}
+              data-link-item="true"
+              data-link-item-name={link.name}
               href={link.href}
               target="_blank"
               rel="noopener noreferrer"

@@ -222,16 +222,34 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
     return fallback
   }
 
-  const resolveConcertLocationText = (cardId: string, fallbackCity: string, fallbackCountry: string): string => {
-    const locationNode = overrides[`${cardId}-city`]
-    if (locationNode?.explicitContent && locationNode.content.text?.trim()) return locationNode.content.text.trim()
-    const cardNode = overrides[cardId]
-    if (cardNode?.explicitContent) {
-      const city = cardNode.content.city?.trim() || fallbackCity
-      const country = cardNode.content.country?.trim() || fallbackCountry
-      return `${city}, ${country}`.replace(/^,\s*/, "").replace(/,\s*$/, "")
+  const resolveConcertCityText = (cardId: string, fallbackCity: string): string => {
+    const cityNode = overrides[`${cardId}-city`]
+    if (cityNode?.explicitContent && cityNode.content.text?.trim()) {
+      const raw = cityNode.content.text.trim()
+      const commaIndex = raw.indexOf(",")
+      if (commaIndex !== -1) return raw.slice(0, commaIndex).trim()
+      return raw
     }
-    return `${fallbackCity}, ${fallbackCountry}`
+    const cardNode = overrides[cardId]
+    if (cardNode?.explicitContent && cardNode.content.city?.trim()) return cardNode.content.city.trim()
+    return fallbackCity
+  }
+
+  const resolveConcertCountryText = (cardId: string, fallbackCountry: string): string => {
+    const cityNode = overrides[`${cardId}-city`]
+    if (cityNode?.explicitContent && cityNode.content.text?.trim()) {
+      const raw = cityNode.content.text.trim()
+      const commaIndex = raw.indexOf(",")
+      if (commaIndex !== -1) {
+        const fromLegacy = raw.slice(commaIndex + 1).trim()
+        if (fromLegacy) return fromLegacy
+      }
+    }
+    const countryNode = overrides[`${cardId}-country`]
+    if (countryNode?.explicitContent && countryNode.content.text?.trim()) return countryNode.content.text.trim()
+    const cardNode = overrides[cardId]
+    if (cardNode?.explicitContent && cardNode.content.country?.trim()) return cardNode.content.country.trim()
+    return fallbackCountry
   }
 
   const resolveConcertSimpleField = (
@@ -459,7 +477,7 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                       className="min-h-[80px] p-5 bg-secondary/50 rounded-xl border border-border hover:border-primary/30 transition-all duration-300 group shadow-lg hover:shadow-xl flex items-center"
                       style={buildInlineStyleFromOverride(overrides[cardId])}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
+                      <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
                         <div
                           data-editor-node-id={`${cardId}-date`}
                           data-editor-node-type="text"
@@ -470,7 +488,7 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                         >
                           {resolveConcertDateText(cardId, concert.date)}
                         </div>
-                        <div className="flex-1">
+                        <div className="min-w-0 flex-1">
                           <div
                             data-editor-node-id={`${cardId}-venue`}
                             data-editor-node-type="text"
@@ -481,18 +499,31 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                           >
                             {resolveConcertVenueText(cardId, concert.venue)}
                           </div>
-                          <div
-                            data-editor-node-id={`${cardId}-city`}
-                            data-editor-node-type="text"
-                            data-editor-node-label={`Upcoming Event ${index + 1} Location`}
-                            data-concert-field="location"
-                            className="text-muted-foreground text-sm"
-                            style={buildInlineStyleFromOverride(overrides[`${cardId}-city`])}
-                          >
-                            {resolveConcertLocationText(cardId, concert.city, concert.country)}
+                          <div data-concert-field="location" className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <span
+                              data-editor-node-id={`${cardId}-city`}
+                              data-editor-node-type="text"
+                              data-editor-node-label={`Upcoming Event ${index + 1} City`}
+                              data-concert-location-city
+                              style={buildInlineStyleFromOverride(overrides[`${cardId}-city`])}
+                            >
+                              {resolveConcertCityText(cardId, concert.city)}
+                            </span>
+                            <span data-concert-location-separator>
+                              {resolveConcertCityText(cardId, concert.city) && resolveConcertCountryText(cardId, concert.country) ? " · " : ""}
+                            </span>
+                            <span
+                              data-editor-node-id={`${cardId}-country`}
+                              data-editor-node-type="text"
+                              data-editor-node-label={`Upcoming Event ${index + 1} Country`}
+                              data-concert-location-country
+                              style={buildInlineStyleFromOverride(overrides[`${cardId}-country`])}
+                            >
+                              {resolveConcertCountryText(cardId, concert.country)}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground sm:ml-auto">
+                        <div className="ml-0 flex shrink-0 items-center gap-2 text-sm text-muted-foreground sm:ml-auto sm:gap-4">
                           <span
                             data-editor-node-id={`${cardId}-genre`}
                             data-editor-node-type="text"
@@ -608,7 +639,7 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                       className="min-h-[80px] p-5 bg-secondary/30 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300 group shadow-lg hover:shadow-xl flex items-center"
                       style={buildInlineStyleFromOverride(overrides[cardId])}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
+                      <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
                         <div
                           data-editor-node-id={`${cardId}-date`}
                           data-editor-node-type="text"
@@ -619,7 +650,7 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                         >
                           {resolveConcertDateText(cardId, concert.date)}
                         </div>
-                        <div className="flex-1">
+                        <div className="min-w-0 flex-1">
                           <div
                             data-editor-node-id={`${cardId}-venue`}
                             data-editor-node-type="text"
@@ -630,18 +661,31 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                           >
                             {resolveConcertVenueText(cardId, concert.venue)}
                           </div>
-                          <div
-                            data-editor-node-id={`${cardId}-city`}
-                            data-editor-node-type="text"
-                            data-editor-node-label={`History Event ${index + 1} Location`}
-                            data-concert-field="location"
-                            className="text-muted-foreground/70 text-sm"
-                            style={buildInlineStyleFromOverride(overrides[`${cardId}-city`])}
-                          >
-                            {resolveConcertLocationText(cardId, concert.city, concert.country)}
+                          <div data-concert-field="location" className="flex items-center gap-1 text-sm text-muted-foreground/70">
+                            <span
+                              data-editor-node-id={`${cardId}-city`}
+                              data-editor-node-type="text"
+                              data-editor-node-label={`History Event ${index + 1} City`}
+                              data-concert-location-city
+                              style={buildInlineStyleFromOverride(overrides[`${cardId}-city`])}
+                            >
+                              {resolveConcertCityText(cardId, concert.city)}
+                            </span>
+                            <span data-concert-location-separator>
+                              {resolveConcertCityText(cardId, concert.city) && resolveConcertCountryText(cardId, concert.country) ? " · " : ""}
+                            </span>
+                            <span
+                              data-editor-node-id={`${cardId}-country`}
+                              data-editor-node-type="text"
+                              data-editor-node-label={`History Event ${index + 1} Country`}
+                              data-concert-location-country
+                              style={buildInlineStyleFromOverride(overrides[`${cardId}-country`])}
+                            >
+                              {resolveConcertCountryText(cardId, concert.country)}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground/70 sm:ml-auto">
+                        <div className="ml-0 flex shrink-0 items-center gap-2 text-sm text-muted-foreground/70 sm:ml-auto sm:gap-4">
                           <span
                             data-editor-node-id={`${cardId}-genre`}
                             data-editor-node-type="text"

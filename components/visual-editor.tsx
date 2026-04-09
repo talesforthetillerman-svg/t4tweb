@@ -254,6 +254,14 @@ function extractConcertCardId(nodeId: string | null | undefined): string | null 
   return `live-${nested[1]}-event-${nested[2]}`
 }
 
+function extractBandMemberIndex(nodeId: string | null | undefined): number | null {
+  if (!nodeId) return null
+  const match = /^member-item-(\d+)(?:-(name|role|number|image))?$/.exec(nodeId)
+  if (!match) return null
+  const index = Number(match[1])
+  return Number.isFinite(index) ? index : null
+}
+
 function getConcertFieldFromNodeContent(node: EditorNode | null, field: ConcertField): string {
   if (!node) return ""
   const value = node.content[field as keyof EditorNode["content"]]
@@ -267,6 +275,51 @@ function rgbToHex(rgb: string): string {
   if (!match || match.length < 3) return "#ffffff"
   const [r, g, b] = match.slice(0, 3).map(Number)
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+}
+
+function parseCssColor(input: string | undefined): { r: number; g: number; b: number; a: number } | null {
+  if (!input) return null
+  const color = input.trim()
+  if (!color) return null
+  if (color.startsWith("#")) {
+    const hex = color.slice(1)
+    if (hex.length === 3) {
+      const r = Number.parseInt(hex[0] + hex[0], 16)
+      const g = Number.parseInt(hex[1] + hex[1], 16)
+      const b = Number.parseInt(hex[2] + hex[2], 16)
+      return { r, g, b, a: 1 }
+    }
+    if (hex.length === 6 || hex.length === 8) {
+      const r = Number.parseInt(hex.slice(0, 2), 16)
+      const g = Number.parseInt(hex.slice(2, 4), 16)
+      const b = Number.parseInt(hex.slice(4, 6), 16)
+      const a = hex.length === 8 ? Number.parseInt(hex.slice(6, 8), 16) / 255 : 1
+      return { r, g, b, a }
+    }
+    return null
+  }
+  const rgbaMatch = color.match(/rgba?\(([^)]+)\)/i)
+  if (!rgbaMatch) return null
+  const parts = rgbaMatch[1].split(",").map((part) => part.trim())
+  if (parts.length < 3) return null
+  const r = Number(parts[0])
+  const g = Number(parts[1])
+  const b = Number(parts[2])
+  const a = parts[3] !== undefined ? Number(parts[3]) : 1
+  if (![r, g, b, a].every((value) => Number.isFinite(value))) return null
+  return { r, g, b, a: Math.max(0, Math.min(1, a)) }
+}
+
+function withColorOpacity(input: string, opacity: number): string {
+  const parsed = parseCssColor(input)
+  if (!parsed) return input
+  const alpha = Math.max(0, Math.min(1, opacity))
+  return `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${alpha.toFixed(3)})`
+}
+
+function readColorOpacity(input: string | undefined): number {
+  const parsed = parseCssColor(input)
+  return parsed?.a ?? 1
 }
 
 function isPersistableImageSrc(value: string | undefined): boolean {
@@ -369,8 +422,12 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
   const el = entry.element
   const hydrated = readHydratedNodeOverride(entry.id)
   const content: EditorNode["content"] = {}
+  const isStructuredConcertCard =
+    entry.type === "card" && (el.dataset.concertCard === "true" || Boolean(el.querySelector("[data-concert-field]")))
   if (entry.type === "text" || entry.type === "button" || entry.type === "card") {
-    content.text = el.textContent?.trim() || ""
+    if (!(entry.type === "card" && isStructuredConcertCard)) {
+      content.text = el.textContent?.trim() || ""
+    }
     if (entry.id === "hero-title") {
       let loadedFromDataset = false
       const encodedSegments = el.dataset.editorTitleSegments
@@ -614,7 +671,16 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       delete el.dataset.editorManagedSize
     }
 
-    if (node.explicitStyle && node.style.opacity !== undefined) el.style.opacity = String(node.style.opacity)
+    if (node.type === "card" || node.type === "button" || (node.type === "section" && node.id === "navigation")) {
+      el.style.removeProperty("opacity")
+      delete el.dataset.editorManagedOpacity
+    } else if (node.explicitStyle && node.style.opacity !== undefined) {
+      el.style.opacity = String(node.style.opacity)
+      el.dataset.editorManagedOpacity = "true"
+    } else if (el.dataset.editorManagedOpacity === "true") {
+      el.style.removeProperty("opacity")
+      delete el.dataset.editorManagedOpacity
+    }
     if (node.type === "text" || node.type === "button") {
       if (node.explicitContent) {
         if (node.id === "hero-title" && Array.isArray(node.content.textSegments) && node.content.textSegments.length > 0) {
@@ -683,10 +749,11 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       }
     }
     if (node.type === "card") {
+      const isStructuredConcertCard = el.dataset.concertCard === "true" || Boolean(el.querySelector("[data-concert-field]"))
       if (node.explicitContent && node.content.href !== undefined && (el.tagName === "A" || el.tagName === "BUTTON")) {
         el.setAttribute("href", node.content.href)
       }
-      if (node.explicitContent && node.content.text !== undefined) el.textContent = node.content.text
+      if (node.explicitContent && node.content.text !== undefined && !isStructuredConcertCard) el.textContent = node.content.text
       if (node.explicitContent) {
         if (node.content.date !== undefined) el.dataset.concertDate = node.content.date
         if (node.content.venue !== undefined) el.dataset.concertVenue = node.content.venue
@@ -713,7 +780,18 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         }
         if (venueEl && node.content.venue !== undefined) venueEl.textContent = node.content.venue
         if (locationEl && (node.content.city !== undefined || node.content.country !== undefined)) {
-          locationEl.textContent = `${node.content.city || ""}, ${node.content.country || ""}`.replace(/^,\s*/, "").replace(/,\s*$/, "")
+          const city = node.content.city || ""
+          const country = node.content.country || ""
+          const cityEl = locationEl.querySelector<HTMLElement>("[data-concert-location-city]")
+          const countryEl = locationEl.querySelector<HTMLElement>("[data-concert-location-country]")
+          const separatorEl = locationEl.querySelector<HTMLElement>("[data-concert-location-separator]")
+          if (cityEl && countryEl) {
+            cityEl.textContent = city
+            countryEl.textContent = country
+            if (separatorEl) separatorEl.textContent = city && country ? " · " : ""
+          } else {
+            locationEl.textContent = `${city}, ${country}`.replace(/^,\s*/, "").replace(/,\s*$/, "")
+          }
         }
         if (genreEl && node.content.genre !== undefined) genreEl.textContent = node.content.genre
         if (priceEl && node.content.price !== undefined) {
@@ -751,9 +829,17 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     }
     if (node.type === "section") {
       if (node.explicitStyle) {
+        if (node.id === "navigation" && node.style.opacity !== undefined) {
+          el.style.setProperty("--nav-scroll-bg-opacity", String(Math.max(0, Math.min(1, node.style.opacity))))
+          el.dataset.editorManagedNavScrollOpacity = "true"
+        }
         if (node.style.minHeight) el.style.minHeight = node.style.minHeight
         if (node.style.paddingTop) el.style.paddingTop = node.style.paddingTop
         if (node.style.paddingBottom) el.style.paddingBottom = node.style.paddingBottom
+      }
+      if ((!node.explicitStyle || node.style.opacity === undefined) && el.dataset.editorManagedNavScrollOpacity === "true") {
+        el.style.removeProperty("--nav-scroll-bg-opacity")
+        delete el.dataset.editorManagedNavScrollOpacity
       }
     }
 
@@ -1287,11 +1373,27 @@ export function VisualEditorOverlay() {
   const [deployDetails, setDeployDetails] = useState<string | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
   const [assetUploadState, setAssetUploadState] = useState<Record<string, { status: "idle" | "uploading" | "uploaded" | "error"; message?: string }>>({})
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
   const nodesRef = useRef<Map<string, EditorNode>>(nodes)
+  const selectedIdsRef = useRef<string[]>(selectedIds)
+  const marqueeRef = useRef<{ active: boolean; start: Point }>({ active: false, start: { x: 0, y: 0 } })
 
   useEffect(() => {
     nodesRef.current = nodes
   }, [nodes])
+
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds
+  }, [selectedIds])
+
+  useEffect(() => {
+    if (!selectedId) {
+      setSelectedIds((prev) => (prev.length === 0 ? prev : []))
+      return
+    }
+    setSelectedIds((prev) => (prev.includes(selectedId) ? prev : [selectedId]))
+  }, [selectedId])
 
   const selectedEntry = selectedId ? registry.get(selectedId) || null : null
   const selectedNode = selectedId ? nodes.get(selectedId) || null : null
@@ -1310,7 +1412,10 @@ export function VisualEditorOverlay() {
   const selectedConcertCardId = extractConcertCardId(selectedNode?.id)
   const [concertDraft, setConcertDraft] = useState<Record<ConcertField, string> | null>(null)
 
-  const selectedIsLinkGroup = selectedNode?.id === "live-stream-platforms-group" || selectedNode?.id === "live-social-platforms-group"
+  const selectedIsLinkGroup =
+    selectedNode?.id === "live-stream-platforms-group" ||
+    selectedNode?.id === "live-social-platforms-group" ||
+    selectedNode?.id === "footer-social-group"
   const selectedLinkGroupSummary = selectedIsLinkGroup
     ? document.querySelector<HTMLElement>(`[data-editor-node-id="${selectedNode.id}"]`)?.dataset.linkGroupSummary || ""
     : ""
@@ -1339,6 +1444,19 @@ export function VisualEditorOverlay() {
     if (field === "role") return document.querySelector<HTMLElement>(`[data-member-role-index="${index}"]`)?.textContent?.trim() || ""
     return getBandMemberNode(index, "photo")?.content.src || document.querySelector<HTMLImageElement>(`[data-member-photo-index="${index}"]`)?.src || ""
   }, [getBandMemberNode])
+
+  const buildBoxOpacityPatch = useCallback((nodeId: string, opacity: number): Partial<EditorNode["content"] & EditorNode["style"]> => {
+    const node = nodes.get(nodeId)
+    const entry = registry.get(nodeId)
+    const computedBg = entry ? getComputedStyle(entry.element).backgroundColor : ""
+    const baseColor = (node?.style.backgroundColor && node.style.backgroundColor.trim())
+      ? node.style.backgroundColor
+      : (computedBg && computedBg !== "rgba(0, 0, 0, 0)" ? computedBg : "rgb(17, 24, 39)")
+    return {
+      backgroundColor: withColorOpacity(baseColor, opacity),
+      opacity: undefined,
+    }
+  }, [nodes, registry])
 
   const updateBandMemberCardStyle = useCallback((index: number, patch: Partial<EditorNode["content"] & EditorNode["style"]>) => {
     dispatch({
@@ -1408,17 +1526,49 @@ export function VisualEditorOverlay() {
     const timeEl = card.querySelector<HTMLElement>('[data-concert-field="time"]')
     const capacityEl = card.querySelector<HTMLElement>('[data-concert-field="capacity"]')
 
-    if (dateEl) dateEl.textContent = formatConcertDate(card.dataset.concertDate || "")
-    if (venueEl) venueEl.textContent = card.dataset.concertVenue || ""
-    if (locationEl) locationEl.textContent = `${card.dataset.concertCity || ""}, ${card.dataset.concertCountry || ""}`.replace(/^,\s*/, "").replace(/,\s*$/, "")
-    if (genreEl) genreEl.textContent = card.dataset.concertGenre || ""
+    const resolvedDate = formatConcertDate(card.dataset.concertDate || "")
+    const resolvedVenue = card.dataset.concertVenue || ""
+    const resolvedCity = card.dataset.concertCity || ""
+    const resolvedCountry = card.dataset.concertCountry || ""
+    const resolvedGenre = card.dataset.concertGenre || ""
+    const resolvedTime = card.dataset.concertTime || ""
+    const resolvedPriceRaw = card.dataset.concertPrice || ""
+    const resolvedPrice = resolvedPriceRaw === "Free" ? "Free" : resolvedPriceRaw ? `€${resolvedPriceRaw}` : ""
+
+    if (dateEl) dateEl.textContent = resolvedDate
+    if (venueEl) venueEl.textContent = resolvedVenue
+    if (locationEl) {
+      const cityEl = locationEl.querySelector<HTMLElement>("[data-concert-location-city]")
+      const countryEl = locationEl.querySelector<HTMLElement>("[data-concert-location-country]")
+      const separatorEl = locationEl.querySelector<HTMLElement>("[data-concert-location-separator]")
+      if (cityEl && countryEl) {
+        cityEl.textContent = resolvedCity
+        countryEl.textContent = resolvedCountry
+        if (separatorEl) separatorEl.textContent = resolvedCity && resolvedCountry ? " · " : ""
+      } else {
+        locationEl.textContent = `${resolvedCity}, ${resolvedCountry}`.replace(/^,\s*/, "").replace(/,\s*$/, "")
+      }
+    }
+    if (genreEl) genreEl.textContent = resolvedGenre
     if (priceEl) {
-      const raw = card.dataset.concertPrice || ""
-      priceEl.textContent = raw === "Free" ? "Free" : raw ? `€${raw}` : ""
+      priceEl.textContent = resolvedPrice
     }
     if (statusEl) statusEl.textContent = card.dataset.concertStatus || ""
-    if (timeEl) timeEl.textContent = card.dataset.concertTime || ""
+    if (timeEl) timeEl.textContent = resolvedTime
     if (capacityEl) capacityEl.textContent = card.dataset.concertCapacity || ""
+
+    const patchChildText = (suffix: string, text: string) => {
+      const nodeId = `${cardId}-${suffix}`
+      if (!nodesRef.current.has(nodeId)) return
+      dispatch({ type: "UPDATE_TEXT", nodeId, patch: { text } })
+    }
+    patchChildText("date", resolvedDate)
+    patchChildText("venue", resolvedVenue)
+    patchChildText("city", resolvedCity)
+    patchChildText("country", resolvedCountry)
+    patchChildText("genre", resolvedGenre)
+    patchChildText("price", resolvedPrice)
+    patchChildText("time", resolvedTime)
 
     dispatch({
       type: "UPDATE_CARD",
@@ -1725,10 +1875,12 @@ export function VisualEditorOverlay() {
     mode: "move" | "resize" | null
     start: Point
     origin: NodeGeometry | null
+    groupNodeIds: string[]
+    groupOrigins: Record<string, NodeGeometry>
     handle: "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw" | null
     nodeId: string | null
     lastGeometry: NodeGeometry | null
-  }>({ mode: null, start: { x: 0, y: 0 }, origin: null, handle: null, nodeId: null, lastGeometry: null })
+  }>({ mode: null, start: { x: 0, y: 0 }, origin: null, groupNodeIds: [], groupOrigins: {}, handle: null, nodeId: null, lastGeometry: null })
   const pointerScaleRef = useRef<{ origin: number; last: number }>({ origin: 1, last: 1 })
   const bodyOverflowRef = useRef<string | null>(null)
   const createPointerState = (
@@ -1737,10 +1889,29 @@ export function VisualEditorOverlay() {
     mode: partial.mode ?? null,
     start: partial.start ?? { x: 0, y: 0 },
     origin: partial.origin ?? null,
+    groupNodeIds: partial.groupNodeIds ?? [],
+    groupOrigins: partial.groupOrigins ?? {},
     handle: partial.handle ?? null,
     nodeId: partial.nodeId ?? null,
     lastGeometry: partial.lastGeometry ?? null,
   })
+
+  const arrangeNodeById = useCallback((nodeId: string) => {
+    const node = nodesRef.current.get(nodeId)
+    if (!node) return
+    const dx = -node.geometry.x
+    const dy = -node.geometry.y
+    if (dx === 0 && dy === 0) return
+    dispatch({ type: "MOVE_NODE", nodeId, dx, dy })
+  }, [dispatch])
+
+  const arrangeSelectedNodes = useCallback(() => {
+    const targets = selectedIds.length > 0 ? selectedIds : (selectedId ? [selectedId] : [])
+    if (targets.length === 0) return
+    dispatch({ type: "BEGIN_TRANSACTION" })
+    targets.forEach((nodeId) => arrangeNodeById(nodeId))
+    dispatch({ type: "END_TRANSACTION" })
+  }, [arrangeNodeById, dispatch, selectedId, selectedIds])
 
   useEffect(() => {
     if (!isEditing || !openPanel || !selectedNode) {
@@ -1768,6 +1939,7 @@ export function VisualEditorOverlay() {
 
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as HTMLElement
+      const multiModifier = e.metaKey || e.ctrlKey
       const resizeHandleTarget = target.closest<HTMLElement>("[data-editor-resize-handle]")
       if (resizeHandleTarget instanceof HTMLElement) {
         e.preventDefault()
@@ -1793,26 +1965,78 @@ export function VisualEditorOverlay() {
       if (target.closest("[data-editor-toolbar]") || target.closest("[data-editor-panel]") || target.closest("[data-editor-overlay]") || target.closest("[data-editor-deploy-modal]")) return
       const hit = getEditableAtPosition(e.clientX, e.clientY)
       if (hit) {
+        if (multiModifier) {
+          e.preventDefault()
+          e.stopPropagation()
+          const current = selectedIdsRef.current
+          let next: string[]
+          if (current.includes(hit.id)) {
+            next = current.filter((id) => id !== hit.id)
+            if (next.length === 0) {
+              dispatch({ type: "DESELECT_NODE" })
+            } else {
+              dispatch({ type: "SELECT_NODE", nodeId: next[0] })
+            }
+          } else {
+            next = [...current, hit.id]
+            dispatch({ type: "SELECT_NODE", nodeId: hit.id })
+          }
+          setSelectedIds(next)
+          const bandMemberIndex = extractBandMemberIndex(hit.id)
+          if (bandMemberIndex !== null) {
+            window.dispatchEvent(new CustomEvent("editor-band-member-focus", { detail: { index: bandMemberIndex } }))
+          }
+          return
+        }
         e.preventDefault()
         e.stopPropagation()
         dispatch({ type: "SELECT_NODE", nodeId: hit.id })
+        setSelectedIds((prev) => (prev.length > 1 && prev.includes(hit.id) ? prev : [hit.id]))
+        const bandMemberIndex = extractBandMemberIndex(hit.id)
+        if (bandMemberIndex !== null) {
+          window.dispatchEvent(new CustomEvent("editor-band-member-focus", { detail: { index: bandMemberIndex } }))
+        }
         dispatch({ type: "BEGIN_TRANSACTION" })
+        const currentSelected = selectedIdsRef.current
+        const moveIds = currentSelected.length > 1 && currentSelected.includes(hit.id) ? currentSelected : [hit.id]
+        const origins: Record<string, NodeGeometry> = {}
+        moveIds.forEach((id) => {
+          const node = nodesRef.current.get(id)
+          if (node) origins[id] = { ...node.geometry }
+        })
         const n = nodesRef.current.get(hit.id)
         pointerScaleRef.current = { origin: n?.style.scale ?? 1, last: n?.style.scale ?? 1 }
         pointerRef.current = createPointerState({
           mode: "move",
           start: { x: e.clientX, y: e.clientY },
           origin: n ? { ...n.geometry } : null,
+          groupNodeIds: moveIds,
+          groupOrigins: origins,
           handle: null,
           nodeId: hit.id,
           lastGeometry: n ? { ...n.geometry } : null,
         })
       } else {
+        if (multiModifier) {
+          marqueeRef.current = { active: true, start: { x: e.clientX, y: e.clientY } }
+          setMarqueeRect({ x: e.clientX, y: e.clientY, width: 0, height: 0 })
+          return
+        }
         dispatch({ type: "DESELECT_NODE" })
+        setSelectedIds([])
       }
     }
 
     const onPointerMove = (e: PointerEvent) => {
+      if (marqueeRef.current.active) {
+        const start = marqueeRef.current.start
+        const x = Math.min(start.x, e.clientX)
+        const y = Math.min(start.y, e.clientY)
+        const width = Math.abs(e.clientX - start.x)
+        const height = Math.abs(e.clientY - start.y)
+        setMarqueeRect({ x, y, width, height })
+        return
+      }
       const state = pointerRef.current
       if (!state.mode || !state.origin || !state.nodeId) return
       const dx = e.clientX - state.start.x
@@ -1826,8 +2050,20 @@ export function VisualEditorOverlay() {
             currentGeometry: current?.geometry || null,
           })
         }
-        dispatch({ type: "MOVE_NODE", nodeId: state.nodeId, dx, dy, transient: true })
-        pointerRef.current.start = { x: e.clientX, y: e.clientY }
+        const groupIds = state.groupNodeIds.length > 0 ? state.groupNodeIds : [state.nodeId]
+        groupIds.forEach((id) => {
+          const origin = state.groupOrigins[id]
+          if (!origin) return
+          dispatch({
+            type: "SET_NODE_GEOMETRY",
+            nodeId: id,
+            x: origin.x + dx,
+            y: origin.y + dy,
+            width: origin.width,
+            height: origin.height,
+            transient: true,
+          })
+        })
       } else if (state.mode === "resize" && state.origin && state.nodeId && state.handle) {
         const handle = state.handle
         let nextX = state.origin.x
@@ -1878,6 +2114,25 @@ export function VisualEditorOverlay() {
     }
 
     const onPointerUp = () => {
+      if (marqueeRef.current.active) {
+        const rect = marqueeRect
+        marqueeRef.current = { active: false, start: { x: 0, y: 0 } }
+        setMarqueeRect(null)
+        if (!rect || rect.width < 4 || rect.height < 4) return
+        const selected = Array.from(registry.values())
+          .filter((entry) => {
+            const r = entry.rect
+            return !(r.right < rect.x || r.left > rect.x + rect.width || r.bottom < rect.y || r.top > rect.y + rect.height)
+          })
+          .map((entry) => entry.id)
+        setSelectedIds(selected)
+        if (selected.length > 0) {
+          dispatch({ type: "SELECT_NODE", nodeId: selected[0] })
+        } else {
+          dispatch({ type: "DESELECT_NODE" })
+        }
+        return
+      }
       const state = pointerRef.current
       if (isReleaseTraceNode(state.nodeId)) {
         const current = state.nodeId ? nodesRef.current.get(state.nodeId) : null
@@ -1892,9 +2147,25 @@ export function VisualEditorOverlay() {
         const g = state.lastGeometry
         dispatch({ type: "SET_NODE_GEOMETRY", nodeId: state.nodeId, x: g.x, y: g.y, width: g.width, height: g.height })
         dispatch({ type: "SET_NODE_SCALE", nodeId: state.nodeId, scale: pointerScaleRef.current.last })
+      } else if (state.mode === "move") {
+        const groupIds = state.groupNodeIds.length > 0 ? state.groupNodeIds : (state.nodeId ? [state.nodeId] : [])
+        groupIds.forEach((id) => {
+          const current = nodesRef.current.get(id)
+          if (!current) return
+          dispatch({
+            type: "SET_NODE_GEOMETRY",
+            nodeId: id,
+            x: current.geometry.x,
+            y: current.geometry.y,
+            width: current.geometry.width,
+            height: current.geometry.height,
+          })
+        })
       }
       pointerRef.current.mode = null
       pointerRef.current.origin = null
+      pointerRef.current.groupNodeIds = []
+      pointerRef.current.groupOrigins = {}
       pointerRef.current.handle = null
       pointerRef.current.nodeId = null
       pointerRef.current.lastGeometry = null
@@ -1978,11 +2249,27 @@ export function VisualEditorOverlay() {
       window.removeEventListener("keydown", onKeyDown)
       document.body.removeAttribute("data-editor-mode")
     }
-  }, [isEditing, dispatch, selectedId, undo, redo, getEditableAtPosition])
+  }, [isEditing, dispatch, selectedId, selectedIds, undo, redo, getEditableAtPosition, marqueeRect, registry])
 
   if (!isEditing) {
     return null
   }
+
+  const deployStatusColor =
+    deployStatus === "success" ? "text-emerald-300" :
+    deployStatus === "partial" ? "text-amber-300" :
+    deployStatus === "failed" ? "text-red-300" :
+    "text-slate-300"
+  const deployStatusTitle =
+    deployStatus === "success" ? "Success" :
+    deployStatus === "partial" ? "Partial" :
+    deployStatus === "failed" ? "Error / Failed" :
+    "Saving..."
+  const deployStatusMessage =
+    deployStatus === "success" ? "All changes were saved and propagated." :
+    deployStatus === "partial" ? "Some changes were saved, but propagation is incomplete." :
+    deployStatus === "failed" ? "Save/deploy failed. Review technical details." :
+    "Deploy is currently running."
 
   return (
     <>
@@ -1993,8 +2280,18 @@ export function VisualEditorOverlay() {
         <button aria-label="Redo" title="Redo" onClick={redo} disabled={!canRedo} className="rounded p-1.5 hover:bg-white/10 disabled:opacity-40">
           ↷
         </button>
-        <button aria-label="Deploy" title="Deploy" onClick={onDeploy} className="rounded p-1.5 hover:bg-white/10">
-          🚀
+        <button aria-label="Deploy" title="Deploy" onClick={onDeploy} className="relative rounded p-1.5 hover:bg-white/10">
+          <span>🚀</span>
+          {deployStatus && (
+            <span
+              className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-white/80 ${
+                deployStatus === "success" ? "bg-emerald-400" :
+                deployStatus === "partial" ? "bg-amber-400" :
+                deployStatus === "failed" ? "bg-red-400" :
+                "bg-slate-300"
+              }`}
+            />
+          )}
         </button>
         <button aria-label="Exit" title="Exit" onClick={exitEditor} className="rounded p-1.5 hover:bg-white/10">
           ⎋
@@ -2015,8 +2312,8 @@ export function VisualEditorOverlay() {
       </div>
 
       {deployDetails && (
-        <div data-editor-deploy-modal className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/65 p-4">
-          <div className="max-h-[80vh] w-full max-w-2xl rounded-lg border border-white/20 bg-[#111827] p-4 text-slate-100 shadow-2xl">
+        <div data-editor-deploy-modal className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[80vh] w-full max-w-2xl rounded-lg border border-white/20 bg-[#0f172a]/80 p-4 text-slate-100 shadow-2xl backdrop-blur-md">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-white">Deploy result</h3>
               <button
@@ -2026,6 +2323,10 @@ export function VisualEditorOverlay() {
               >
                 Close
               </button>
+            </div>
+            <div className="mb-3 rounded-lg border border-white/15 bg-black/30 p-4">
+              <div className={`text-2xl font-extrabold tracking-wide ${deployStatusColor}`}>{deployStatusTitle}</div>
+              <p className="mt-1 text-sm text-slate-200">{deployStatusMessage}</p>
             </div>
             <details>
               <summary className="cursor-pointer text-xs text-slate-200">Technical details</summary>
@@ -2042,12 +2343,29 @@ export function VisualEditorOverlay() {
         </div>
       )}
 
-      {selectedEntry && <SelectionOverlay entry={selectedEntry} />}
+      {selectedIds.length > 0
+        ? selectedIds
+            .map((id) => registry.get(id))
+            .filter((entry): entry is RuntimeEntry => Boolean(entry))
+            .map((entry) => <SelectionOverlay key={entry.id} entry={entry} />)
+        : selectedEntry && <SelectionOverlay entry={selectedEntry} />}
+
+      {marqueeRect && (
+        <div
+          className="pointer-events-none fixed z-[10002] border border-[#FF8C21] bg-[#FF8C21]/15"
+          style={{
+            left: `${marqueeRect.x}px`,
+            top: `${marqueeRect.y}px`,
+            width: `${marqueeRect.width}px`,
+            height: `${marqueeRect.height}px`,
+          }}
+        />
+      )}
 
       {openPanel && selectedNode && (
         <div
           data-editor-panel
-          className="fixed top-16 right-3 z-[9997] w-80 max-h-[calc(100vh-5rem)] overflow-y-auto overscroll-contain rounded-xl bg-white text-slate-900 shadow-2xl"
+          className="fixed top-16 right-3 z-[9997] w-80 max-h-[calc(100vh-5rem)] overflow-y-auto overscroll-contain rounded-xl border border-white/30 bg-slate-100/35 text-slate-900 shadow-2xl backdrop-blur-lg"
           onKeyDown={(e) => {
             if (isEditingInput(e.target)) return
             const ctrl = e.metaKey || e.ctrlKey
@@ -2081,10 +2399,17 @@ export function VisualEditorOverlay() {
           </div>
 
           <div className="space-y-2 p-3 text-slate-900">
+            <button
+              type="button"
+              className="w-full rounded border border-slate-300 px-2 py-1 text-xs font-semibold"
+              onClick={arrangeSelectedNodes}
+            >
+              Arrange / Auto-position
+            </button>
             {selectedBandMemberIndex !== null && (
               <div className="space-y-3 rounded border border-slate-200 p-2">
                 <div className="text-[11px] font-semibold">
-                  {selectedBandMemberIndex === 0 ? "Janosch Card Editor" : `Member ${selectedBandMemberIndex + 1} Preview`}
+                  {`Member ${selectedBandMemberIndex + 1} Card Editor`}
                 </div>
 
                 <div className="space-y-2 rounded border border-slate-200 p-2">
@@ -2095,15 +2420,18 @@ export function VisualEditorOverlay() {
                     return (
                       <div className="space-y-2">
                         <label className="text-[10px]">
-                          Box opacity ({Math.round((cardNode?.style.opacity ?? 1) * 100)}%)
+                          Box opacity ({Math.round(readColorOpacity(cardNode?.style.backgroundColor) * 100)}%)
                           <input
                             type="range"
                             min={0}
                             max={1}
                             step={0.01}
                             className="w-full"
-                            value={cardNode?.style.opacity ?? 1}
-                            onChange={(e) => updateBandMemberCardStyle(selectedBandMemberIndex, { opacity: Number(e.target.value) })}
+                            value={readColorOpacity(cardNode?.style.backgroundColor)}
+                            onChange={(e) => {
+                              const nodeId = `member-item-${selectedBandMemberIndex}`
+                              updateBandMemberCardStyle(selectedBandMemberIndex, buildBoxOpacityPatch(nodeId, Number(e.target.value)))
+                            }}
                           />
                         </label>
 
@@ -2165,83 +2493,81 @@ export function VisualEditorOverlay() {
                   })()}
                 </div>
 
-                {selectedBandMemberIndex === 0 && (
-                  <div className="space-y-2 rounded border border-slate-200 p-2">
-                    <div className="text-[10px] font-semibold">Text editors</div>
-                    {(["number", "name", "role"] as const).map((field) => {
-                      const node = getBandMemberNode(selectedBandMemberIndex, field)
-                      const currentText = getBandMemberFieldValue(selectedBandMemberIndex, field)
-                      const textAlign = node?.style.textAlign || "left"
-                      const gradientEnabled = !!node?.content.gradientEnabled
-                      return (
-                        <div key={`member-field-${field}`} className="space-y-1 rounded border border-slate-200 p-2">
-                          <label className="text-[10px] font-semibold capitalize">{field}</label>
+                <div className="space-y-2 rounded border border-slate-200 p-2">
+                  <div className="text-[10px] font-semibold">Text editors</div>
+                  {(["number", "name", "role"] as const).map((field) => {
+                    const node = getBandMemberNode(selectedBandMemberIndex, field)
+                    const currentText = getBandMemberFieldValue(selectedBandMemberIndex, field)
+                    const textAlign = node?.style.textAlign || "left"
+                    const gradientEnabled = !!node?.content.gradientEnabled
+                    return (
+                      <div key={`member-field-${field}`} className="space-y-1 rounded border border-slate-200 p-2">
+                        <label className="text-[10px] font-semibold capitalize">{field}</label>
+                        <input
+                          className="w-full rounded border p-1 text-xs"
+                          value={currentText}
+                          onChange={(e) => updateBandMemberField(selectedBandMemberIndex, field, e.target.value)}
+                        />
+
+                        <label className="text-[10px]">
+                          Color
                           <input
-                            className="w-full rounded border p-1 text-xs"
-                            value={currentText}
-                            onChange={(e) => updateBandMemberField(selectedBandMemberIndex, field, e.target.value)}
+                            type="color"
+                            className="mt-1 h-7 w-full rounded border"
+                            value={node?.style.color || "#ffffff"}
+                            onChange={(e) => updateBandMemberTextStyle(selectedBandMemberIndex, field, { color: e.target.value })}
                           />
+                        </label>
 
-                          <label className="text-[10px]">
-                            Color
-                            <input
-                              type="color"
-                              className="mt-1 h-7 w-full rounded border"
-                              value={node?.style.color || "#ffffff"}
-                              onChange={(e) => updateBandMemberTextStyle(selectedBandMemberIndex, field, { color: e.target.value })}
-                            />
-                          </label>
-
-                          <div className="flex items-center gap-1">
-                            <button className="rounded border px-2 py-1 text-[10px]" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { fontWeight: node?.style.fontWeight === "700" ? "400" : "700" })}>B</button>
-                            <button className="rounded border px-2 py-1 text-[10px] italic" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { fontStyle: node?.style.fontStyle === "italic" ? "normal" : "italic" })}>I</button>
-                            <button className="rounded border px-2 py-1 text-[10px] underline" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { textDecoration: node?.style.textDecoration === "underline" ? "none" : "underline" })}>U</button>
-                            <button className="rounded border px-2 py-1 text-[10px]" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { textAlign: "left" })} disabled={textAlign === "left"}>L</button>
-                            <button className="rounded border px-2 py-1 text-[10px]" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { textAlign: "center" })} disabled={textAlign === "center"}>C</button>
-                            <button className="rounded border px-2 py-1 text-[10px]" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { textAlign: "right" })} disabled={textAlign === "right"}>R</button>
-                          </div>
-
-                          <label className="flex items-center gap-2 text-[10px]">
-                            <input
-                              type="checkbox"
-                              checked={gradientEnabled}
-                              onChange={(e) =>
-                                updateBandMemberTextStyle(selectedBandMemberIndex, field, {
-                                  gradientEnabled: e.target.checked,
-                                  gradientStart: e.target.checked ? (node?.content.gradientStart || "#FFB15A") : undefined,
-                                  gradientEnd: e.target.checked ? (node?.content.gradientEnd || "#FF6C00") : undefined,
-                                })
-                              }
-                            />
-                            Gradient
-                          </label>
-                          {gradientEnabled && (
-                            <div className="grid grid-cols-2 gap-2">
-                              <label className="text-[10px]">
-                                Start
-                                <input
-                                  type="color"
-                                  className="mt-1 h-7 w-full rounded border"
-                                  value={node?.content.gradientStart || "#FFB15A"}
-                                  onChange={(e) => updateBandMemberTextStyle(selectedBandMemberIndex, field, { gradientStart: e.target.value })}
-                                />
-                              </label>
-                              <label className="text-[10px]">
-                                End
-                                <input
-                                  type="color"
-                                  className="mt-1 h-7 w-full rounded border"
-                                  value={node?.content.gradientEnd || "#FF6C00"}
-                                  onChange={(e) => updateBandMemberTextStyle(selectedBandMemberIndex, field, { gradientEnd: e.target.value })}
-                                />
-                              </label>
-                            </div>
-                          )}
+                        <div className="flex items-center gap-1">
+                          <button className="rounded border px-2 py-1 text-[10px]" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { fontWeight: node?.style.fontWeight === "700" ? "400" : "700" })}>B</button>
+                          <button className="rounded border px-2 py-1 text-[10px] italic" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { fontStyle: node?.style.fontStyle === "italic" ? "normal" : "italic" })}>I</button>
+                          <button className="rounded border px-2 py-1 text-[10px] underline" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { textDecoration: node?.style.textDecoration === "underline" ? "none" : "underline" })}>U</button>
+                          <button className="rounded border px-2 py-1 text-[10px]" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { textAlign: "left" })} disabled={textAlign === "left"}>L</button>
+                          <button className="rounded border px-2 py-1 text-[10px]" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { textAlign: "center" })} disabled={textAlign === "center"}>C</button>
+                          <button className="rounded border px-2 py-1 text-[10px]" onClick={() => updateBandMemberTextStyle(selectedBandMemberIndex, field, { textAlign: "right" })} disabled={textAlign === "right"}>R</button>
                         </div>
-                      )
-                    })}
-                  </div>
-                )}
+
+                        <label className="flex items-center gap-2 text-[10px]">
+                          <input
+                            type="checkbox"
+                            checked={gradientEnabled}
+                            onChange={(e) =>
+                              updateBandMemberTextStyle(selectedBandMemberIndex, field, {
+                                gradientEnabled: e.target.checked,
+                                gradientStart: e.target.checked ? (node?.content.gradientStart || "#FFB15A") : undefined,
+                                gradientEnd: e.target.checked ? (node?.content.gradientEnd || "#FF6C00") : undefined,
+                              })
+                            }
+                          />
+                          Gradient
+                        </label>
+                        {gradientEnabled && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="text-[10px]">
+                              Start
+                              <input
+                                type="color"
+                                className="mt-1 h-7 w-full rounded border"
+                                value={node?.content.gradientStart || "#FFB15A"}
+                                onChange={(e) => updateBandMemberTextStyle(selectedBandMemberIndex, field, { gradientStart: e.target.value })}
+                              />
+                            </label>
+                            <label className="text-[10px]">
+                              End
+                              <input
+                                type="color"
+                                className="mt-1 h-7 w-full rounded border"
+                                value={node?.content.gradientEnd || "#FF6C00"}
+                                onChange={(e) => updateBandMemberTextStyle(selectedBandMemberIndex, field, { gradientEnd: e.target.value })}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
 
                 <div className="space-y-2 rounded border border-slate-200 p-2">
                   <label className="text-[10px] font-semibold">Photo</label>
@@ -2250,27 +2576,25 @@ export function VisualEditorOverlay() {
                     return imageSrc ? <img src={imageSrc} alt={`Member ${selectedBandMemberIndex + 1} preview`} className="h-20 w-20 rounded object-cover" /> : null
                   })()}
 
-                  {selectedBandMemberIndex === 0 && (
-                    <>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="w-full text-xs"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0]
-                          if (!file) return
-                          const nodeId = `member-item-${selectedBandMemberIndex}-image`
-                          await uploadEditorImageAsset(nodeId, "image", file)
-                        }}
-                      />
-                      {assetUploadState[`member-item-${selectedBandMemberIndex}-image`] && (
-                        <div className="text-[10px] text-slate-600">
-                          Upload status: <span className="font-semibold capitalize">{assetUploadState[`member-item-${selectedBandMemberIndex}-image`]?.status}</span>
-                          {assetUploadState[`member-item-${selectedBandMemberIndex}-image`]?.message ? ` — ${assetUploadState[`member-item-${selectedBandMemberIndex}-image`]?.message}` : ""}
-                        </div>
-                      )}
-                    </>
-                  )}
+                  <>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="w-full text-xs"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const nodeId = `member-item-${selectedBandMemberIndex}-image`
+                        await uploadEditorImageAsset(nodeId, "image", file)
+                      }}
+                    />
+                    {assetUploadState[`member-item-${selectedBandMemberIndex}-image`] && (
+                      <div className="text-[10px] text-slate-600">
+                        Upload status: <span className="font-semibold capitalize">{assetUploadState[`member-item-${selectedBandMemberIndex}-image`]?.status}</span>
+                        {assetUploadState[`member-item-${selectedBandMemberIndex}-image`]?.message ? ` — ${assetUploadState[`member-item-${selectedBandMemberIndex}-image`]?.message}` : ""}
+                      </div>
+                    )}
+                  </>
 
                   {(() => {
                     const imageNode = getBandMemberNode(selectedBandMemberIndex, "photo")
@@ -2292,12 +2616,6 @@ export function VisualEditorOverlay() {
                     )
                   })()}
                 </div>
-
-                {selectedBandMemberIndex !== 0 && (
-                  <div className="text-[10px] text-slate-600">
-                    Full inline editing remains focused on Janosch (`member-item-0`) in this pass.
-                  </div>
-                )}
               </div>
             )}
 
@@ -2451,22 +2769,7 @@ export function VisualEditorOverlay() {
                             dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { titleSegments: next, textSegments: next } })
                           }}
                         />
-                        <div>
-                          <label className="text-[10px]">Opacity ({(segment.opacity ?? 1).toFixed(2)})</label>
-                          <input
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            className="w-full"
-                            value={segment.opacity ?? 1}
-                            onChange={(e) => {
-                              const next = [...heroTitleSegments]
-                              next[index] = { ...next[index], opacity: Number(e.target.value) }
-                              dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { titleSegments: next, textSegments: next } })
-                            }}
-                          />
-                        </div>
+                        <div />
                       </div>
                       <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-800">
                         <input
@@ -2653,18 +2956,7 @@ export function VisualEditorOverlay() {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="text-[10px]">Opacity ({(selectedNode.style.opacity ?? 1).toFixed(2)})</label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    className="w-full"
-                    value={selectedNode.style.opacity ?? 1}
-                    onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { opacity: Number(e.target.value) } })}
-                  />
-                </div>
+                <div />
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -2695,8 +2987,8 @@ export function VisualEditorOverlay() {
                     checked={!!selectedNode.content.gradientEnabled}
                     onChange={(e) => {
                       const gradientEnabled = e.target.checked
-                      dispatch({ 
-                        type: "UPDATE_TEXT", 
+                      dispatch({
+                        type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON",
                         nodeId: selectedNode.id, 
                         patch: { 
                           gradientEnabled,
@@ -2717,7 +3009,7 @@ export function VisualEditorOverlay() {
                         className="h-8 w-full rounded border border-slate-200"
                         value={selectedNode.content.gradientStart || "#FFB15A"}
                         onChange={(e) => {
-                          dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { gradientStart: e.target.value } })
+                          dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientStart: e.target.value } })
                         }}
                       />
                     </div>
@@ -2728,7 +3020,7 @@ export function VisualEditorOverlay() {
                         className="h-8 w-full rounded border border-slate-200"
                         value={selectedNode.content.gradientEnd || "#FF6C00"}
                         onChange={(e) => {
-                          dispatch({ type: "UPDATE_TEXT", nodeId: selectedNode.id, patch: { gradientEnd: e.target.value } })
+                          dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientEnd: e.target.value } })
                         }}
                       />
                     </div>
@@ -2739,6 +3031,18 @@ export function VisualEditorOverlay() {
 
             {selectedNode.type === "button" && (
               <>
+                <label className="text-[10px]">Button opacity ({readColorOpacity(selectedNode.style.backgroundColor).toFixed(2)})</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  className="w-full"
+                  value={readColorOpacity(selectedNode.style.backgroundColor)}
+                  onChange={(e) => {
+                    dispatch({ type: "UPDATE_BUTTON", nodeId: selectedNode.id, patch: buildBoxOpacityPatch(selectedNode.id, Number(e.target.value)) })
+                  }}
+                />
                 <label className="text-xs font-semibold">Link</label>
                 <input
                   className="w-full rounded border p-1 text-xs"
@@ -2961,6 +3265,20 @@ export function VisualEditorOverlay() {
 
             {selectedNode.type === "section" && (
               <>
+                {selectedNode.id === "navigation" && (
+                  <>
+                    <label className="text-xs font-semibold">Scrolled background opacity ({(selectedNode.style.opacity ?? 0.8).toFixed(2)})</label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      className="w-full"
+                      value={selectedNode.style.opacity ?? 0.8}
+                      onChange={(e) => dispatch({ type: "UPDATE_SECTION", nodeId: selectedNode.id, patch: { opacity: Number(e.target.value) } })}
+                    />
+                  </>
+                )}
                 <label className="text-xs font-semibold">Min Height</label>
                 <input
                   className="w-full rounded border p-1 text-xs"
@@ -3010,15 +3328,15 @@ export function VisualEditorOverlay() {
                   value={selectedNode.content.text || ""}
                   onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { text: e.target.value } })}
                 />
-                <label className="text-[10px]">Opacity ({(selectedNode.style.opacity ?? 1).toFixed(2)})</label>
+                <label className="text-[10px]">Card opacity ({readColorOpacity(selectedNode.style.backgroundColor).toFixed(2)})</label>
                 <input
                   type="range"
                   min={0}
                   max={1}
                   step={0.05}
                   className="w-full"
-                  value={selectedNode.style.opacity ?? 1}
-                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { opacity: Number(e.target.value) } })}
+                  value={readColorOpacity(selectedNode.style.backgroundColor)}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: buildBoxOpacityPatch(selectedNode.id, Number(e.target.value)) })}
                 />
                 <label className="text-[10px]">Background Color</label>
                 <input
