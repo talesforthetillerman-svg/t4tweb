@@ -8,23 +8,15 @@ import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-ove
 import { SectionHeader } from "@/components/section-header"
 import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
 import { useVisualEditor } from "@/components/visual-editor"
+import { getTraceNodeId } from "@/lib/sanity/env"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
+import type { LiveConcert } from "@/lib/live-concerts-loader"
 
-interface Concert {
-  venue: string
-  city: string
-  country: string
-  date: string
-  time: string
-  status: string
-  genre: string
-  capacity: string
-  price: string
-  locationUrl: string
-}
+type Concert = LiveConcert
 type ConcertEditableField = "date" | "venue" | "city" | "country" | "genre" | "price" | "status" | "time" | "capacity" | "locationUrl"
 
 interface LiveSectionProps {
+  initialConcerts: LiveConcert[]
   overrides?: Record<string, HomeEditorNodeOverride>
 }
 
@@ -82,14 +74,13 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export function LiveSection({ overrides = {} }: LiveSectionProps) {
+export function LiveSection({ initialConcerts, overrides = {} }: LiveSectionProps) {
   const sectionRef = useRef<HTMLElement>(null)
-  const [concerts, setConcerts] = useState<Concert[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [concerts, setConcerts] = useState<Concert[]>(initialConcerts)
   const { opacity, y } = useScrollAnimation(sectionRef)
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
   const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
+  const traceNodeId = getTraceNodeId()
   const styleFromOverride = (override: HomeEditorNodeOverride | undefined) =>
     buildInlineStyleFromOverride(override, allowGeometryOverrides)
   const resolvedLiveBackgroundSrc = useHomeEditorImageSrc("live-section-bg-image", "/images/sections/live-bg.jpg")
@@ -114,49 +105,6 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
       unregisterEditable('live-section')
     }
   }, [isEditing, registerEditable, unregisterEditable])
-
-  useEffect(() => {
-    async function fetchConcerts() {
-      try {
-        const response = await fetch("/data/concerts.csv")
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const text = await response.text()
-        const lines = text.trim().split("\n")
-        if (lines.length <= 1) {
-          setConcerts([])
-          setError(false)
-          setLoading(false)
-          return
-        }
-        const parsed = lines.slice(1).map(line => {
-          const values = line.split(",")
-          return {
-            venue: values[0] || "",
-            city: values[1] || "",
-            country: values[2] || "",
-            date: values[3] || "",
-            time: values[4] || "",
-            status: values[5] || "",
-            genre: values[6] || "",
-            capacity: values[7] || "",
-            price: values[8] || "Free",
-            locationUrl: values[9] || "",
-          }
-        })
-        const sorted = parsed.sort((a, b) =>
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-        )
-        setConcerts(sorted)
-        setError(false)
-      } catch (error) {
-        console.error("Error loading concert data:", error)
-        setError(true)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchConcerts()
-  }, [])
 
   useEffect(() => {
     const onConcertFieldUpdate = (event: Event) => {
@@ -197,6 +145,18 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
 
   const upcomingConcerts = concerts.filter(c => c.status === "Upcoming")
   const historyConcerts = concerts.filter(c => c.status === "Completed")
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production" || !traceNodeId) return
+    if (!traceNodeId.startsWith("live-")) return
+    console.info("[live][trace]", {
+      traceNodeId,
+      hasOverride: !!overrides[traceNodeId],
+      override: overrides[traceNodeId] || null,
+      upcomingCount: upcomingConcerts.length,
+      historyCount: historyConcerts.length,
+    })
+  }, [traceNodeId, overrides, upcomingConcerts.length, historyConcerts.length])
 
   const platforms = [
     { name: "Spotify", href: "https://open.spotify.com/artist/0FHjK3O0k8HQMrJsF7KQwF", icon: SpotifyIcon, color: "hover:bg-[#1DB954]", category: "streaming" },
@@ -435,17 +395,7 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                 {resolveTextOverride(overrides["live-upcoming-title"], "Upcoming")}
               </h3>
 
-              {loading && (
-                <div className="space-y-3">
-                  {[...Array(2)].map((_, i) => (
-                    <div key={`skeleton-upcoming-${i}`} className="min-h-[80px] bg-gradient-to-r from-secondary/30 via-secondary/50 to-secondary/30 rounded-xl overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {!loading && !error && upcomingConcerts.length > 0 && (
+              {upcomingConcerts.length > 0 && (
                 <div
                   data-editor-node-id="live-upcoming-list"
                   data-editor-node-type="card"
@@ -569,7 +519,7 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                 </div>
               )}
 
-              {!loading && !error && upcomingConcerts.length === 0 && (
+              {upcomingConcerts.length === 0 && (
                 <div
                   data-editor-node-id="live-upcoming-empty"
                   data-editor-node-type="card"
@@ -607,7 +557,7 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                 {resolveTextOverride(overrides["live-history-title"], "History")}
               </h3>
 
-              {!loading && !error && historyConcerts.length > 0 && (
+              {historyConcerts.length > 0 && (
                 <div
                   data-editor-node-id="live-history-list"
                   data-editor-node-type="card"
@@ -730,7 +680,7 @@ export function LiveSection({ overrides = {} }: LiveSectionProps) {
                   ))}
                 </div>
               )}
-              {!loading && !error && historyConcerts.length === 0 && (
+              {historyConcerts.length === 0 && (
                 <div
                   data-editor-node-id="live-history-empty"
                   data-editor-node-type="card"

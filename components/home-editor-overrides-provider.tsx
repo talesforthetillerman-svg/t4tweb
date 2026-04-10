@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
+import { getTraceNodeId } from "@/lib/sanity/env"
 
 interface HomeEditorOverridesContextValue {
   resolveImageSrc: (nodeId: string, fallback: string) => string
@@ -12,6 +13,9 @@ const HomeEditorOverridesContext = createContext<HomeEditorOverridesContextValue
 })
 
 const DOC_DRIVEN_IMAGE_NODE_IDS = new Set<string>([
+  "hero-bg-image",
+  "hero-logo",
+  "nav-logo",
   "intro-banner-gif",
 ])
 
@@ -24,6 +28,7 @@ function isValidPersistedSrc(value: unknown): value is string {
 }
 
 export function HomeEditorOverridesProvider({ nodes, children }: { nodes: HomeEditorNodeOverride[]; children: ReactNode }) {
+  const traceNodeId = getTraceNodeId()
   const srcByNodeId = useMemo(() => {
     const map = new Map<string, string>()
     nodes.forEach((node) => {
@@ -36,15 +41,17 @@ export function HomeEditorOverridesProvider({ nodes, children }: { nodes: HomeEd
   }, [nodes])
 
   useEffect(() => {
-    const introNode = nodes.find((node) => node.nodeId === "intro-banner-gif")
-    console.info("[INTRO-TRACE][overrides-provider]", {
-      hasIntroNodeInCentralState: !!introNode,
-      introNodeContentSrc: introNode?.content?.src || null,
-      introNodeExplicitContent: introNode?.explicitContent ?? null,
-      mappedSrc: srcByNodeId.get("intro-banner-gif") || null,
-      docDrivenBlocked: DOC_DRIVEN_IMAGE_NODE_IDS.has("intro-banner-gif"),
-    })
-  }, [nodes, srcByNodeId])
+    if (process.env.NODE_ENV !== "production" && traceNodeId) {
+      const tracedNode = nodes.find((node) => node.nodeId === traceNodeId)
+      console.info("[home-editor-overrides-provider][trace]", {
+        traceNodeId,
+        foundInNodes: !!tracedNode,
+        mappedSrc: srcByNodeId.get(traceNodeId) || null,
+        docDrivenBlocked: DOC_DRIVEN_IMAGE_NODE_IDS.has(traceNodeId),
+        node: tracedNode || null,
+      })
+    }
+  }, [nodes, srcByNodeId, traceNodeId])
 
   const value = useMemo<HomeEditorOverridesContextValue>(() => ({
     resolveImageSrc: (nodeId: string, fallback: string) => srcByNodeId.get(nodeId) || fallback,

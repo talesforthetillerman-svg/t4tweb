@@ -2,19 +2,13 @@
 
 import { useEffect } from "react"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
+import { getTraceNodeId } from "@/lib/sanity/env"
 
 const DOC_DRIVEN_IMAGE_NODE_IDS = new Set<string>([
+  "hero-bg-image",
+  "hero-logo",
+  "nav-logo",
   "intro-banner-gif",
-])
-
-const RELEASE_TRACE_IDS = new Set<string>([
-  "latest-release-section",
-  "latest-release-bg",
-  "latest-release-card",
-  "latest-release-title",
-  "latest-release-subtitle",
-  "latest-release-watch-button",
-  "latest-release-shows-button",
 ])
 
 const COMPONENT_DRIVEN_NODE_IDS = new Set<string>([
@@ -49,7 +43,16 @@ function isComponentDrivenNode(nodeId: string): boolean {
   if (nodeId === "live-history-list") return true
   if (nodeId === "live-history-empty") return true
   if (nodeId === "live-history-empty-text") return true
-  if (/^live-(upcoming|history)-event-\d+(-(?:date|venue|city|genre|price|time))?$/.test(nodeId)) return true
+  if (/^live-(upcoming|history)-event-\d+(-(?:date|venue|city|country|genre|price|time))?$/.test(nodeId)) return true
+  return false
+}
+
+function isDocDrivenNode(nodeId: string): boolean {
+  if (DOC_DRIVEN_IMAGE_NODE_IDS.has(nodeId)) return true
+  if (nodeId === "hero-section" || nodeId === "hero-title" || nodeId === "hero-subtitle" || nodeId === "hero-scroll-indicator" || nodeId === "hero-buttons") return true
+  if (nodeId === "navigation" || nodeId === "navigation-inner" || nodeId === "nav-brand-name" || nodeId === "nav-book-button" || nodeId === "nav-mobile-book-button") return true
+  if (/^nav-(link|mobile-link)-\d+$/.test(nodeId)) return true
+  if (nodeId === "intro-section" || nodeId === "intro-banner-text" || nodeId === "intro-book-button" || nodeId === "intro-press-button") return true
   return false
 }
 
@@ -63,36 +66,30 @@ function escapeEditorId(id: string): string {
 export function HomeEditorStateApplier({ nodes }: { nodes: HomeEditorNodeOverride[] }) {
   useEffect(() => {
     if (!Array.isArray(nodes) || nodes.length === 0) return
+    const traceNodeId = getTraceNodeId()
     if (typeof window !== "undefined") {
       ;(window as Window & { __HOME_EDITOR_NODE_OVERRIDES__?: Record<string, HomeEditorNodeOverride> }).__HOME_EDITOR_NODE_OVERRIDES__ =
         Object.fromEntries(nodes.map((node) => [node.nodeId, node]))
     }
-    const introNode = nodes.find((node) => node.nodeId === "intro-banner-gif")
-    console.info("[INTRO-TRACE][state-applier][begin]", {
-      hasIntroNodeInCentralState: !!introNode,
-      introNodeContentSrc: introNode?.content?.src || null,
-      introNodeExplicitContent: introNode?.explicitContent ?? null,
-      introNodeExplicitPosition: introNode?.explicitPosition ?? null,
-      introNodeExplicitSize: introNode?.explicitSize ?? null,
-    })
+    if (process.env.NODE_ENV !== "production" && traceNodeId) {
+      const traceNode = nodes.find((node) => node.nodeId === traceNodeId)
+      console.info("[home-editor-state-applier][trace][begin]", {
+        traceNodeId,
+        foundInNodes: !!traceNode,
+        node: traceNode || null,
+      })
+    }
 
     const applyOverrides = () => {
       const allowGeometryOverrides = window.matchMedia("(min-width: 1024px)").matches
       nodes.forEach((node) => {
-      const traceRelease = RELEASE_TRACE_IDS.has(node.nodeId)
-      if (traceRelease) {
-        console.info("[RELEASE-TRACE][state-applier][before]", {
-          nodeId: node.nodeId,
-          geometry: node.geometry,
-          explicitContent: node.explicitContent,
-          explicitStyle: node.explicitStyle,
-          explicitPosition: node.explicitPosition,
-          explicitSize: node.explicitSize,
-        })
-      }
       const selector = `[data-editor-node-id="${escapeEditorId(node.nodeId)}"]`
       const el = document.querySelector<HTMLElement>(selector)
       if (!el) return
+
+      if (isDocDrivenNode(node.nodeId)) {
+        return
+      }
 
       if (isComponentDrivenNode(node.nodeId)) {
         return
@@ -174,8 +171,8 @@ export function HomeEditorStateApplier({ nodes }: { nodes: HomeEditorNodeOverrid
           }
         } else if (node.nodeType === "image" || node.nodeType === "background") {
           if (DOC_DRIVEN_IMAGE_NODE_IDS.has(node.nodeId)) {
-            if (node.nodeId === "intro-banner-gif") {
-              console.info("[INTRO-TRACE][state-applier] skipped doc-driven image src apply", {
+            if (process.env.NODE_ENV !== "production" && traceNodeId && traceNodeId === node.nodeId) {
+              console.info("[home-editor-state-applier][trace] skip doc-driven image src apply", {
                 nodeId: node.nodeId,
                 contentSrc: node.content.src || null,
               })
@@ -239,8 +236,8 @@ export function HomeEditorStateApplier({ nodes }: { nodes: HomeEditorNodeOverrid
         else el.style.filter = filterValue
       }
 
-      if (traceRelease) {
-        console.info("[RELEASE-TRACE][state-applier][after]", {
+      if (process.env.NODE_ENV !== "production" && traceNodeId && traceNodeId === node.nodeId) {
+        console.info("[home-editor-state-applier][trace][after]", {
           nodeId: node.nodeId,
           domStyle: {
             transform: el.style.transform || null,

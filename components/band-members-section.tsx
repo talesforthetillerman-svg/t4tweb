@@ -8,20 +8,12 @@ import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-ove
 import { SectionHeader } from "@/components/section-header"
 import { useVisualEditor } from "@/components/visual-editor"
 import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
+import { getTraceNodeId } from "@/lib/sanity/env"
+import type { BandMemberData } from "@/lib/sanity/band-members-loader"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 
-import { client } from "@/lib/sanity/client"
-import { bandMembersQuery } from "@/lib/sanity/queries"
-
-const FALLBACK_MEMBERS = [
-  { id: 1, fullName: "Janosch Puhe", role: "Main Vocals", image: "/images/members/Janosch Puhe2.JPG" },
-  { id: 2, fullName: "J.Ma Garcia Lopez", role: "Keys and Synth", image: "/images/members/J.Ma Garcia Lopez2.JPG" },
-  { id: 3, fullName: "Otto Lorenz Contreras", role: "Drums", image: "/images/members/Otto Lorenz Contreras.JPG" },
-  { id: 4, fullName: "Robii Crowford", role: "Electric Guitar", image: "/images/members/Robii Crowford.JPG" },
-  { id: 5, fullName: "Tarik Benatmane", role: "Electric Bass", image: "/images/members/Tarik Benatmane.JPG" },
-]
-
 interface BandMembersSectionProps {
+  initialMembers: BandMemberData[]
   overrides?: Record<string, HomeEditorNodeOverride>
 }
 
@@ -130,15 +122,16 @@ function buildInlineImageStyleFromOverride(override: HomeEditorNodeOverride | un
   return Object.keys(style).length > 0 ? style : undefined
 }
 
-export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) {
+export function BandMembersSection({ initialMembers, overrides = {} }: BandMembersSectionProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const [activeIndex, setActiveIndex] = useState<number>(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [members, setMembers] = useState(FALLBACK_MEMBERS)
+  const [members] = useState<BandMemberData[]>(initialMembers)
   const { opacity, y } = useScrollAnimation(sectionRef)
   const { isEditing } = useVisualEditor()
   const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
+  const traceNodeId = getTraceNodeId()
   const sectionOverride = overrides["band-members-section"]
   const bgOverride = overrides["band-members-bg"]
   const resolvedBandMembersBackgroundSrc = useHomeEditorImageSrc("band-members-bg", "/images/t4t-2.jpg")
@@ -154,19 +147,6 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
     checkMobile()
     window.addEventListener("resize", checkMobile)
     return () => window.removeEventListener("resize", checkMobile)
-  }, [])
-
-  useEffect(() => {
-    client.fetch(bandMembersQuery).then((data) => {
-      if (data && data.length > 0) {
-        setMembers(data.map((m: any, i: number) => ({
-          id: i + 1,
-          fullName: m.fullName,
-          role: m.role,
-          image: m.imageUrl || FALLBACK_MEMBERS[i]?.image || FALLBACK_MEMBERS[0]?.image || "",
-        })))
-      }
-    }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -203,8 +183,22 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
       : member.image,
   }))
   const activeMember = displayedMembers[activeIndex]
-  const activeImage = activeMember?.image || FALLBACK_MEMBERS[0]?.image || ""
+  const activeImage = activeMember?.image || initialMembers[0]?.image || ""
   const activeImageStyle = buildInlineImageStyleFromOverride(overrides[`member-item-${activeIndex}-image`])
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production" || !traceNodeId) return
+    if (!traceNodeId.startsWith("member-item-") && !traceNodeId.startsWith("band-members-")) return
+    console.info("[band-members][trace]", {
+      traceNodeId,
+      hasOverride: !!overrides[traceNodeId],
+      override: overrides[traceNodeId] || null,
+      activeIndex,
+      activeMember: activeMember
+        ? { id: activeMember.id, fullName: activeMember.fullName, role: activeMember.role, image: activeMember.image }
+        : null,
+    })
+  }, [traceNodeId, overrides, activeIndex, activeMember])
 
   return (
     <section

@@ -13,20 +13,26 @@ import { IntroBannerSection } from "@/components/intro-banner-section"
 import { loadHeroData } from "@/lib/sanity/hero-loader"
 import { loadNavigationData } from "@/lib/sanity/navigation-loader"
 import { loadIntroBannerData } from "@/lib/sanity/intro-banner-loader"
+import { loadBandMembersData } from "@/lib/sanity/band-members-loader"
+import { loadLiveConcerts } from "@/lib/live-concerts-loader"
 import { RibbonsBlock } from "@/components/ribbons-block"
 import { HomeEditorStateApplier } from "@/components/home-editor-state-applier"
 import { HomeEditorOverridesProvider } from "@/components/home-editor-overrides-provider"
 import { loadHomeEditorState } from "@/lib/sanity/home-editor-state-loader"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
+import { getTraceNodeId } from "@/lib/sanity/env"
 
 /** Always refetch hero from Sanity (editor deploy + revalidate); avoids stale static shell in dev). */
 export const dynamic = "force-dynamic"
 
 export default async function Home() {
-  const [heroData, navigationData, introBannerData, homeEditorNodes] = await Promise.all([
+  const traceNodeId = getTraceNodeId()
+  const [heroData, navigationData, introBannerData, bandMembersData, liveConcerts, homeEditorNodes] = await Promise.all([
     loadHeroData(),
     loadNavigationData(),
     loadIntroBannerData(),
+    loadBandMembersData(),
+    loadLiveConcerts(),
     loadHomeEditorState(),
   ])
   const latestReleaseNodeOverrides = homeEditorNodes
@@ -47,6 +53,18 @@ export default async function Home() {
       acc[node.nodeId] = node
       return acc
     }, {})
+
+  if (process.env.NODE_ENV !== "production" && traceNodeId) {
+    const tracedNode = homeEditorNodes.find((node) => node.nodeId === traceNodeId)
+    console.info("[home-page][trace]", {
+      traceNodeId,
+      foundInLoadedNodes: !!tracedNode,
+      foundInLatestReleaseOverrides: Boolean(latestReleaseNodeOverrides[traceNodeId]),
+      foundInBandMembersOverrides: Boolean(bandMembersNodeOverrides[traceNodeId]),
+      foundInLiveOverrides: Boolean(liveNodeOverrides[traceNodeId]),
+      tracedNode: tracedNode || null,
+    })
+  }
 
   return (
     <main className="relative overflow-x-clip bg-black">
@@ -80,13 +98,13 @@ export default async function Home() {
       <SectionDivider editorId="section-divider-press-band" />
 
       <SceneSection id="band">
-        <BandMembersSection overrides={bandMembersNodeOverrides} />
+        <BandMembersSection initialMembers={bandMembersData} overrides={bandMembersNodeOverrides} />
       </SceneSection>
 
       <SectionDivider editorId="section-divider-band-live" />
 
       <SceneSection id="live">
-        <LiveSection overrides={liveNodeOverrides} />
+        <LiveSection initialConcerts={liveConcerts} overrides={liveNodeOverrides} />
       </SceneSection>
 
       <SectionDivider editorId="section-divider-live-contact" />
