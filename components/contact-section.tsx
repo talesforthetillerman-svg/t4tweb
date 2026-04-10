@@ -225,7 +225,7 @@ export function ContactSection() {
       data-editor-node-id="contact-section"
       data-editor-node-type="section"
       data-editor-node-label="Sección de Contacto"
-      className="relative min-h-screen overflow-hidden"
+      className="relative min-h-[82vh] min-h-[82dvh] overflow-hidden sm:min-h-screen sm:min-h-[100dvh]"
     >
       <div 
         ref={bgRef}
@@ -261,7 +261,7 @@ export function ContactSection() {
         </motion.div>
 
         {/* Contact Options */}
-        <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8">
+        <div className="flex flex-col items-stretch justify-center gap-4 md:flex-row md:items-center md:gap-8">
           <motion.a
             ref={emailCardRef}
             data-editor-node-id="contact-email"
@@ -285,7 +285,7 @@ export function ContactSection() {
               data-editor-node-id="contact-email-title"
               data-editor-node-type="text"
               data-editor-node-label="Título Email"
-              className="font-serif text-lg md:text-xl text-foreground mb-2"
+              className="mb-2 font-serif text-base text-foreground md:text-xl"
             >
               Email Us
             </h3>
@@ -294,11 +294,11 @@ export function ContactSection() {
               data-editor-node-id="contact-email-description"
               data-editor-node-type="text"
               data-editor-node-label="Descripción Email"
-              className="text-muted-foreground text-sm md:text-base mb-3 md:mb-4"
+              className="mb-3 text-sm text-muted-foreground md:mb-4 md:text-base"
             >
               Momo Garcia - Management
             </p>
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs md:text-sm max-w-full ${CAMPAIGN_PRIMARY_CTA_CLASS}`}>
+            <span className={`inline-flex max-w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium md:text-sm ${CAMPAIGN_PRIMARY_CTA_CLASS}`}>
               <span 
                 ref={emailAddrRef}
                 data-editor-node-id="contact-email-address"
@@ -311,8 +311,8 @@ export function ContactSection() {
             </span>
           </motion.a>
 
-          <div className="text-center px-4">
-            <p ref={middleTextRef} data-editor-node-id="contact-middle-text" data-editor-node-type="text" data-editor-node-label="Contact Middle Text" className="text-muted-foreground text-sm md:text-base">
+          <div className="px-4 text-center">
+            <p ref={middleTextRef} data-editor-node-id="contact-middle-text" data-editor-node-type="text" data-editor-node-label="Contact Middle Text" className="text-xs text-muted-foreground md:text-base">
               Choose your preferred<br />
               way to reach us
             </p>
@@ -343,7 +343,7 @@ export function ContactSection() {
               data-editor-node-id="contact-telegram-title"
               data-editor-node-type="text"
               data-editor-node-label="Título Telegram"
-              className="font-serif text-lg md:text-xl text-foreground mb-2"
+              className="mb-2 font-serif text-base text-foreground md:text-xl"
             >
               Telegram
             </h3>
@@ -352,11 +352,11 @@ export function ContactSection() {
               data-editor-node-id="contact-telegram-description"
               data-editor-node-type="text"
               data-editor-node-label="Descripción Telegram"
-              className="text-muted-foreground text-sm md:text-base mb-3 md:mb-4"
+              className="mb-3 text-sm text-muted-foreground md:mb-4 md:text-base"
             >
               Janosch Puhe - Quick response
             </p>
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs md:text-sm max-w-full ${CAMPAIGN_PRIMARY_CTA_CLASS}`}>
+            <span className={`inline-flex max-w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium md:text-sm ${CAMPAIGN_PRIMARY_CTA_CLASS}`}>
               <span 
                 ref={telegramHandleRef}
                 data-editor-node-id="contact-telegram-handle"

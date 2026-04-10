@@ -1,23 +1,87 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useMemo, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
 import Image from "next/image"
-import { client } from "@/lib/sanity/client"
-import { heroQuery } from "@/lib/sanity/queries"
 import { useVisualEditor } from "@/components/visual-editor"
+import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
+import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-overrides"
+import type { HeroData } from "@/lib/sanity/hero-loader"
+import {
+  buildHeroScrollIndicatorLayoutStyle,
+  getElementLayoutStyle,
+  roundLayoutPx,
+} from "@/lib/hero-layout-styles"
 
-const FALLBACK = {
-  title: "A vibrant blend of",
-  titleHighlight: "funk, soul and world music",
-  subtitle: "BERLIN-BASED LIVE COLLECTIVE",
-  logoUrl: "/images/t4tPics/logo-white.png",
-  bgUrl: "/images/t4tPics/hero-bg.jpg",
+const getElementStyle = getElementLayoutStyle
+
+function scrollIndicatorHasLayout(elementStyles: Record<string, unknown> | undefined): boolean {
+  const s = elementStyles?.["hero-scroll-indicator"]
+  if (!s || typeof s !== "object") return false
+  const o = s as Record<string, unknown>
+  return (
+    typeof o.x === "number" ||
+    typeof o.y === "number" ||
+    typeof o.width === "number" ||
+    typeof o.height === "number" ||
+    (typeof o.scale === "number" && o.scale !== 1)
+  )
 }
 
-export function HeroSection() {
+function getScrollIndicatorStyle(elementStyles: Record<string, unknown> | undefined): React.CSSProperties {
+  if (!elementStyles?.["hero-scroll-indicator"]) return {}
+  const styles = elementStyles["hero-scroll-indicator"] as Record<string, unknown>
+  const tx = typeof styles.x === "number" ? roundLayoutPx(styles.x as number) : 0
+  const ty = typeof styles.y === "number" ? roundLayoutPx(styles.y as number) : 0
+  const scaleVal = typeof styles.scale === "number" ? styles.scale : 1
+  const needScale = typeof styles.scale === "number" && scaleVal !== 1
+  return buildHeroScrollIndicatorLayoutStyle({
+    x: tx,
+    y: ty,
+    scale: needScale ? scaleVal : undefined,
+    width: typeof styles.width === "number" ? roundLayoutPx(styles.width as number) : undefined,
+    height: typeof styles.height === "number" ? roundLayoutPx(styles.height as number) : undefined,
+  })
+}
+
+interface HeroDebug {
+  sourceUsed: "server"
+  hasTitleSegments: boolean
+  titleSegmentsCount: number
+  titleValue: string
+  titleHighlightValue: string
+  segmentTexts: string[]
+  hasGradientFields: boolean
+}
+
+interface HeroTitleSegment {
+  text: string
+  color?: string
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  opacity?: number
+  fontSize?: string
+  fontFamily?: string
+  gradientEnabled?: boolean
+  gradientStart?: string
+  gradientEnd?: string
+}
+
+export function HeroSection({ data }: { data: HeroData }) {
   const sectionRef = useRef<HTMLElement>(null)
-  const [data, setData] = useState<typeof FALLBACK | null>(null)
+  const [isDebugMode, setIsDebugMode] = useState(false)
+
+  // Build debug info from server-passed data
+  const debug = useMemo<HeroDebug>(() => ({
+    sourceUsed: "server",
+    hasTitleSegments: Array.isArray(data.titleSegments) && data.titleSegments.length > 0,
+    titleSegmentsCount: Array.isArray(data.titleSegments) ? data.titleSegments.length : 0,
+    titleValue: data.title || "",
+    titleHighlightValue: data.titleHighlight || "",
+    segmentTexts: Array.isArray(data.titleSegments) ? data.titleSegments.map((s) => s.text || "") : [],
+    hasGradientFields: Array.isArray(data.titleSegments) && data.titleSegments.some((s) => s.gradientEnabled === true),
+  }), [data])
 
   // Editable refs
   const heroSectionRef = useRef<HTMLElement>(null)
@@ -30,6 +94,13 @@ export function HeroSection() {
   const heroScrollRef = useRef<HTMLDivElement>(null)
 
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
+  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
+
+  // Sync debug mode from query param (client-side only after hydration)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setIsDebugMode(params.get("heroDebug") === "1")
+  }, [isEditing])
 
   // Register editable elements - only on isEditing change
   useEffect(() => {
@@ -172,21 +243,35 @@ export function HeroSection() {
   const backgroundScale = useTransform(scrollYProgress, [0, 1], [1, 1.06])
   const backgroundY = useTransform(scrollYProgress, [0, 1], [0, 35])
 
-  useEffect(() => {
-    client.fetch(heroQuery).then((data) => {
-      if (data && (data.bgUrl || data.title)) {
-        setData({
-          title: data.title || FALLBACK.title,
-          titleHighlight: data.titleHighlight || FALLBACK.titleHighlight,
-          subtitle: data.subtitle || FALLBACK.subtitle,
-          logoUrl: data.logoUrl || FALLBACK.logoUrl,
-          bgUrl: data.bgUrl || FALLBACK.bgUrl,
-        })
-      } else {
-        setData(FALLBACK)
+  const content = data
+  const resolvedHeroBgSrc = useHomeEditorImageSrc("hero-bg-image", content.bgUrl)
+  const resolvedHeroLogoSrc = useHomeEditorImageSrc("hero-logo", content.logoUrl)
+  const scrollLayoutSaved = allowGeometryOverrides && scrollIndicatorHasLayout(content.elementStyles)
+  const heroTitleMode: "legacy" | "segmented" = Array.isArray(content.titleSegments) && content.titleSegments.length > 0 ? "segmented" : "legacy"
+  const normalizedTitleSegments = useMemo(() => {
+    if (heroTitleMode !== "segmented") return []
+    const source = (content.titleSegments || []).map((segment) => ({ ...segment, text: (segment.text || "").trim() })).filter((segment) => segment.text.length > 0)
+    if (source.length === 0) return []
+
+    const deduped: HeroTitleSegment[] = []
+    source.forEach((segment) => {
+      const previous = deduped[deduped.length - 1]
+      if (previous && previous.text.toLowerCase() === segment.text.toLowerCase()) return
+      deduped.push(segment)
+    })
+
+    if (deduped.length >= 2) {
+      const first = deduped[0]
+      const second = deduped[1]
+      const firstLower = first.text.toLowerCase()
+      const secondLower = second.text.toLowerCase()
+      if (firstLower.endsWith(secondLower) && first.text.length > second.text.length) {
+        const trimmedFirst = first.text.slice(0, first.text.length - second.text.length).trim()
+        if (trimmedFirst.length > 0) {
+          deduped[0] = { ...first, text: trimmedFirst }
+        }
       }
-    }).catch(() => setData(FALLBACK))
-  }, [])
+    }
 
   const content = data || FALLBACK
   const mainTitleText = content.title || FALLBACK.title
@@ -202,7 +287,8 @@ export function HeroSection() {
       data-editor-node-id="hero-section"
       data-editor-node-type="section"
       data-editor-node-label="Hero Section"
-      className="relative flex min-h-screen w-full items-stretch overflow-hidden bg-black"
+      className="relative flex min-h-screen min-h-[100dvh] w-full items-stretch overflow-hidden bg-black"
+      style={getElementStyle(content.elementStyles, "hero-section", { includeGeometry: allowGeometryOverrides })}
     >
       <div className="absolute inset-0 z-0">
         <motion.div
@@ -216,9 +302,10 @@ export function HeroSection() {
             data-editor-media-kind="image"
             data-editor-node-label="Hero Background"
             className="absolute inset-0"
+            style={getElementStyle(content.elementStyles, "hero-bg-image", { includeGeometry: allowGeometryOverrides })}
           >
             <Image
-              src={content.bgUrl}
+              src={resolvedHeroBgSrc}
               alt="Tales for the Tillerman live atmosphere"
               fill
               priority
@@ -241,8 +328,8 @@ export function HeroSection() {
         className="absolute inset-0 z-[1] bg-gradient-to-r from-transparent via-[#FF8C21]/21 to-transparent"
       />
 
-      <div className="relative z-10 flex min-h-screen w-full flex-col justify-end px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center text-center pb-8 pt-16">
+      <div className="relative z-10 flex min-h-screen min-h-[100dvh] w-full flex-col justify-end px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-center pb-7 pt-16 text-center sm:pb-10 sm:pt-20">
           <h1 
             className="max-w-[880px] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.9rem] mb-6"
           >
@@ -273,10 +360,14 @@ export function HeroSection() {
               data-editor-node-type="image"
               data-editor-node-label="Hero Logo"
               className="relative"
-              style={{ width: 141, height: 141 }}
+              style={{
+                width: "clamp(6rem, 22vw, 8.8125rem)",
+                height: "clamp(6rem, 22vw, 8.8125rem)",
+                ...getElementStyle(data.elementStyles, "hero-logo", { includeGeometry: allowGeometryOverrides }),
+              }}
             >
               <Image
-                src={content.logoUrl}
+                src={resolvedHeroLogoSrc}
                 alt="Tales for the Tillerman logo"
                 fill
                 priority
@@ -289,7 +380,8 @@ export function HeroSection() {
               data-editor-node-id="hero-subtitle"
               data-editor-node-type="text"
               data-editor-node-label="Subtítulo"
-              className="mt-3 text-sm font-semibold uppercase tracking-[0.38em] text-[#ffd3a3]"
+              className="mt-2.5 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ffd3a3] sm:text-sm sm:tracking-[0.3em]"
+              style={getElementStyle(data.elementStyles, "hero-subtitle", { includeGeometry: allowGeometryOverrides })}
             >
               {content.subtitle}
             </p>
@@ -303,13 +395,38 @@ export function HeroSection() {
         data-editor-node-type="card"
         data-editor-node-label="Scroll Indicator"
         data-editor-grouped="true"
-        className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 text-white/80"
+        className={
+          scrollLayoutSaved
+            ? "absolute z-30 hidden sm:flex flex-col items-center gap-1 text-white/80"
+            : "absolute bottom-4 left-1/2 z-30 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 text-white/80"
+        }
+        style={scrollLayoutSaved ? getScrollIndicatorStyle(content.elementStyles) : undefined}
       >
         <span className="text-lg uppercase tracking-[0.42em]">SCROLL</span>
         <svg className="h-9 w-9" fill="none" stroke="currentColor" strokeWidth={2.7} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7" />
         </svg>
       </div>
+
+      {isDebugMode && (
+        <div className="absolute top-4 right-4 z-[9999] rounded-lg bg-black/80 px-3 py-2 text-left text-[10px] font-mono text-white/80 backdrop-blur-sm border border-white/10">
+          <div className="font-bold text-white/90 mb-1">Hero Debug</div>
+          <div>source: <span className="text-green-400">{debug.sourceUsed}</span></div>
+          <div>title: <span className="text-yellow-300">{debug.titleValue || "(empty)"}</span></div>
+          <div>titleHighlight: <span className="text-orange-400">{debug.titleHighlightValue || "(empty)"}</span></div>
+          <div>segments: {debug.titleSegmentsCount}</div>
+          {debug.segmentTexts.map((t, i) => (
+            <div key={i} className="text-white/60 ml-2">  [{i}]: {t}</div>
+          ))}
+          <div>gradient fields: {debug.hasGradientFields ? "yes" : "no"}</div>
+          <div className="mt-1 border-t border-white/10 pt-1">
+            elementStyles keys:{" "}
+            {data.elementStyles && Object.keys(data.elementStyles).length > 0
+              ? Object.keys(data.elementStyles).join(", ")
+              : "(none)"}
+          </div>
+        </div>
+      )}
     </section>
   )
 }

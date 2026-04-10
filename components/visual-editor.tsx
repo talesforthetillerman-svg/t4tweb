@@ -10,6 +10,22 @@ type NodeType = "section" | "background" | "card" | "text" | "button" | "image"
 type Point = { x: number; y: number }
 
 type Size = { width: number; height: number }
+type ConcertField = "date" | "venue" | "city" | "country" | "genre" | "price" | "status" | "time" | "capacity" | "locationUrl"
+
+interface TextSegment {
+  text: string
+  color: string
+  bold: boolean
+  italic: boolean
+  underline: boolean
+  opacity: number
+  fontSize?: string
+  fontFamily?: string
+  /** Filled gradient on this phrase (matches Sanity + public hero) */
+  gradientEnabled?: boolean
+  gradientStart?: string
+  gradientEnd?: string
+}
 
 interface TextSegment {
   text: string
@@ -70,7 +86,7 @@ interface EditorNode {
   explicitSize: boolean
 }
 
-interface RuntimeEntry {
+export interface RuntimeEntry {
   id: string
   type: NodeType
   sectionId: string
@@ -99,6 +115,15 @@ interface AssetItem {
   id: string
   url: string
   filename: string
+}
+
+type PrecheckLevel = "green" | "yellow" | "red"
+
+interface PrecheckFinding {
+  element: string
+  issue: string
+  severity: PrecheckLevel
+  blocks: boolean
 }
 
 interface VisualEditorContextType {
@@ -154,6 +179,20 @@ const typePriority: Record<NodeType, number> = {
   image: 3,
 }
 
+const RELEASE_TRACE_IDS = new Set([
+  "latest-release-section",
+  "latest-release-bg",
+  "latest-release-card",
+  "latest-release-title",
+  "latest-release-subtitle",
+  "latest-release-watch-button",
+  "latest-release-shows-button",
+])
+
+function isReleaseTraceNode(nodeId: string | null | undefined): boolean {
+  return !!nodeId && RELEASE_TRACE_IDS.has(nodeId)
+}
+
 function isEditingInput(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   const tag = target.tagName
@@ -173,6 +212,43 @@ function parseGrouped(value: string | null): boolean {
   return value === "true"
 }
 
+function parseDatasetNumber(value: string | undefined): number | null {
+  if (!value) return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function readHydratedNodeOverride(nodeId: string): HydratedNodeOverride | null {
+  if (typeof window === "undefined") return null
+  const bag = (window as Window & { __HOME_EDITOR_NODE_OVERRIDES__?: Record<string, HydratedNodeOverride> }).__HOME_EDITOR_NODE_OVERRIDES__
+  if (!bag || typeof bag !== "object") return null
+  const value = bag[nodeId]
+  return value && typeof value === "object" ? value : null
+}
+
+function extractConcertCardId(nodeId: string | null | undefined): string | null {
+  if (!nodeId) return null
+  const direct = nodeId.match(/^live-(upcoming|history)-event-(\d+)$/)
+  if (direct) return nodeId
+  const nested = nodeId.match(/^live-(upcoming|history)-event-(\d+)-/)
+  if (!nested) return null
+  return `live-${nested[1]}-event-${nested[2]}`
+}
+
+function extractBandMemberIndex(nodeId: string | null | undefined): number | null {
+  if (!nodeId) return null
+  const match = /^member-item-(\d+)(?:-(name|role|number|image))?$/.exec(nodeId)
+  if (!match) return null
+  const index = Number(match[1])
+  return Number.isFinite(index) ? index : null
+}
+
+function getConcertFieldFromNodeContent(node: EditorNode | null, field: ConcertField): string {
+  if (!node) return ""
+  const value = node.content[field as keyof EditorNode["content"]]
+  return typeof value === "string" ? value : ""
+}
+
 function rgbToHex(rgb: string): string {
   if (!rgb) return "#ffffff"
   if (rgb.startsWith("#")) return rgb
@@ -180,6 +256,59 @@ function rgbToHex(rgb: string): string {
   if (!match || match.length < 3) return "#ffffff"
   const [r, g, b] = match.slice(0, 3).map(Number)
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+}
+
+function parseCssColor(input: string | undefined): { r: number; g: number; b: number; a: number } | null {
+  if (!input) return null
+  const color = input.trim()
+  if (!color) return null
+  if (color.startsWith("#")) {
+    const hex = color.slice(1)
+    if (hex.length === 3) {
+      const r = Number.parseInt(hex[0] + hex[0], 16)
+      const g = Number.parseInt(hex[1] + hex[1], 16)
+      const b = Number.parseInt(hex[2] + hex[2], 16)
+      return { r, g, b, a: 1 }
+    }
+    if (hex.length === 6 || hex.length === 8) {
+      const r = Number.parseInt(hex.slice(0, 2), 16)
+      const g = Number.parseInt(hex.slice(2, 4), 16)
+      const b = Number.parseInt(hex.slice(4, 6), 16)
+      const a = hex.length === 8 ? Number.parseInt(hex.slice(6, 8), 16) / 255 : 1
+      return { r, g, b, a }
+    }
+    return null
+  }
+  const rgbaMatch = color.match(/rgba?\(([^)]+)\)/i)
+  if (!rgbaMatch) return null
+  const parts = rgbaMatch[1].split(",").map((part) => part.trim())
+  if (parts.length < 3) return null
+  const r = Number(parts[0])
+  const g = Number(parts[1])
+  const b = Number(parts[2])
+  const a = parts[3] !== undefined ? Number(parts[3]) : 1
+  if (![r, g, b, a].every((value) => Number.isFinite(value))) return null
+  return { r, g, b, a: Math.max(0, Math.min(1, a)) }
+}
+
+function withColorOpacity(input: string, opacity: number): string {
+  const parsed = parseCssColor(input)
+  if (!parsed) return input
+  const alpha = Math.max(0, Math.min(1, opacity))
+  return `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${alpha.toFixed(3)})`
+}
+
+function readColorOpacity(input: string | undefined): number {
+  const parsed = parseCssColor(input)
+  return parsed?.a ?? 1
+}
+
+function isPersistableImageSrc(value: string | undefined): boolean {
+  if (!value) return false
+  const src = value.trim()
+  if (!src) return false
+  if (src.startsWith("blob:") || src.startsWith("data:") || src.startsWith("javascript:")) return false
+  return src.startsWith("http://") || src.startsWith("https://") || src.startsWith("/")
 }
 
 const VisualEditorContext = createContext<VisualEditorContextType>({
@@ -239,9 +368,43 @@ function scanRegistry(): Map<string, RuntimeEntry> {
   return map
 }
 
+function areRuntimeEntriesEquivalent(a: RuntimeEntry, b: RuntimeEntry): boolean {
+  return (
+    a.id === b.id &&
+    a.type === b.type &&
+    a.sectionId === b.sectionId &&
+    a.label === b.label &&
+    a.isGrouped === b.isGrouped &&
+    a.element === b.element &&
+    a.visible === b.visible &&
+    a.eligible === b.eligible
+  )
+}
+
+function areRegistryMapsEquivalent(a: Map<string, RuntimeEntry>, b: Map<string, RuntimeEntry>): boolean {
+  if (a.size !== b.size) return false
+  for (const [id, entryA] of a) {
+    const entryB = b.get(id)
+    if (!entryB) return false
+    if (!areRuntimeEntriesEquivalent(entryA, entryB)) return false
+  }
+  return true
+}
+
+function areNodeMapsReferenceEqual(a: Map<string, EditorNode>, b: Map<string, EditorNode>): boolean {
+  if (a.size !== b.size) return false
+  for (const [id, nodeA] of a) {
+    if (b.get(id) !== nodeA) return false
+  }
+  return true
+}
+
 function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
   const el = entry.element
+  const hydrated = readHydratedNodeOverride(entry.id)
   const content: EditorNode["content"] = {}
+  const isStructuredConcertCard =
+    entry.type === "card" && (el.dataset.concertCard === "true" || Boolean(el.querySelector("[data-concert-field]")))
   if (entry.type === "text" || entry.type === "button" || entry.type === "card") {
     content.text = el.textContent?.trim() || ""
     if (entry.id === "hero-title") {
@@ -323,13 +486,30 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
     }
   }
   const cs = getComputedStyle(el)
+  const explicitContent = hydrated?.explicitContent ?? (el.dataset.editorExplicitContent === "true")
+  const explicitStyle = hydrated?.explicitStyle ?? (el.dataset.editorExplicitStyle === "true")
+  const explicitPosition = hydrated?.explicitPosition ?? (el.dataset.editorExplicitPosition === "true")
+  const explicitSize = hydrated?.explicitSize ?? (el.dataset.editorExplicitSize === "true")
+  const geometryX = parseDatasetNumber(el.dataset.editorGeometryX)
+  const geometryY = parseDatasetNumber(el.dataset.editorGeometryY)
+  const geometryWidth = parseDatasetNumber(el.dataset.editorGeometryWidth)
+  const geometryHeight = parseDatasetNumber(el.dataset.editorGeometryHeight)
+  const hydratedGeometry = hydrated?.geometry || null
+  const hydratedStyle = hydrated?.style || null
+  const hydratedContent = hydrated?.content || null
+
   return {
     id: entry.id,
     type: entry.type,
     sectionId: entry.sectionId,
     label: entry.label,
     isGrouped: entry.isGrouped,
-    geometry: { x: 0, y: 0, width: entry.rect.width, height: entry.rect.height },
+    geometry: {
+      x: (typeof hydratedGeometry?.x === "number" ? hydratedGeometry.x : null) ?? geometryX ?? 0,
+      y: (typeof hydratedGeometry?.y === "number" ? hydratedGeometry.y : null) ?? geometryY ?? 0,
+      width: (typeof hydratedGeometry?.width === "number" ? hydratedGeometry.width : null) ?? geometryWidth ?? entry.rect.width,
+      height: (typeof hydratedGeometry?.height === "number" ? hydratedGeometry.height : null) ?? geometryHeight ?? entry.rect.height,
+    },
     style: {
       color: rgbToHex(cs.color),
       backgroundColor: cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)" ? rgbToHex(cs.backgroundColor) : undefined,
@@ -342,6 +522,7 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
       minHeight: cs.minHeight,
       paddingTop: cs.paddingTop,
       paddingBottom: cs.paddingBottom,
+      ...(hydratedStyle || {}),
     },
     content,
     explicitContent: false,
@@ -394,7 +575,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isEditing) return
     const nextRegistry = scanRegistry()
-    setRegistry(nextRegistry)
+    setRegistry((prev) => (areRegistryMapsEquivalent(prev, nextRegistry) ? prev : nextRegistry))
     const nextNodes = new Map<string, EditorNode>()
     nextRegistry.forEach((entry, id) => {
       nextNodes.set(id, buildNodeFromEntry(entry))
@@ -524,7 +705,28 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       const patchNode = (nodeId: string, updater: (node: EditorNode) => EditorNode) => {
         const node = next.get(nodeId)
         if (!node) return
-        next.set(nodeId, updater(node))
+        const updated = updater(node)
+        if (updated === node) return
+        next.set(nodeId, updated)
+        if (isReleaseTraceNode(nodeId)) {
+          console.info("[RELEASE-TRACE][dispatch][patchNode]", {
+            nodeId,
+            before: {
+              geometry: node.geometry,
+              explicitContent: node.explicitContent,
+              explicitStyle: node.explicitStyle,
+              explicitPosition: node.explicitPosition,
+              explicitSize: node.explicitSize,
+            },
+            after: {
+              geometry: updated.geometry,
+              explicitContent: updated.explicitContent,
+              explicitStyle: updated.explicitStyle,
+              explicitPosition: updated.explicitPosition,
+              explicitSize: updated.explicitSize,
+            },
+          })
+        }
       }
 
       let shouldSnapshot = true
@@ -617,6 +819,9 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
             setSelectedId(null)
             setOpenPanel(false)
           }
+          next.delete(command.nodeId)
+          setSelectedId((current) => (current === command.nodeId ? null : current))
+          setOpenPanel((current) => (current ? false : current))
           break
         case "COPY_NODE": {
           const node = next.get(command.nodeId)
@@ -637,6 +842,9 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
             setSelectedId(null)
             setOpenPanel(false)
           }
+          next.delete(command.nodeId)
+          setSelectedId((current) => (current === command.nodeId ? null : current))
+          setOpenPanel((current) => (current ? false : current))
           break
         }
         case "PASTE_NODE": {
@@ -698,6 +906,14 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     for (const candidate of els) {
       if (!(candidate instanceof HTMLElement)) continue
       if (candidate.closest("[data-editor-toolbar]") || candidate.closest("[data-editor-panel]")) continue
+
+      // Concert card editing always wins over parent grouped lists and generic card handlers.
+      const concertCard = candidate.closest<HTMLElement>("[data-concert-card='true'][data-editor-node-id]")
+      if (concertCard?.dataset.editorNodeId) {
+        const concertEntry = registry.get(concertCard.dataset.editorNodeId)
+        if (concertEntry?.eligible) return concertEntry
+      }
+
       const bound = candidate.closest<HTMLElement>("[data-editor-node-id]")
       if (!bound?.dataset.editorNodeId) continue
       const entry = registry.get(bound.dataset.editorNodeId)
@@ -760,6 +976,28 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         registryRafRef.current = null
       }
     }
+  }, [isEditing, refreshRegistry])
+
+  useEffect(() => {
+    if (!isEditing) return
+    setNodes((prev) => {
+      const next = new Map(prev)
+      let changed = false
+
+      registry.forEach((entry, id) => {
+        if (next.has(id)) return
+        next.set(id, buildNodeFromEntry(entry))
+        changed = true
+      })
+
+      for (const id of next.keys()) {
+        if (registry.has(id)) continue
+        next.delete(id)
+        changed = true
+      }
+
+      return changed ? next : prev
+    })
   }, [isEditing, registry])
 
   const value: VisualEditorContextType = {
@@ -1102,6 +1340,29 @@ export function VisualEditorOverlay() {
       if (target.closest("[data-editor-toolbar]") || target.closest("[data-editor-panel]") || target.closest("[data-editor-overlay]") || target.closest("[data-editor-deploy-modal]")) return
       const hit = getEditableAtPosition(e.clientX, e.clientY)
       if (hit) {
+        if (multiModifier) {
+          e.preventDefault()
+          e.stopPropagation()
+          const current = selectedIdsRef.current
+          let next: string[]
+          if (current.includes(hit.id)) {
+            next = current.filter((id) => id !== hit.id)
+            if (next.length === 0) {
+              dispatch({ type: "DESELECT_NODE" })
+            } else {
+              dispatch({ type: "SELECT_NODE", nodeId: next[0] })
+            }
+          } else {
+            next = [...current, hit.id]
+            dispatch({ type: "SELECT_NODE", nodeId: hit.id })
+          }
+          setSelectedIds(next)
+          const bandMemberIndex = extractBandMemberIndex(hit.id)
+          if (bandMemberIndex !== null) {
+            window.dispatchEvent(new CustomEvent("editor-band-member-focus", { detail: { index: bandMemberIndex } }))
+          }
+          return
+        }
         e.preventDefault()
         e.stopPropagation()
         dispatch({ type: "SELECT_NODE", nodeId: hit.id })
@@ -1117,7 +1378,13 @@ export function VisualEditorOverlay() {
           lastGeometry: n ? { ...n.geometry } : null,
         })
       } else {
+        if (multiModifier) {
+          marqueeRef.current = { active: true, start: { x: e.clientX, y: e.clientY } }
+          setMarqueeRect({ x: e.clientX, y: e.clientY, width: 0, height: 0 })
+          return
+        }
         dispatch({ type: "DESELECT_NODE" })
+        setSelectedIds([])
       }
     }
 
@@ -1263,11 +1530,27 @@ export function VisualEditorOverlay() {
       window.removeEventListener("keydown", onKeyDown)
       document.body.removeAttribute("data-editor-mode")
     }
-  }, [isEditing, dispatch, selectedId, nodes, undo, redo, getEditableAtPosition])
+  }, [isEditing, dispatch, selectedId, selectedIds, undo, redo, getEditableAtPosition, marqueeRect, registry])
 
   if (!isEditing) {
     return null
   }
+
+  const deployStatusColor =
+    deployStatus === "success" ? "text-emerald-300" :
+    deployStatus === "partial" ? "text-amber-300" :
+    deployStatus === "failed" ? "text-red-300" :
+    "text-slate-300"
+  const deployStatusTitle =
+    deployStatus === "success" ? "Success" :
+    deployStatus === "partial" ? "Partial" :
+    deployStatus === "failed" ? "Error / Failed" :
+    "Saving..."
+  const deployStatusMessage =
+    deployStatus === "success" ? "All changes were saved and propagated." :
+    deployStatus === "partial" ? "Some changes were saved, but propagation is incomplete." :
+    deployStatus === "failed" ? "Save/deploy failed. Review technical details." :
+    "Deploy is currently running."
 
   return (
     <>
@@ -1578,6 +1861,18 @@ export function VisualEditorOverlay() {
 
             {selectedNode.type === "button" && (
               <>
+                <label className="text-[10px]">Button opacity ({readColorOpacity(selectedNode.style.backgroundColor).toFixed(2)})</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  className="w-full"
+                  value={readColorOpacity(selectedNode.style.backgroundColor)}
+                  onChange={(e) => {
+                    dispatch({ type: "UPDATE_BUTTON", nodeId: selectedNode.id, patch: buildBoxOpacityPatch(selectedNode.id, Number(e.target.value)) })
+                  }}
+                />
                 <label className="text-xs font-semibold">Link</label>
                 <input
                   className="w-full rounded border p-1 text-xs"
@@ -1608,7 +1903,7 @@ export function VisualEditorOverlay() {
                   type="file"
                   accept="image/*"
                   className="w-full text-xs"
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const file = e.target.files?.[0]
                     if (!file) return
                     const url = URL.createObjectURL(file)
@@ -1752,6 +2047,20 @@ export function VisualEditorOverlay() {
 
             {selectedNode.type === "section" && (
               <>
+                {selectedNode.id === "navigation" && (
+                  <>
+                    <label className="text-xs font-semibold">Scrolled background opacity ({(selectedNode.style.opacity ?? 0.8).toFixed(2)})</label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      className="w-full"
+                      value={selectedNode.style.opacity ?? 0.8}
+                      onChange={(e) => dispatch({ type: "UPDATE_SECTION", nodeId: selectedNode.id, patch: { opacity: Number(e.target.value) } })}
+                    />
+                  </>
+                )}
                 <label className="text-xs font-semibold">Min Height</label>
                 <input
                   className="w-full rounded border p-1 text-xs"

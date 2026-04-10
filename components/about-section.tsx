@@ -201,7 +201,7 @@ Their performances balance musical depth with danceable power, bringing together
       <div className="section-photo-fade-bottom z-10" />
 
       {/* Contenido */}
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 sm:px-8">
+      <div className="relative z-10 flex min-h-screen min-h-[100dvh] items-center justify-center px-4 sm:px-6 lg:px-8">
         <motion.div 
           style={isEditing ? undefined : { opacity, y }} 
           className="mx-auto w-full max-w-4xl"

@@ -16,8 +16,7 @@ export const heroQuery = groq`*[_type == "heroSection"][0]{
   subtitle,
   description,
   "logoUrl": logo.asset->url,
-  "bgUrl": backgroundImage.asset->url,
-  ctaButtons[]{ label, href, variant }
+  "bgUrl": backgroundImage.asset->url
 }`
 
 export const aboutQuery = groq`*[_type == "aboutSection"][0]{
@@ -89,5 +88,6 @@ export const navigationQuery = groq`*[_type == "navigation"][0]{
   "brandLogoUrl": brandLogo.asset->url,
   links[]{ label, href },
   ctaLabel,
-  ctaHref
+  ctaHref,
+  elementStyles
 }`

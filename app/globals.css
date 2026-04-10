@@ -108,6 +108,7 @@
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 80px;
+    overflow-x: clip;
   }
 
   body {
@@ -116,6 +117,7 @@
     font-size: var(--text-body);
     line-height: var(--line-height-normal);
     color: var(--text-primary);
+    overflow-x: clip;
   }
 
   /* ========================================================================

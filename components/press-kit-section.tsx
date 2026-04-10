@@ -31,6 +31,20 @@ export function PressKitSection() {
       download: true,
     },
     {
+      title: "Press Photos",
+      description: "Official high-res band photography",
+      icon: ImageIcon,
+      href: "/images/about-bg-main.jpg",
+      download: true,
+    },
+    {
+      title: "Stage Plot",
+      description: "Live setup technical rider",
+      icon: FolderIcon,
+      href: "/PressKit T40 2025.26_compressed.pdf",
+      download: true,
+    },
+    {
       title: "Linktree",
       description: "All links in one place",
       icon: LinkIcon,
@@ -204,7 +218,7 @@ export function PressKitSection() {
   return (
     <section 
       ref={sectionRef} 
-      className="relative w-full overflow-hidden"
+      className="relative min-h-[85vh] min-h-[85dvh] w-full overflow-hidden sm:min-h-screen sm:min-h-[100dvh]"
       data-editor-node-id="press-kit-section"
       data-editor-node-type="section"
       data-editor-node-label="Press Kit Section"
@@ -227,7 +241,7 @@ export function PressKitSection() {
       <div className="section-photo-fade-bottom" />
 
       <div className="relative z-20">
-        <div className="relative z-10 mx-auto max-w-7xl">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
           <motion.div 
             ref={headerRef}
             style={isEditing ? undefined : { opacity, y }} 
@@ -252,17 +266,17 @@ export function PressKitSection() {
             className="mb-10 md:mb-12"
           >
             <div 
-              className="rounded-2xl border border-border bg-card/35 p-7 text-center shadow-md backdrop-blur-sm md:p-10"
+              className="rounded-xl border border-border bg-card/35 p-4 text-center shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-6 md:p-9"
               data-editor-node-id="press-kit-main-card"
               data-editor-node-type="card"
               data-editor-node-label="Main Press Kit Card"
             >
-              <div ref={folderIconRef} className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-xl bg-[#FF8C21]/18 md:mb-6 md:h-20 md:w-20">
-                <FolderIcon className="h-9 w-9 text-[#FF8C21] md:h-10 md:w-10" />
+              <div ref={folderIconRef} className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-[#FF8C21]/18 sm:mb-5 sm:h-16 sm:w-16 md:mb-6 md:h-20 md:w-20">
+                <FolderIcon className="h-8 w-8 text-[#FF8C21] sm:h-9 sm:w-9 md:h-10 md:w-10" />
               </div>
               <h3 
                 ref={titleRef}
-                className="mb-2 font-serif text-[length:var(--text-h3)] leading-tight text-foreground md:mb-3"
+                className="mb-2 font-serif text-[clamp(1.5rem,6.5vw,2.1rem)] leading-tight text-foreground md:mb-3 md:text-[length:var(--text-h3)]"
                 data-editor-node-id="press-kit-title"
                 data-editor-node-type="text"
                 data-editor-node-label="Press Kit Title"
@@ -271,7 +285,7 @@ export function PressKitSection() {
               </h3>
               <p 
                 ref={descriptionRef}
-                className="mx-auto mb-6 max-w-lg text-[length:var(--text-body)] text-muted-foreground md:mb-8"
+                className="mx-auto mb-5 max-w-lg text-sm leading-relaxed text-muted-foreground md:mb-7 md:text-[length:var(--text-body)]"
                 data-editor-node-id="press-kit-description"
                 data-editor-node-type="text"
                 data-editor-node-label="Press Kit Description"
@@ -282,7 +296,7 @@ export function PressKitSection() {
                 ref={downloadButtonRef}
                 href="/PressKit T40 2025.26_compressed.pdf"
                 download="PressKit T40 2025.26_compressed.pdf"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#FF8C21] px-8 py-4 text-base font-semibold text-white shadow-md shadow-[#FF8C21]/22 transition-all hover:bg-[#FF7C00]"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF8C21] px-5 py-3 text-sm font-semibold text-white shadow-md shadow-[#FF8C21]/22 transition-all hover:bg-[#FF7C00] sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"
                 data-editor-node-id="press-kit-download-button"
                 data-editor-node-type="button"
                 data-editor-node-label="Download Press Kit Button"
@@ -310,7 +324,7 @@ export function PressKitSection() {
                   target={resource.download ? undefined : "_blank"}
                   rel={resource.download ? undefined : "noopener noreferrer"}
                   download={resource.download ? true : undefined}
-                  className="group rounded-2xl border border-border bg-card/35 p-6 shadow-md backdrop-blur-sm transition-all duration-300 hover:border-[#FF8C21]/45 hover:shadow-lg"
+                  className="group rounded-xl border border-border bg-card/35 p-4 shadow-md backdrop-blur-sm transition-all duration-300 hover:border-[#FF8C21]/45 hover:shadow-lg sm:rounded-2xl sm:p-5"
                   data-editor-node-id={`press-kit-resource-${index}`}
                   data-editor-node-type="card"
                   data-editor-node-label={`Resource: ${resource.title}`}
@@ -423,7 +437,7 @@ function ManagerCard({ managerRef, isEditing }: { managerRef: React.RefObject<HT
           onClick={() => setShowModal(false)}
         >
           <div 
-            className="relative max-w-md w-full rounded-2xl border border-border bg-card p-6 shadow-xl"
+          className="relative max-h-[90vh] max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button

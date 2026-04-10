@@ -3,14 +3,19 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { useVisualEditor } from "@/components/visual-editor"
+import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
+import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-overrides"
+import { getElementLayoutStyle } from "@/lib/hero-layout-styles"
+import type { NavigationData } from "@/lib/sanity/navigation-loader"
 
-export function Navigation() {
+export function Navigation({ data }: { data: NavigationData }) {
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
 
   // Refs for editable elements
-  const navRef = useRef<HTMLElement>(null)
+  const navRef = useRef<HTMLDivElement>(null)
   const logoRef = useRef<HTMLDivElement>(null)
   const logoLinkRef = useRef<HTMLAnchorElement>(null)
   const brandNameRef = useRef<HTMLSpanElement>(null)
@@ -19,13 +24,8 @@ export function Navigation() {
   const mobileLinkRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const mobileBookButtonRef = useRef<HTMLAnchorElement>(null)
 
-  const navLinks = [
-    { href: "#about", label: "About" },
-    { href: "#press-kit", label: "Press" },
-    { href: "#band", label: "Band" },
-    { href: "#live", label: "Live" },
-    { href: "#contact", label: "Contact" },
-  ]
+  const navLinks = data.links
+  const resolvedNavLogoSrc = useHomeEditorImageSrc("nav-logo", data.brandLogoUrl || "/images/logo-qr.png")
 
   // Register editable elements when editing
   useEffect(() => {
@@ -74,7 +74,7 @@ export function Navigation() {
       if (ref) {
         registerEditable({
           id: `nav-link-${index}`,
-          type: 'link',
+          type: 'button',
           label: navLinks[index]?.label || `Link ${index}`,
           parentId: 'navigation',
           element: ref,
@@ -102,7 +102,7 @@ export function Navigation() {
       if (ref) {
         registerEditable({
           id: `nav-mobile-link-${index}`,
-          type: 'link',
+          type: 'button',
           label: `Mobile ${navLinks[index]?.label || `Link ${index}`}`,
           parentId: 'navigation',
           element: ref,
@@ -135,7 +135,7 @@ export function Navigation() {
       navLinks.forEach((_, i) => unregisterEditable(`nav-mobile-link-${i}`))
       unregisterEditable('nav-mobile-book-button')
     }
-  }, [isEditing, registerEditable, unregisterEditable])
+  }, [isEditing, navLinks, registerEditable, unregisterEditable])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -173,7 +173,7 @@ export function Navigation() {
       data-editor-node-label="Navigation"
       className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${
         isScrolled
-          ? "bg-black/80 backdrop-blur-2xl border-b border-white/10 shadow-xl shadow-black/25"
+          ? "backdrop-blur-2xl border-b border-white/10 shadow-xl shadow-black/25"
           : "bg-transparent"
       }`}
         style={{ boxShadow: isScrolled ? "0 10px 30px rgba(0,0,0,0.25)" : "none" }}
@@ -189,7 +189,7 @@ export function Navigation() {
             <a
               ref={logoLinkRef}
               href="#top"
-              className="inline-flex h-12 shrink-0 items-center justify-center gap-3 rounded-full p-0 transition-transform duration-300 hover:-translate-y-0.5 md:h-14"
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full p-0 transition-transform duration-300 hover:-translate-y-0.5 sm:h-12 sm:gap-3 md:h-14"
             >
               <div
                 ref={logoRef}
@@ -197,10 +197,14 @@ export function Navigation() {
                 data-editor-node-type="image"
                 data-editor-node-label="Logo Image"
                 className="relative h-full w-auto rounded-full shadow-lg shadow-black/30 overflow-hidden"
-                style={{ width: 56, height: 56 }}
+                style={{
+                  width: "clamp(2.75rem, 9vw, 3.5rem)",
+                  height: "clamp(2.75rem, 9vw, 3.5rem)",
+                  ...getElementLayoutStyle(data.elementStyles, "nav-logo", { includeGeometry: allowGeometryOverrides }),
+                }}
               >
                 <Image
-                  src="/images/logo-qr.png"
+                  src={resolvedNavLogoSrc}
                   alt="Tales for the Tillerman"
                   fill
                   className="object-cover"
@@ -212,8 +216,9 @@ export function Navigation() {
                 data-editor-node-id="nav-brand-name"
                 data-editor-node-type="text"
                 data-editor-node-label="Brand Name"
+                style={getElementLayoutStyle(data.elementStyles, "nav-brand-name", { includeGeometry: allowGeometryOverrides })}
               >
-                Tales for the Tillerman
+                {data.brandName}
               </span>
             </a>
 
@@ -227,16 +232,21 @@ export function Navigation() {
                   data-editor-node-id={`nav-link-${index}`}
                   data-editor-node-type="button"
                   data-editor-node-label={`Nav Link: ${link.label}`}
+                  style={getElementLayoutStyle(data.elementStyles, `nav-link-${index}`, { includeGeometry: allowGeometryOverrides })}
                 >
                   {link.label}
                 </a>
               ))}
               <a 
                 ref={bookButtonRef}
-                href="#contact" 
+                href={data.ctaHref || "#contact"}
+                data-editor-node-id="nav-book-button"
+                data-editor-node-type="button"
+                data-editor-node-label="Book Button"
                 className={`${primaryCtaClass} ml-2 shrink-0 lg:ml-3`}
+                style={getElementLayoutStyle(data.elementStyles, "nav-book-button", { includeGeometry: allowGeometryOverrides })}
               >
-                Book
+                {data.ctaLabel || "Book"}
               </a>
             </div>
 
@@ -244,7 +254,7 @@ export function Navigation() {
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-white/10 text-foreground transition-colors hover:bg-white/20"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 text-foreground transition-colors hover:bg-white/20 sm:h-11 sm:w-11"
                 aria-label="Toggle menu"
                 aria-expanded={isMobileMenuOpen}
                 aria-controls="mobile-nav-panel"
@@ -262,7 +272,11 @@ export function Navigation() {
         </div>
 
         {isMobileMenuOpen && (
-          <div id="mobile-nav-panel" className="border-t border-white/10 pb-6 pt-3 md:hidden">
+          <div
+            id="mobile-nav-panel"
+            className="max-h-[calc(100dvh-4.5rem)] overflow-y-auto border-t border-white/10 pb-5 pt-2.5 md:hidden"
+            style={{ maxHeight: "calc(100vh - 4.5rem)" }}
+          >
             <div className="rounded-xl border border-white/10 bg-black/95 px-2 backdrop-blur-sm">
               {navLinks.map((link, index) => (
                 <a
@@ -274,6 +288,7 @@ export function Navigation() {
                   data-editor-node-id={`nav-mobile-link-${index}`}
                   data-editor-node-type="button"
                   data-editor-node-label={`Mobile Nav: ${link.label}`}
+                  style={getElementLayoutStyle(data.elementStyles, `nav-mobile-link-${index}`, { includeGeometry: allowGeometryOverrides })}
                 >
                   {link.label}
                 </a>
@@ -281,14 +296,15 @@ export function Navigation() {
               <div className="px-2 pt-4 pb-2">
                 <a
                   ref={mobileBookButtonRef}
-                  href="#contact"
+                  href={data.ctaHref || "#contact"}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`${primaryCtaClass} flex min-h-[48px] w-full items-center justify-center py-3.5 text-center`}
                   data-editor-node-id="nav-mobile-book-button"
                   data-editor-node-type="button"
                   data-editor-node-label="Mobile Book Button"
+                  style={getElementLayoutStyle(data.elementStyles, "nav-mobile-book-button", { includeGeometry: allowGeometryOverrides })}
                 >
-                  Book the band
+                  {data.ctaLabel || "Book the band"}
                 </a>
               </div>
             </div>

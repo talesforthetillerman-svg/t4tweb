@@ -26,6 +26,13 @@ export const structure: StructureResolver = (S) =>
                     .filter('_type == "heroSection"')
                 ),
               S.listItem()
+                .title('Intro banner (GIF block)')
+                .child(
+                  S.documentList()
+                    .title('Intro banner (GIF block)')
+                    .filter('_type == "introBanner"')
+                ),
+              S.listItem()
                 .title('About Section')
                 .child(
                   S.documentList()
