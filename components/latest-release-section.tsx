@@ -4,23 +4,27 @@ import { useRef, useEffect, useState, type CSSProperties } from "react"
 import { motion } from "framer-motion"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
 import { useVisualEditor } from "@/components/visual-editor"
+import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-overrides"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 
 interface LatestReleaseSectionProps {
   overrides?: Record<string, HomeEditorNodeOverride>
 }
 
-function buildInlineStyleFromOverride(override?: HomeEditorNodeOverride): CSSProperties | undefined {
+function buildInlineStyleFromOverride(
+  override: HomeEditorNodeOverride | undefined,
+  includeGeometry: boolean
+): CSSProperties | undefined {
   if (!override) return undefined
   const style: CSSProperties = {}
   const scale = typeof override.style.scale === "number" ? Math.max(0.1, override.style.scale) : 1
-  if (override.explicitPosition || (override.explicitStyle && scale !== 1)) {
+  if (includeGeometry && (override.explicitPosition || (override.explicitStyle && scale !== 1))) {
     style.transform = scale !== 1
       ? `translate(${Math.round(override.geometry.x)}px, ${Math.round(override.geometry.y)}px) scale(${scale})`
       : `translate(${Math.round(override.geometry.x)}px, ${Math.round(override.geometry.y)}px)`
     style.transformOrigin = "top left"
   }
-  if (override.explicitSize) {
+  if (includeGeometry && override.explicitSize) {
     style.width = `${Math.max(8, Math.round(override.geometry.width))}px`
     style.height = `${Math.max(8, Math.round(override.geometry.height))}px`
   }
@@ -54,6 +58,7 @@ function resolveHrefOverride(node: HomeEditorNodeOverride | undefined, fallback:
 
 export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionProps) {
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
+  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
   const [isIosMobile, setIsIosMobile] = useState(false)
   const [isAndroidMobile, setIsAndroidMobile] = useState(false)
 
@@ -212,7 +217,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
       data-editor-node-type="section"
       data-editor-node-label="Release Section"
       className="relative overflow-hidden bg-black"
-      style={buildInlineStyleFromOverride(sectionOverride)}
+      style={buildInlineStyleFromOverride(sectionOverride, allowGeometryOverrides)}
     >
       <div 
         ref={bgRef}
@@ -221,7 +226,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
         data-editor-media-kind="video"
         data-editor-node-label="Fondo Video YouTube"
         className="absolute left-0 top-0 z-0 h-full w-full"
-        style={buildInlineStyleFromOverride(bgOverride)}
+        style={buildInlineStyleFromOverride(bgOverride, allowGeometryOverrides)}
       >
         {isIosMobile ? (
           <img
@@ -248,24 +253,24 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
         <div className="section-photo-fade-bottom" />
       </div>
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center">
-        <div className="mx-auto max-w-6xl">
+      <div className="relative z-10 flex min-h-[78vh] min-h-[78dvh] items-center justify-center px-3 py-8 sm:min-h-screen sm:min-h-[100dvh] sm:px-6 sm:py-12 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl">
           {renderStaticCard ? (
             <div
               ref={cardRef}
               data-editor-node-id="latest-release-card"
               data-editor-node-type="card"
               data-editor-node-label="Release Card"
-              className="flex w-full max-w-4xl flex-col items-center rounded-2xl border border-primary/28 bg-black/24 p-6 text-center shadow-md backdrop-blur-sm md:p-8"
-              style={buildInlineStyleFromOverride(cardOverride)}
+              className="mx-auto flex w-full max-w-4xl flex-col items-center rounded-xl border border-primary/28 bg-black/24 p-4 text-center shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-6 md:p-8"
+              style={buildInlineStyleFromOverride(cardOverride, allowGeometryOverrides)}
             >
               <h2 
                 ref={titleRef}
                 data-editor-node-id="latest-release-title"
                 data-editor-node-type="text"
                 data-editor-node-label="Título del Lanzamiento"
-                className="mb-[var(--spacing-sm)] w-full text-center font-serif text-[length:var(--text-h2)] leading-[var(--line-height-tight)] text-foreground"
-                style={buildInlineStyleFromOverride(titleOverride)}
+                className="mb-[var(--spacing-sm)] w-full text-balance text-center font-serif text-[clamp(1.65rem,7.2vw,2.4rem)] leading-[1.1] text-foreground sm:text-[length:var(--text-h2)] sm:leading-[var(--line-height-tight)]"
+                style={buildInlineStyleFromOverride(titleOverride, allowGeometryOverrides)}
               >
                 {releaseTitle}
               </h2>
@@ -275,13 +280,13 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                 data-editor-node-id="latest-release-subtitle"
                 data-editor-node-type="text"
                 data-editor-node-label="Subtítulo del Lanzamiento"
-                className="mb-6 w-full text-center text-[length:var(--text-body)] text-muted-foreground"
-                style={buildInlineStyleFromOverride(subtitleOverride)}
+                className="mb-5 w-full max-w-3xl text-balance text-center text-sm leading-relaxed text-muted-foreground sm:mb-6 sm:text-[length:var(--text-body)]"
+                style={buildInlineStyleFromOverride(subtitleOverride, allowGeometryOverrides)}
               >
                 {releaseSubtitle}
               </p>
 
-              <div className="flex w-full flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
                 <a
                   ref={watchButtonRef}
                   href={releaseWatchHref}
@@ -290,8 +295,8 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                   data-editor-node-id="latest-release-watch-button"
                   data-editor-node-type="button"
                   data-editor-node-label="Watch Video Button"
-                  className={`rounded-xl px-6 py-3 text-center text-base font-semibold shadow-md min-h-[48px] ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
-                  style={buildInlineStyleFromOverride(watchButtonOverride)}
+                  className={`min-h-[46px] w-full rounded-xl px-5 py-2.5 text-center text-sm font-semibold shadow-md sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
+                  style={buildInlineStyleFromOverride(watchButtonOverride, allowGeometryOverrides)}
                 >
                   {releaseWatchLabel}
                 </a>
@@ -303,8 +308,8 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                   data-editor-node-id="latest-release-shows-button"
                   data-editor-node-type="button"
                   data-editor-node-label="See Shows Button"
-                  className="rounded-xl border border-primary/35 px-6 py-3 text-center text-base font-semibold text-primary transition-colors hover:bg-primary/10 min-h-[48px]"
-                  style={buildInlineStyleFromOverride(showsButtonOverride)}
+                  className="min-h-[46px] w-full rounded-xl border border-primary/35 px-5 py-2.5 text-center text-sm font-semibold text-primary transition-colors hover:bg-primary/10 sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base"
+                  style={buildInlineStyleFromOverride(showsButtonOverride, allowGeometryOverrides)}
                 >
                   {releaseShowsLabel}
                 </a>
@@ -320,16 +325,16 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.25 }}
             transition={{ duration: 0.45 }}
-            className="flex w-full max-w-4xl flex-col items-center rounded-2xl border border-primary/28 bg-black/24 p-6 text-center shadow-md backdrop-blur-sm md:p-8"
-            style={buildInlineStyleFromOverride(cardOverride)}
+            className="mx-auto flex w-full max-w-4xl flex-col items-center rounded-xl border border-primary/28 bg-black/24 p-4 text-center shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-6 md:p-8"
+            style={buildInlineStyleFromOverride(cardOverride, allowGeometryOverrides)}
           >
             <h2 
               ref={titleRef}
               data-editor-node-id="latest-release-title"
               data-editor-node-type="text"
               data-editor-node-label="Título del Lanzamiento"
-              className="mb-[var(--spacing-sm)] w-full text-center font-serif text-[length:var(--text-h2)] leading-[var(--line-height-tight)] text-foreground"
-              style={buildInlineStyleFromOverride(titleOverride)}
+              className="mb-[var(--spacing-sm)] w-full text-balance text-center font-serif text-[clamp(1.65rem,7.2vw,2.4rem)] leading-[1.1] text-foreground sm:text-[length:var(--text-h2)] sm:leading-[var(--line-height-tight)]"
+              style={buildInlineStyleFromOverride(titleOverride, allowGeometryOverrides)}
             >
               {releaseTitle}
             </h2>
@@ -339,13 +344,13 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
               data-editor-node-id="latest-release-subtitle"
               data-editor-node-type="text"
               data-editor-node-label="Subtítulo del Lanzamiento"
-              className="mb-6 w-full text-center text-[length:var(--text-body)] text-muted-foreground"
-              style={buildInlineStyleFromOverride(subtitleOverride)}
+              className="mb-5 w-full max-w-3xl text-balance text-center text-sm leading-relaxed text-muted-foreground sm:mb-6 sm:text-[length:var(--text-body)]"
+              style={buildInlineStyleFromOverride(subtitleOverride, allowGeometryOverrides)}
             >
               {releaseSubtitle}
             </p>
 
-            <div className="flex w-full flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
               <a
                 ref={watchButtonRef}
                 href={releaseWatchHref}
@@ -354,8 +359,8 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                 data-editor-node-id="latest-release-watch-button"
                 data-editor-node-type="button"
                 data-editor-node-label="Watch Video Button"
-                className={`rounded-xl px-6 py-3 text-center text-base font-semibold shadow-md min-h-[48px] ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
-                style={buildInlineStyleFromOverride(watchButtonOverride)}
+                className={`min-h-[46px] w-full rounded-xl px-5 py-2.5 text-center text-sm font-semibold shadow-md sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
+                style={buildInlineStyleFromOverride(watchButtonOverride, allowGeometryOverrides)}
               >
                 {releaseWatchLabel}
               </a>
@@ -367,8 +372,8 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                 data-editor-node-id="latest-release-shows-button"
                 data-editor-node-type="button"
                 data-editor-node-label="See Shows Button"
-                className="rounded-xl border border-primary/35 px-6 py-3 text-center text-base font-semibold text-primary transition-colors hover:bg-primary/10 min-h-[48px]"
-                style={buildInlineStyleFromOverride(showsButtonOverride)}
+                className="min-h-[46px] w-full rounded-xl border border-primary/35 px-5 py-2.5 text-center text-sm font-semibold text-primary transition-colors hover:bg-primary/10 sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base"
+                style={buildInlineStyleFromOverride(showsButtonOverride, allowGeometryOverrides)}
               >
                 {releaseShowsLabel}
               </a>

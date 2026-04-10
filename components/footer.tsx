@@ -196,23 +196,23 @@ export function Footer() {
       data-editor-node-label="Footer Section"
       className="bg-black"
     >
-      <div className="h-8 bg-gradient-to-b from-black/40 to-black" />
+      <div className="h-5 bg-gradient-to-b from-black/40 to-black sm:h-7" />
       
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 text-center">
+      <div className="mx-auto max-w-4xl px-4 py-8 text-center sm:px-6 sm:py-11">
         
         <div 
           ref={logoRef}
           data-editor-node-id="footer-logo"
           data-editor-node-type="image"
           data-editor-node-label="Footer Logo"
-          className="mb-6"
+          className="mb-4 sm:mb-6"
         >
           <Image
             src={resolvedFooterLogoSrc}
             alt="Tales for the Tillerman"
             width={160}
             height={160}
-            className="object-contain mx-auto"
+            className="mx-auto h-auto w-[clamp(6rem,24vw,9.5rem)] object-contain"
           />
         </div>
 
@@ -221,19 +221,19 @@ export function Footer() {
           data-editor-node-id="footer-description"
           data-editor-node-type="text"
           data-editor-node-label="Footer Description"
-          className="text-lg text-white/70 mb-6 max-w-2xl mx-auto"
+          className="mx-auto mb-5 max-w-2xl px-2 text-sm text-white/70 sm:mb-6 sm:text-lg"
         >
           Berlin-based world music collective blending funk, soul, and reggae.
         </p>
 
-        <div className="mb-8">
+        <div className="mb-7 px-2">
           <a
             ref={ctaRef}
             data-editor-node-id="footer-cta"
             data-editor-node-type="button"
             data-editor-node-label="Book the Band"
             href="#contact"
-            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-8 py-3 text-base font-bold text-white shadow-lg shadow-[#FF8C21]/30 hover:shadow-xl hover:shadow-[#FF8C21]/40 transition-all"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-7 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#FF8C21]/30 transition-all hover:shadow-xl hover:shadow-[#FF8C21]/40 sm:w-auto sm:px-8 sm:py-3 sm:text-base"
           >
             Book the Band
           </a>
@@ -246,7 +246,7 @@ export function Footer() {
           data-editor-node-label="Footer Social Links"
           data-editor-grouped="true"
           data-link-group-summary="Footer Social Links"
-          className="flex flex-wrap items-center justify-center gap-3 mb-8"
+          className="mb-7 flex flex-wrap items-center justify-center gap-2 sm:gap-3"
         >
           {socialLinks.map((link) => (
             <a
@@ -260,7 +260,7 @@ export function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={link.name}
-              className="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-primary transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-primary sm:h-12 sm:w-12"
             >
               <link.icon />
             </a>
@@ -272,7 +272,7 @@ export function Footer() {
           data-editor-node-id="footer-divider"
           data-editor-node-type="card"
           data-editor-node-label="Footer Divider"
-          className="border-t border-white/10 pt-6"
+          className="border-t border-white/10 pt-5 sm:pt-6"
         >
           <p 
             ref={copyrightRef}

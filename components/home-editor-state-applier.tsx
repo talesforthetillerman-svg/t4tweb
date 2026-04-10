@@ -77,6 +77,7 @@ export function HomeEditorStateApplier({ nodes }: { nodes: HomeEditorNodeOverrid
     })
 
     const applyOverrides = () => {
+      const allowGeometryOverrides = window.matchMedia("(min-width: 1024px)").matches
       nodes.forEach((node) => {
       const traceRelease = RELEASE_TRACE_IDS.has(node.nodeId)
       if (traceRelease) {
@@ -99,21 +100,29 @@ export function HomeEditorStateApplier({ nodes }: { nodes: HomeEditorNodeOverrid
 
       const scale = typeof node.style.scale === "number" ? Math.max(0.1, node.style.scale) : 1
 
-      if (node.explicitPosition || (node.explicitStyle && scale !== 1)) {
+      if (allowGeometryOverrides && (node.explicitPosition || (node.explicitStyle && scale !== 1))) {
         el.style.transform = scale !== 1
           ? `translate(${Math.round(node.geometry.x)}px, ${Math.round(node.geometry.y)}px) scale(${scale})`
           : `translate(${Math.round(node.geometry.x)}px, ${Math.round(node.geometry.y)}px)`
         el.style.transformOrigin = "top left"
         el.dataset.editorManagedTransform = "true"
       } else {
+        if (el.dataset.editorManagedTransform === "true") {
+          el.style.removeProperty("transform")
+          el.style.removeProperty("transform-origin")
+        }
         delete el.dataset.editorManagedTransform
       }
 
-      if (node.explicitSize) {
+      if (allowGeometryOverrides && node.explicitSize) {
         el.style.width = `${Math.max(8, Math.round(node.geometry.width))}px`
         el.style.height = `${Math.max(8, Math.round(node.geometry.height))}px`
         el.dataset.editorManagedSize = "true"
       } else {
+        if (el.dataset.editorManagedSize === "true") {
+          el.style.removeProperty("width")
+          el.style.removeProperty("height")
+        }
         delete el.dataset.editorManagedSize
       }
 

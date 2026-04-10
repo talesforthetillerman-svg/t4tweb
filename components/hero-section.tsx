@@ -5,6 +5,7 @@ import { motion, useScroll, useTransform } from "framer-motion"
 import Image from "next/image"
 import { useVisualEditor } from "@/components/visual-editor"
 import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
+import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-overrides"
 import type { HeroData } from "@/lib/sanity/hero-loader"
 import {
   buildHeroScrollIndicatorLayoutStyle,
@@ -92,6 +93,7 @@ export function HeroSection({ data }: { data: HeroData }) {
   const heroScrollRef = useRef<HTMLDivElement>(null)
 
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
+  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
 
   // Sync debug mode from query param (client-side only after hydration)
   useEffect(() => {
@@ -228,7 +230,7 @@ export function HeroSection({ data }: { data: HeroData }) {
   const content = data
   const resolvedHeroBgSrc = useHomeEditorImageSrc("hero-bg-image", content.bgUrl)
   const resolvedHeroLogoSrc = useHomeEditorImageSrc("hero-logo", content.logoUrl)
-  const scrollLayoutSaved = scrollIndicatorHasLayout(content.elementStyles)
+  const scrollLayoutSaved = allowGeometryOverrides && scrollIndicatorHasLayout(content.elementStyles)
   const heroTitleMode: "legacy" | "segmented" = Array.isArray(content.titleSegments) && content.titleSegments.length > 0 ? "segmented" : "legacy"
   const normalizedTitleSegments = useMemo(() => {
     if (heroTitleMode !== "segmented") return []
@@ -268,8 +270,8 @@ export function HeroSection({ data }: { data: HeroData }) {
       data-editor-node-id="hero-section"
       data-editor-node-type="section"
       data-editor-node-label="Hero Section"
-      className="relative flex min-h-screen w-full items-stretch overflow-hidden bg-black"
-      style={getElementStyle(content.elementStyles, "hero-section")}
+      className="relative flex min-h-screen min-h-[100dvh] w-full items-stretch overflow-hidden bg-black"
+      style={getElementStyle(content.elementStyles, "hero-section", { includeGeometry: allowGeometryOverrides })}
     >
       <div className="absolute inset-0 z-0">
         <motion.div
@@ -283,7 +285,7 @@ export function HeroSection({ data }: { data: HeroData }) {
             data-editor-media-kind="image"
             data-editor-node-label="Hero Background"
             className="absolute inset-0"
-            style={getElementStyle(content.elementStyles, "hero-bg-image")}
+            style={getElementStyle(content.elementStyles, "hero-bg-image", { includeGeometry: allowGeometryOverrides })}
           >
             <Image
               src={resolvedHeroBgSrc}
@@ -309,8 +311,8 @@ export function HeroSection({ data }: { data: HeroData }) {
         className="absolute inset-0 z-[1] bg-gradient-to-r from-transparent via-[#FF8C21]/21 to-transparent"
       />
 
-      <div className="relative z-10 flex min-h-screen w-full flex-col justify-end px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center text-center pb-8 pt-16">
+      <div className="relative z-10 flex min-h-screen min-h-[100dvh] w-full flex-col justify-end px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-center pb-7 pt-16 text-center sm:pb-10 sm:pt-20">
           <h1 
             ref={heroTitleRef}
             data-editor-node-id="hero-title"
@@ -318,8 +320,8 @@ export function HeroSection({ data }: { data: HeroData }) {
             data-editor-node-label="Título Principal"
             data-editor-title-mode={heroTitleMode}
             data-editor-title-segments={heroTitleMode === "segmented" ? JSON.stringify(normalizedTitleSegments) : ""}
-            className="max-w-[880px] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.9rem] mb-6"
-            style={getElementStyle(data.elementStyles, "hero-title")}
+            className="mb-5 max-w-[min(94vw,880px)] text-balance text-[clamp(1.55rem,5.8vw,3.6rem)] font-semibold leading-tight tracking-tight text-white"
+            style={getElementStyle(data.elementStyles, "hero-title", { includeGeometry: allowGeometryOverrides })}
           >
             {heroTitleMode === "segmented"
               ? normalizedTitleSegments.map((segment, index) => (
@@ -367,7 +369,11 @@ export function HeroSection({ data }: { data: HeroData }) {
               data-editor-node-type="image"
               data-editor-node-label="Hero Logo"
               className="relative"
-              style={{ width: 141, height: 141, ...getElementStyle(data.elementStyles, "hero-logo") }}
+              style={{
+                width: "clamp(6rem, 22vw, 8.8125rem)",
+                height: "clamp(6rem, 22vw, 8.8125rem)",
+                ...getElementStyle(data.elementStyles, "hero-logo", { includeGeometry: allowGeometryOverrides }),
+              }}
             >
               <Image
                 src={resolvedHeroLogoSrc}
@@ -383,8 +389,8 @@ export function HeroSection({ data }: { data: HeroData }) {
               data-editor-node-id="hero-subtitle"
               data-editor-node-type="text"
               data-editor-node-label="Subtítulo"
-              className="mt-3 text-sm font-semibold uppercase tracking-[0.38em] text-[#ffd3a3]"
-              style={getElementStyle(data.elementStyles, "hero-subtitle")}
+              className="mt-2.5 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ffd3a3] sm:text-sm sm:tracking-[0.3em]"
+              style={getElementStyle(data.elementStyles, "hero-subtitle", { includeGeometry: allowGeometryOverrides })}
             >
               {content.subtitle}
             </p>

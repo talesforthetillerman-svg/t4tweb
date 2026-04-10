@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, type CSSProperties } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
+import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-overrides"
 import { SectionHeader } from "@/components/section-header"
 import { useVisualEditor } from "@/components/visual-editor"
 import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
@@ -24,17 +25,20 @@ interface BandMembersSectionProps {
   overrides?: Record<string, HomeEditorNodeOverride>
 }
 
-function buildInlineStyleFromOverride(override?: HomeEditorNodeOverride): CSSProperties | undefined {
+function buildInlineStyleFromOverride(
+  override: HomeEditorNodeOverride | undefined,
+  includeGeometry: boolean
+): CSSProperties | undefined {
   if (!override) return undefined
   const style: CSSProperties = {}
   const scale = typeof override.style.scale === "number" ? Math.max(0.1, override.style.scale) : 1
-  if (override.explicitPosition || (override.explicitStyle && scale !== 1)) {
+  if (includeGeometry && (override.explicitPosition || (override.explicitStyle && scale !== 1))) {
     style.transform = scale !== 1
       ? `translate(${Math.round(override.geometry.x)}px, ${Math.round(override.geometry.y)}px) scale(${scale})`
       : `translate(${Math.round(override.geometry.x)}px, ${Math.round(override.geometry.y)}px)`
     style.transformOrigin = "top left"
   }
-  if (override.explicitSize) {
+  if (includeGeometry && override.explicitSize) {
     style.width = `${Math.max(8, Math.round(override.geometry.width))}px`
     style.height = `${Math.max(8, Math.round(override.geometry.height))}px`
   }
@@ -134,6 +138,7 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
   const [members, setMembers] = useState(FALLBACK_MEMBERS)
   const { opacity, y } = useScrollAnimation(sectionRef)
   const { isEditing } = useVisualEditor()
+  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
   const sectionOverride = overrides["band-members-section"]
   const bgOverride = overrides["band-members-bg"]
   const resolvedBandMembersBackgroundSrc = useHomeEditorImageSrc("band-members-bg", "/images/t4t-2.jpg")
@@ -207,8 +212,8 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
       data-editor-node-id="band-members-section"
       data-editor-node-type="section"
       data-editor-node-label="Sección Miembros de la Banda"
-      className="relative isolate min-h-screen w-full overflow-hidden bg-black"
-      style={buildInlineStyleFromOverride(sectionOverride)}
+      className="relative isolate min-h-[88vh] min-h-[88dvh] w-full overflow-hidden bg-black sm:min-h-screen sm:min-h-[100dvh]"
+      style={buildInlineStyleFromOverride(sectionOverride, allowGeometryOverrides)}
     >
       {/* Fondo full width */}
       <div 
@@ -217,7 +222,7 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
         data-editor-media-kind="image"
         data-editor-node-label="Imagen de fondo banda"
         className="absolute inset-0 z-0"
-        style={buildInlineStyleFromOverride(bgOverride)}
+        style={buildInlineStyleFromOverride(bgOverride, allowGeometryOverrides)}
       >
         <Image
           src={resolvedBandMembersBackgroundSrc}
@@ -235,10 +240,10 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
 
       <div className="section-photo-scrim z-10" />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
           <motion.div
             style={isEditing ? undefined : { opacity, y }}
-            className="mb-8 md:mb-12 lg:mb-16 text-center"
+            className="mb-7 text-center md:mb-11 lg:mb-14"
           >
           <SectionHeader
             eyebrow={headerEyebrow}
@@ -249,9 +254,9 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
           />
         </motion.div>
 
-        <div className="grid lg:grid-cols-2 gap-6 md:gap-10 lg:gap-16 items-start">
+        <div className="grid items-start gap-5 md:gap-8 lg:grid-cols-2 lg:gap-14">
           {/* Desktop photo - hidden on mobile */}
-          <div className="hidden lg:block relative aspect-[3/4] rounded-3xl overflow-hidden bg-zinc-950 shadow-2xl">
+          <div className="relative hidden max-h-[78vh] max-h-[78dvh] min-h-[420px] overflow-hidden rounded-3xl bg-zinc-950 shadow-2xl lg:block lg:aspect-[3/4]">
             {displayedMembers.map((member, index) => (
               <motion.div
                 key={member.id}
@@ -290,7 +295,7 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
             ))}
           </div>
 
-          <div className="space-y-3 md:space-y-4">
+          <div className="space-y-2.5 md:space-y-4">
             {displayedMembers.map((member, index) => (
               <motion.div
                 key={member.id}
@@ -311,13 +316,13 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
                 role="button"
                 tabIndex={0}
                 aria-label={`${member.fullName} card`}
-                className={`group w-full text-left p-4 md:p-6 rounded-xl md:rounded-2xl border transition-all duration-300 flex justify-between items-center min-h-[64px] md:min-h-[88px] touch-manipulation
+                className={`group flex min-h-[62px] w-full touch-manipulation items-center justify-between rounded-xl border p-3.5 text-left transition-all duration-300 md:min-h-[88px] md:rounded-2xl md:p-6
                   ${
                     activeIndex === index
                       ? "border-orange-500 bg-zinc-900/80"
                       : "border-white/10 hover:border-white/20 bg-black/40 hover:bg-zinc-950"
                   }`}
-                style={buildInlineStyleFromOverride(overrides[`member-item-${index}`])}
+                style={buildInlineStyleFromOverride(overrides[`member-item-${index}`], allowGeometryOverrides)}
                 >
                 <span className="min-w-0 flex-1">
                   <span
@@ -325,7 +330,7 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
                     data-editor-node-type="text"
                     data-editor-node-label={`Member ${index + 1} Name`}
                     data-member-name-index={index}
-                    className={`block text-base md:text-xl font-medium transition-colors truncate ${
+                    className={`block truncate text-[0.95rem] font-medium transition-colors md:text-xl ${
                       activeIndex === index ? "text-white" : "text-white/80 group-hover:text-white"
                     }`}
                     style={buildInlineTextStyleFromOverride(
@@ -340,7 +345,7 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
                     data-editor-node-type="text"
                     data-editor-node-label={`Member ${index + 1} Role`}
                     data-member-role-index={index}
-                    className={`block text-xs md:text-sm mt-0.5 md:mt-1 transition-colors ${
+                    className={`mt-0.5 block text-[11px] transition-colors md:mt-1 md:text-sm ${
                       activeIndex === index ? "text-orange-400" : "text-white/50"
                     }`}
                     style={buildInlineTextStyleFromOverride(
@@ -357,7 +362,7 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
                   data-editor-node-type="text"
                   data-editor-node-label={`Member ${index + 1} Number`}
                   data-member-number-index={index}
-                  className={`w-7 h-7 md:w-8 md:h-8 shrink-0 ml-3 rounded-full flex items-center justify-center text-xs font-mono border transition-all ${
+                  className={`ml-2.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-mono transition-all md:ml-3 md:h-8 md:w-8 md:text-xs ${
                     activeIndex === index
                       ? "border-orange-500 text-orange-400 bg-orange-950"
                       : "border-white/20 text-white/40 group-hover:border-white/40"
@@ -383,14 +388,14 @@ export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:hidden"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3.5 lg:hidden"
             onClick={() => setModalOpen(false)}
           >
             <div className="absolute inset-0 bg-black/80" />
             
             <div
-              className="relative w-[90vw] max-w-sm rounded-2xl overflow-hidden shadow-2xl"
-              style={{ maxHeight: '80vh' }}
+              className="relative w-full max-w-[22rem] overflow-hidden rounded-2xl shadow-2xl"
+              style={{ maxHeight: "82dvh" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="relative w-full" style={{ aspectRatio: '3/4' }}>

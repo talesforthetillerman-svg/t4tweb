@@ -49,7 +49,7 @@ export default async function Home() {
     }, {})
 
   return (
-    <main className="relative bg-black">
+    <main className="relative overflow-x-clip bg-black">
       <HomeEditorOverridesProvider nodes={homeEditorNodes}>
         <HomeEditorStateApplier nodes={homeEditorNodes} />
         <RibbonsBlock />

@@ -88,11 +88,13 @@ export function clearScrollIndicatorLayoutFromElement(el: HTMLElement): void {
  */
 export function getElementLayoutStyle(
   elementStyles: Record<string, unknown> | undefined,
-  targetId: string
+  targetId: string,
+  options?: { includeGeometry?: boolean }
 ): CSSProperties {
   if (!elementStyles || !elementStyles[targetId]) return {}
 
   const styles = elementStyles[targetId] as Record<string, unknown>
+  const includeGeometry = options?.includeGeometry ?? true
   const hasX = typeof styles.x === "number"
   const hasY = typeof styles.y === "number"
   const tx = hasX ? roundLayoutPx(styles.x as number) : 0
@@ -100,21 +102,28 @@ export function getElementLayoutStyle(
   const scaleVal = typeof styles.scale === "number" ? styles.scale : 1
   const needTranslate = hasX || hasY
   const needScale = typeof styles.scale === "number" && scaleVal !== 1
+  const shouldApplyGeometry = includeGeometry && (needTranslate || needScale)
 
   const layout =
-    needTranslate || needScale
+    shouldApplyGeometry
       ? buildHeroStandardLayoutStyle({
           x: tx,
           y: ty,
           scale: needScale ? scaleVal : undefined,
-          width: typeof styles.width === "number" ? roundLayoutPx(styles.width as number) : undefined,
-          height: typeof styles.height === "number" ? roundLayoutPx(styles.height as number) : undefined,
+          width:
+            includeGeometry && typeof styles.width === "number"
+              ? roundLayoutPx(styles.width as number)
+              : undefined,
+          height:
+            includeGeometry && typeof styles.height === "number"
+              ? roundLayoutPx(styles.height as number)
+              : undefined,
         })
       : {}
 
   const result: CSSProperties = { ...layout }
 
-  if (!needTranslate && !needScale) {
+  if (includeGeometry && !shouldApplyGeometry) {
     if (typeof styles.width === "number") result.width = `${roundLayoutPx(styles.width as number)}px`
     if (typeof styles.height === "number") result.height = `${roundLayoutPx(styles.height as number)}px`
   }
@@ -123,7 +132,7 @@ export function getElementLayoutStyle(
   if (typeof styles.letterSpacing === "number") result.letterSpacing = `${styles.letterSpacing}px`
   if (typeof styles.lineHeight === "number") result.lineHeight = styles.lineHeight
   if (typeof styles.color === "string") result.color = styles.color
-  if (typeof styles.maxWidth === "number") result.maxWidth = `${styles.maxWidth}px`
+  if (includeGeometry && typeof styles.maxWidth === "number") result.maxWidth = `${styles.maxWidth}px`
 
   return result
 }
