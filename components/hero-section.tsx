@@ -272,10 +272,11 @@ export function HeroSection({ data }: { data: HeroData }) {
         }
       }
     }
+    return deduped
+  }, [heroTitleMode, content.titleSegments])
 
-  const content = data || FALLBACK
-  const mainTitleText = content.title || FALLBACK.title
-  const accentTitleText = content.titleHighlight || FALLBACK.titleHighlight
+  const mainTitleText = content.title || ""
+  const accentTitleText = content.titleHighlight || ""
 
   return (
     <section

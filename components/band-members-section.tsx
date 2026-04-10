@@ -6,7 +6,11 @@ import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-overrides"
 import { SectionHeader } from "@/components/section-header"
+import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
 import { useVisualEditor } from "@/components/visual-editor"
+import { getTraceNodeId } from "@/lib/sanity/env"
+import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
+import type { BandMemberData } from "@/lib/sanity/band-members-loader"
 
 interface BandMembersSectionProps {
   initialMembers: BandMemberData[]
@@ -126,6 +130,8 @@ export function BandMembersSection({ initialMembers, overrides = {} }: BandMembe
   const [members] = useState<BandMemberData[]>(initialMembers)
   const { opacity, y } = useScrollAnimation(sectionRef)
   const { isEditing } = useVisualEditor()
+  const traceNodeId = getTraceNodeId()
+  const resolvedBandMembersBackgroundSrc = useHomeEditorImageSrc("band-members-bg", "/images/sections/band-member-bg.jpg")
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024)
@@ -315,8 +321,8 @@ export function BandMembersSection({ initialMembers, overrides = {} }: BandMembe
                     )}
                   >
                     {member.role}
-                  </span>
-                </span>
+                  </p>
+                </div>
 
                 <div
                   data-member-number-index={index}
@@ -331,7 +337,7 @@ export function BandMembersSection({ initialMembers, overrides = {} }: BandMembe
                   )}
                 >
                   {member.number}
-                </span>
+                </div>
               </motion.div>
             ))}
           </div>

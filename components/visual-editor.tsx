@@ -86,6 +86,16 @@ interface EditorNode {
   explicitSize: boolean
 }
 
+interface HydratedNodeOverride {
+  geometry?: Partial<NodeGeometry>
+  style?: Partial<EditorNode["style"]>
+  content?: Partial<EditorNode["content"]>
+  explicitContent?: boolean
+  explicitStyle?: boolean
+  explicitPosition?: boolean
+  explicitSize?: boolean
+}
+
 export interface RuntimeEntry {
   id: string
   type: NodeType
@@ -301,6 +311,15 @@ function withColorOpacity(input: string, opacity: number): string {
 function readColorOpacity(input: string | undefined): number {
   const parsed = parseCssColor(input)
   return parsed?.a ?? 1
+}
+
+function buildBoxOpacityPatch(nodeId: string, opacity: number): Partial<EditorNode["style"]> {
+  if (typeof document === "undefined") return { opacity }
+  const el = document.querySelector<HTMLElement>(`[data-editor-node-id="${nodeId}"]`)
+  const computed = el ? getComputedStyle(el).backgroundColor : undefined
+  const current = computed && computed !== "rgba(0, 0, 0, 0)" ? computed : undefined
+  if (!current) return { opacity }
+  return { backgroundColor: withColorOpacity(current, opacity), opacity }
 }
 
 function isPersistableImageSrc(value: string | undefined): boolean {
@@ -546,6 +565,10 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   const historyIndexRef = useRef(-1)
   const transactionRef = useRef<{ active: boolean; baseline: Map<string, EditorNode> | null }>({ active: false, baseline: null })
   const deletedIdsRef = useRef<Set<string>>(new Set())
+  const refreshRegistry = useCallback(() => {
+    const nextRegistry = scanRegistry()
+    setRegistry((prev) => (areRegistryMapsEquivalent(prev, nextRegistry) ? prev : nextRegistry))
+  }, [])
 
   const assets = useMemo<AssetItem[]>(() => {
     if (typeof document === "undefined") return []
@@ -574,15 +597,14 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isEditing) return
-    const nextRegistry = scanRegistry()
-    setRegistry((prev) => (areRegistryMapsEquivalent(prev, nextRegistry) ? prev : nextRegistry))
+    refreshRegistry()
     const nextNodes = new Map<string, EditorNode>()
-    nextRegistry.forEach((entry, id) => {
+    scanRegistry().forEach((entry, id) => {
       nextNodes.set(id, buildNodeFromEntry(entry))
     })
     setNodes(nextNodes)
     snapshot(nextNodes)
-  }, [isEditing, snapshot])
+  }, [isEditing, snapshot, refreshRegistry])
 
   const applyNodeToDom = useCallback((node: EditorNode, entry: RuntimeEntry) => {
     const el = entry.element
@@ -976,7 +998,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         registryRafRef.current = null
       }
     }
-  }, [isEditing, refreshRegistry])
+  }, [isEditing, registry, refreshRegistry])
 
   useEffect(() => {
     if (!isEditing) return
@@ -1127,6 +1149,19 @@ export function VisualEditorOverlay() {
   const [deployStatus, setDeployStatus] = useState<string | null>(null)
   const [deployDetails, setDeployDetails] = useState<string | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const selectedIdsRef = useRef<string[]>([])
+  const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
+  const marqueeRef = useRef<{ active: boolean; start: Point }>({ active: false, start: { x: 0, y: 0 } })
+
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds
+  }, [selectedIds])
+
+  useEffect(() => {
+    if (selectedId) setSelectedIds([selectedId])
+    else setSelectedIds([])
+  }, [selectedId])
 
   const selectedEntry = selectedId ? registry.get(selectedId) || null : null
   const selectedNode = selectedId ? nodes.get(selectedId) || null : null
@@ -1314,6 +1349,7 @@ export function VisualEditorOverlay() {
     document.body.setAttribute("data-editor-mode", "true")
 
     const onPointerDown = (e: PointerEvent) => {
+      const multiModifier = e.metaKey || e.ctrlKey
       const target = e.target as HTMLElement
       const resizeHandleTarget = target.closest<HTMLElement>("[data-editor-resize-handle]")
       if (resizeHandleTarget instanceof HTMLElement) {
