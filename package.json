@@ -2,23 +2,46 @@
   "name": "v0-music-press-kit-slider",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.11.0 <23"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "check:conflicts": "bash scripts/check-conflict-markers.sh"
   },
   "dependencies": {
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.0.0",
+    "@sanity/components": "^2.14.0",
+    "@sanity/dashboard": "^5.0.1",
+    "@sanity/default-layout": "^2.36.2",
+    "@sanity/icons": "^3.7.4",
+    "@sanity/image-url": "^2.1.1",
+    "@sanity/presentation": "^2.0.0",
+    "@sanity/preview-url-secret": "^4.0.4",
+    "@sanity/vision": "^5.19.0",
     "framer-motion": "^12.38.0",
     "next": "16.2.0",
+    "next-sanity": "^12.2.1",
+    "presentation": "link:@sanity/@sanity/presentation",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sanity": "^5.19.0",
+    "styled-components": "^6.3.12"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@next/eslint-plugin-next": "^16.2.1",
     "@types/node": "22.19.11",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "autoprefixer": "^10.4.21",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.1",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "typescript": "5.7.3"

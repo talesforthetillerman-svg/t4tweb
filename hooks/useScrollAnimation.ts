@@ -31,35 +31,31 @@ export function useScrollAnimation(
     offset: ['start end', 'end start'],
   })
 
-  // Configuración por defecto: fade in/out suave
   const defaults = {
-    opacityStart: 0,
+    opacityStart: 0.82,
     opacityEnd: 1,
-    scaleStart: 0.95,
+    scaleStart: 0.98,
     scaleEnd: 1,
-    yStart: 20,
+    yStart: 12,
     yEnd: 0,
     ...config,
   }
 
-  // Opacity: fade in al entrar, fade out al salir
   const opacity = useTransform(
     scrollYProgress,
-    [0, 0.2, 0.8, 1],
+    [0, 0.18, 0.82, 1],
     [defaults.opacityStart, defaults.opacityEnd, defaults.opacityEnd, defaults.opacityStart]
   )
 
-  // Scale: zoom muy leve progresivo
   const scale = useTransform(
     scrollYProgress,
-    [0, 0.15, 0.85, 1],
+    [0, 0.18, 0.82, 1],
     [defaults.scaleStart, defaults.scaleStart, defaults.scaleEnd, defaults.scaleEnd]
   )
 
-  // TranslateY: movimiento vertical muy leve
   const y = useTransform(
     scrollYProgress,
-    [0, 0.15, 0.85, 1],
+    [0, 0.18, 0.82, 1],
     [defaults.yStart, defaults.yStart, defaults.yEnd, defaults.yEnd]
   )
 
@@ -114,14 +110,14 @@ export function useContentAnimation(
 
   const opacity = useTransform(
     scrollYProgress,
-    [0, 0.15, 0.85, 1],
-    [0, 1, 1, 0]
+    [0, 0.12, 0.88, 1],
+    [0.9, 1, 1, 0.9]
   )
 
   const y = useTransform(
     scrollYProgress,
-    [0, 0.15, 0.85, 1],
-    [40, 0, 0, -40]
+    [0, 0.12, 0.88, 1],
+    [20, 0, 0, -20]
   )
 
   return { opacity, y, scrollYProgress }
