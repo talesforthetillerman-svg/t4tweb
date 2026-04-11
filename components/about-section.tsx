@@ -77,7 +77,9 @@ export function AboutSection({ className = "", overrides = {} }: AboutSectionPro
   const [copied, setCopied] = useState(false)
   const sectionOverride = overrides["about-section"]
   const bgOverride = overrides["about-bg-image"]
-  const headerOverride = overrides["about-header"]
+  // SectionHeader creates data-editor-node-id="about-header-title" (with -title suffix),
+  // so the editor stores overrides under "about-header-title", not "about-header".
+  const headerOverride = overrides["about-header-title"]
   const textCardOverride = overrides["about-text-card"]
   const text1Override = overrides["about-text-1"]
   const text2Override = overrides["about-text-2"]

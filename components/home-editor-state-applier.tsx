@@ -23,6 +23,12 @@ const COMPONENT_DRIVEN_NODE_IDS = new Set<string>([
 
 function isComponentDrivenNode(nodeId: string): boolean {
   if (COMPONENT_DRIVEN_NODE_IDS.has(nodeId)) return true
+  // About, PressKit, Contact, Footer sections use React overrides props for content —
+  // the applier must not write to their DOM nodes to avoid conflicting with React.
+  if (nodeId.startsWith("about-")) return true
+  if (nodeId.startsWith("press-kit-")) return true
+  if (nodeId.startsWith("contact-")) return true
+  if (nodeId.startsWith("footer-")) return true
   if (nodeId === "band-members-section") return true
   if (nodeId === "band-members-bg") return true
   if (/^member-item-\d+$/.test(nodeId)) return true

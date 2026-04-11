@@ -114,7 +114,8 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
   const visibleResources = resources.slice(0, 2)
   const sectionOverride = overrides["press-kit-section"]
   const bgOverride = overrides["press-kit-bg"]
-  const headerOverride = overrides["press-kit-header"]
+  // SectionHeader stores title overrides under `${dataEditId}-title`.
+  const headerOverride = overrides["press-kit-header-title"]
   const mainCardOverride = overrides["press-kit-main-card"]
   const titleOverride = overrides["press-kit-title"]
   const descriptionOverride = overrides["press-kit-description"]

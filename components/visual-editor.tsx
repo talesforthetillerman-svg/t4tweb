@@ -85,6 +85,38 @@ interface HydratedNodeOverride {
   explicitSize?: boolean
 }
 
+const BAND_MEMBER_PERSIST_ONLY_NODE_ID = /^member-item-(\d+)-(name|role|number|image)$/
+
+function isPersistOnlyNodeId(nodeId: string): boolean {
+  return BAND_MEMBER_PERSIST_ONLY_NODE_ID.test(nodeId)
+}
+
+function inferPersistOnlyNodeType(nodeId: string): NodeType {
+  return nodeId.endsWith("-image") ? "image" : "text"
+}
+
+function createPersistOnlyNode(nodeId: string, hydrated?: HydratedNodeOverride | null): EditorNode {
+  return {
+    id: nodeId,
+    type: inferPersistOnlyNodeType(nodeId),
+    sectionId: "band-members-section",
+    label: nodeId,
+    isGrouped: true,
+    geometry: {
+      x: typeof hydrated?.geometry?.x === "number" ? hydrated.geometry.x : 0,
+      y: typeof hydrated?.geometry?.y === "number" ? hydrated.geometry.y : 0,
+      width: typeof hydrated?.geometry?.width === "number" ? hydrated.geometry.width : 0,
+      height: typeof hydrated?.geometry?.height === "number" ? hydrated.geometry.height : 0,
+    },
+    style: { ...(hydrated?.style || {}) },
+    content: { ...(hydrated?.content || {}) },
+    explicitContent: Boolean(hydrated?.explicitContent),
+    explicitStyle: Boolean(hydrated?.explicitStyle),
+    explicitPosition: Boolean(hydrated?.explicitPosition),
+    explicitSize: Boolean(hydrated?.explicitSize),
+  }
+}
+
 export interface RuntimeEntry {
   id: string
   type: NodeType
@@ -532,7 +564,11 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
       paddingBottom: cs.paddingBottom,
       ...(hydratedStyle || {}),
     },
-    content,
+    // Merge hydratedContent for fields that cannot be read from the DOM
+    // (e.g. gradientEnabled, gradientStart, gradientEnd, concert data).
+    // DOM-read fields in `content` override hydrated ones; hydrated supplies
+    // anything the DOM extraction cannot see.
+    content: { ...(hydratedContent || {}), ...content } as EditorNode["content"],
     explicitContent,
     explicitStyle,
     explicitPosition,
@@ -591,6 +627,18 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     scanRegistry().forEach((entry, id) => {
       nextNodes.set(id, buildNodeFromEntry(entry))
     })
+    // Keep persisted nodes that intentionally have no direct DOM editable target
+    // (band member split fields edited from the custom panel).
+    if (typeof window !== "undefined") {
+      const bag = (window as Window & { __HOME_EDITOR_NODE_OVERRIDES__?: Record<string, HydratedNodeOverride> }).__HOME_EDITOR_NODE_OVERRIDES__
+      if (bag && typeof bag === "object") {
+        Object.entries(bag).forEach(([id, hydrated]) => {
+          if (!isPersistOnlyNodeId(id)) return
+          if (nextNodes.has(id)) return
+          nextNodes.set(id, createPersistOnlyNode(id, hydrated))
+        })
+      }
+    }
     setNodes(nextNodes)
     snapshot(nextNodes)
   }, [isEditing, snapshot, refreshRegistry])
@@ -716,7 +764,13 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     setNodes((prev) => {
       const next = new Map(prev)
       const patchNode = (nodeId: string, updater: (node: EditorNode) => EditorNode) => {
-        const node = next.get(nodeId)
+        let node = next.get(nodeId)
+        if (!node && isPersistOnlyNodeId(nodeId)) {
+          const hydrated = readHydratedNodeOverride(nodeId)
+          const created = createPersistOnlyNode(nodeId, hydrated)
+          next.set(nodeId, created)
+          node = created
+        }
         if (!node) return
         const updated = updater(node)
         if (updated === node) return
@@ -1005,6 +1059,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
       for (const id of next.keys()) {
         if (registry.has(id)) continue
+        if (isPersistOnlyNodeId(id)) continue
         next.delete(id)
         changed = true
       }
@@ -1195,9 +1250,7 @@ export function VisualEditorOverlay() {
   const heroTitleSegments = selectedNode?.id === "hero-title"
     ? (selectedNode.content.titleSegments || selectedNode.content.textSegments || [])
     : []
-  const selectedBandMemberIndex = selectedNode?.id.startsWith("member-item-")
-    ? Number(selectedNode.id.replace("member-item-", ""))
-    : null
+  const selectedBandMemberIndex = extractBandMemberIndex(selectedNode?.id)
 
   const getBandMemberFieldValue = useCallback((index: number, field: "number" | "name" | "role" | "photo"): string => {
     if (typeof document === "undefined") return ""
@@ -1212,24 +1265,28 @@ export function VisualEditorOverlay() {
     if (field === "number") {
       const el = document.querySelector<HTMLElement>(`[data-member-number-index="${index}"]`)
       if (el) el.textContent = value
+      dispatch({ type: "UPDATE_TEXT", nodeId: `member-item-${index}-number`, patch: { text: value } })
       return
     }
     if (field === "name") {
       document.querySelectorAll<HTMLElement>(`[data-member-name-index="${index}"],[data-member-overlay-name-index="${index}"]`).forEach((el) => {
         el.textContent = value
       })
+      dispatch({ type: "UPDATE_TEXT", nodeId: `member-item-${index}-name`, patch: { text: value } })
       return
     }
     if (field === "role") {
       document.querySelectorAll<HTMLElement>(`[data-member-role-index="${index}"],[data-member-overlay-role-index="${index}"]`).forEach((el) => {
         el.textContent = value
       })
+      dispatch({ type: "UPDATE_TEXT", nodeId: `member-item-${index}-role`, patch: { text: value } })
       return
     }
     document.querySelectorAll<HTMLImageElement>(`[data-member-photo-index="${index}"]`).forEach((img) => {
       img.src = value
     })
-  }, [])
+    dispatch({ type: "UPDATE_IMAGE", nodeId: `member-item-${index}-image`, patch: { src: value, mediaKind: "image" } })
+  }, [dispatch])
   const exitEditor = () => {
     setIsEditing(false)
     window.location.reload()

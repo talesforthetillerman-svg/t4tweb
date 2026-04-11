@@ -85,7 +85,9 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
   const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
   const sectionOverride = overrides["contact-section"]
   const bgOverride = overrides["contact-bg-image"]
-  const headerOverride = overrides["contact-header"]
+  // SectionHeader creates data-editor-node-id="contact-header-title" (with -title suffix),
+  // so the editor stores overrides under "contact-header-title", not "contact-header".
+  const headerOverride = overrides["contact-header-title"]
   const emailCardOverride = overrides["contact-email"]
   const emailTitleOverride = overrides["contact-email-title"]
   const emailDescriptionOverride = overrides["contact-email-description"]
