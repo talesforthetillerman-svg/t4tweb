@@ -27,17 +27,6 @@ interface TextSegment {
   gradientEnd?: string
 }
 
-interface TextSegment {
-  text: string
-  color: string
-  bold: boolean
-  italic: boolean
-  underline: boolean
-  opacity: number
-  fontSize?: string
-  fontFamily?: string
-}
-
 interface NodeGeometry {
   x: number
   y: number
@@ -609,6 +598,8 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   const applyNodeToDom = useCallback((node: EditorNode, entry: RuntimeEntry) => {
     const el = entry.element
     const g = node.geometry
+    el.style.transition = "none"
+    el.style.animation = "none"
     const hasManagedTransform = el.dataset.editorManagedTransform === "true"
     const hasManagedSize = el.dataset.editorManagedSize === "true"
     const nodeScale = Math.max(0.1, node.style.scale ?? 1)
@@ -1505,8 +1496,17 @@ export function VisualEditorOverlay() {
       const dx = e.clientX - state.start.x
       const dy = e.clientY - state.start.y
       if (state.mode === "move") {
-        dispatch({ type: "MOVE_NODE", nodeId: state.nodeId, dx, dy, transient: true })
-        pointerRef.current.start = { x: e.clientX, y: e.clientY }
+        const originX = state.origin?.x ?? 0
+        const originY = state.origin?.y ?? 0
+        dispatch({
+          type: "SET_NODE_GEOMETRY",
+          nodeId: state.nodeId,
+          x: originX + dx,
+          y: originY + dy,
+          width: state.origin?.width ?? 0,
+          height: state.origin?.height ?? 0,
+          transient: true,
+        })
       } else if (state.mode === "resize" && state.origin && state.nodeId && state.handle) {
         const handle = state.handle
         let nextX = state.origin.x

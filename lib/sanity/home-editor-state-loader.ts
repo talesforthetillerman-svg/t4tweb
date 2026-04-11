@@ -1,64 +1,59 @@
 import { createClient } from "next-sanity"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
-import { getTraceNodeId, resolveSanityDataset, resolveSanityProjectId } from "@/lib/sanity/env"
+import { resolveSanityDataset, resolveSanityProjectId } from "@/lib/sanity/env"
 
 interface HomeEditorStateRaw {
-  nodes?: HomeEditorNodeOverride[]
+  nodesJson?: string
 }
 
-const DOC_DRIVEN_NODE_IDS = new Set<string>([
-  "hero-bg-image",
-  "hero-logo",
-  "nav-logo",
-  "intro-banner-gif",
-])
-
-function isDocDrivenNodeId(nodeId: string): boolean {
-  if (DOC_DRIVEN_NODE_IDS.has(nodeId)) return true
-  if (nodeId === "hero-section" || nodeId === "hero-title" || nodeId === "hero-subtitle" || nodeId === "hero-scroll-indicator" || nodeId === "hero-buttons") return true
-  if (nodeId === "navigation" || nodeId === "navigation-inner" || nodeId === "nav-brand-name" || nodeId === "nav-book-button" || nodeId === "nav-mobile-book-button") return true
-  if (/^nav-(link|mobile-link)-\d+$/.test(nodeId)) return true
-  if (nodeId === "intro-section" || nodeId === "intro-banner-text" || nodeId === "intro-book-button" || nodeId === "intro-press-button") return true
-  return false
+function createReadClient() {
+  return createClient({
+    projectId: resolveSanityProjectId(),
+    dataset: resolveSanityDataset(),
+    apiVersion: "2024-01-01",
+    useCdn: false,
+    perspective: "published",
+  })
 }
 
 export async function loadHomeEditorState(): Promise<HomeEditorNodeOverride[]> {
   try {
-    const projectId = resolveSanityProjectId()
-    const dataset = resolveSanityDataset()
-    const traceNodeId = getTraceNodeId()
-    const client = createClient({
-      projectId,
-      dataset,
-      apiVersion: "2024-01-01",
-      useCdn: false,
-      perspective: "published",
-    })
+    const client = createReadClient()
+    const doc = await client.fetch<HomeEditorStateRaw | null>(
+      `*[_id == "homeEditorState-singleton"][0]{ nodesJson }`
+    )
+    const raw = JSON.parse(doc?.nodesJson || "[]")
+    if (!Array.isArray(raw)) return []
 
-    const query = `*[_type == "homeEditorState" && _id == "homeEditorState"][0]{ nodes }`
-    const fetched = await client.fetch<HomeEditorStateRaw | null>(query)
-
-    if (!fetched?.nodes || !Array.isArray(fetched.nodes)) {
-      if (process.env.NODE_ENV !== "production") {
-        console.info("[home-editor-state-loader] no nodes", { projectId, dataset })
-      }
-      return []
-    }
-
-    const nodes = fetched.nodes.filter((node) => Boolean(node?.nodeId))
-    const filteredNodes = nodes.filter((node) => !isDocDrivenNodeId(node.nodeId))
-    if (process.env.NODE_ENV !== "production" && traceNodeId) {
-      const tracedNode = filteredNodes.find((node) => node.nodeId === traceNodeId)
-      console.info("[home-editor-state-loader][trace]", {
-        traceNodeId,
-        projectId,
-        dataset,
-        found: !!tracedNode,
-        foundBeforeFiltering: nodes.some((node) => node.nodeId === traceNodeId),
-        node: tracedNode || null,
+    return raw
+      .map((raw): HomeEditorNodeOverride | null => {
+        if (!raw || typeof raw !== "object") return null
+        const n = raw as Record<string, unknown>
+        const nodeId = typeof n.nodeId === "string" ? n.nodeId : typeof n.id === "string" ? n.id : null
+        if (!nodeId) return null
+        const nodeType = typeof n.nodeType === "string" ? n.nodeType : typeof n.type === "string" ? n.type : "text"
+        const geometry = (n.geometry && typeof n.geometry === "object" ? n.geometry : {}) as Record<string, unknown>
+        const style = (n.style && typeof n.style === "object" ? n.style : {}) as Record<string, unknown>
+        const content = (n.content && typeof n.content === "object" ? n.content : {}) as Record<string, unknown>
+        return {
+          nodeId,
+          nodeType: nodeType as HomeEditorNodeOverride["nodeType"],
+          geometry: {
+            x: typeof geometry.x === "number" ? geometry.x : 0,
+            y: typeof geometry.y === "number" ? geometry.y : 0,
+            width: typeof geometry.width === "number" ? geometry.width : 0,
+            height: typeof geometry.height === "number" ? geometry.height : 0,
+          },
+          style: style as HomeEditorNodeOverride["style"],
+          content: content as HomeEditorNodeOverride["content"],
+          explicitContent: Boolean(n.explicitContent),
+          explicitStyle: Boolean(n.explicitStyle),
+          explicitPosition: Boolean(n.explicitPosition),
+          explicitSize: Boolean(n.explicitSize),
+          updatedAt: typeof n.updatedAt === "string" ? n.updatedAt : new Date().toISOString(),
+        }
       })
-    }
-    return filteredNodes
+      .filter((node): node is HomeEditorNodeOverride => Boolean(node))
   } catch (error) {
     console.error("[home-editor-state-loader] Failed to load home editor state", error)
     return []

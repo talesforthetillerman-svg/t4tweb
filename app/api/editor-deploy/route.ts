@@ -112,7 +112,7 @@ const SANITY_DOC_TYPE = "heroSection"
 const SANITY_DOC_NAV = "navigation"
 const SANITY_DOC_INTRO = "introBanner"
 const SANITY_DOC_HOME_EDITOR_STATE = "homeEditorState"
-const HOME_EDITOR_STATE_DOCUMENT_ID = "homeEditorState"
+const HOME_EDITOR_STATE_DOCUMENT_ID = "homeEditorState-singleton"
 const REVALIDATED_PATH = "/"
 const INTRO_DOCUMENT_ID = "introBanner"
 const SHOULD_REVALIDATE_PATH = process.env.EDITOR_DEPLOY_REVALIDATE_LOCAL_PATH !== "false"
@@ -217,7 +217,7 @@ function buildSanityImageFieldFromSrc(
   }
 }
 
-function shouldPersistInCentralHomeState(node: DeployNodePayload): boolean {
+function shouldVerifyInHomeEditorState(node: DeployNodePayload): boolean {
   if (node.id === "intro-banner-gif") return false
   const isImageLikeNode = node.type === "image" || node.type === "background"
   if (isImageLikeNode && node.explicitContent) return true
@@ -276,73 +276,6 @@ function compareMaps(
     }
   }
   return { matched: true, mismatchReason: null }
-}
-
-function buildHomeEditorStateNode(node: DeployNodePayload): { node: HomeEditorNodeOverride; skippedImageSrc: boolean } {
-  const skippedImageSrc = typeof node.content?.src === "string" && !!node.content.src && !isImageSrcPersistable(node.content.src)
-
-  const content: HomeEditorNodeOverride["content"] = {
-    text: typeof node.content?.text === "string" ? node.content.text : undefined,
-    textSegments: Array.isArray(node.content?.textSegments) ? node.content.textSegments : undefined,
-    titleSegments: Array.isArray(node.content?.titleSegments) ? node.content.titleSegments : undefined,
-    href: typeof node.content?.href === "string" ? node.content.href : undefined,
-    src: skippedImageSrc ? undefined : (typeof node.content?.src === "string" ? node.content.src : undefined),
-    alt: typeof node.content?.alt === "string" ? node.content.alt : undefined,
-    videoUrl: typeof node.content?.videoUrl === "string" ? node.content.videoUrl : undefined,
-    mediaKind: node.content?.mediaKind === "video" ? "video" : "image",
-    gradientEnabled: typeof node.content?.gradientEnabled === "boolean" ? node.content.gradientEnabled : undefined,
-    gradientStart: typeof node.content?.gradientStart === "string" ? node.content.gradientStart : undefined,
-    gradientEnd: typeof node.content?.gradientEnd === "string" ? node.content.gradientEnd : undefined,
-    date: typeof node.content?.date === "string" ? node.content.date : undefined,
-    venue: typeof node.content?.venue === "string" ? node.content.venue : undefined,
-    city: typeof node.content?.city === "string" ? node.content.city : undefined,
-    country: typeof node.content?.country === "string" ? node.content.country : undefined,
-    genre: typeof node.content?.genre === "string" ? node.content.genre : undefined,
-    price: typeof node.content?.price === "string" ? node.content.price : undefined,
-    status: typeof node.content?.status === "string" ? node.content.status : undefined,
-    time: typeof node.content?.time === "string" ? node.content.time : undefined,
-    capacity: typeof node.content?.capacity === "string" ? node.content.capacity : undefined,
-    locationUrl: typeof node.content?.locationUrl === "string" ? node.content.locationUrl : undefined,
-  }
-
-  return {
-    node: {
-      nodeId: node.id,
-      nodeType: node.type as HomeEditorNodeOverride["nodeType"],
-      geometry: {
-        x: roundLayoutPx(node.geometry.x),
-        y: roundLayoutPx(node.geometry.y),
-        width: roundLayoutPx(node.geometry.width),
-        height: roundLayoutPx(node.geometry.height),
-      },
-      style: {
-        color: typeof node.style?.color === "string" ? node.style.color : undefined,
-        backgroundColor: typeof node.style?.backgroundColor === "string" ? node.style.backgroundColor : undefined,
-        opacity: typeof node.style?.opacity === "number" ? node.style.opacity : undefined,
-        contrast: typeof node.style?.contrast === "number" ? node.style.contrast : undefined,
-        saturation: typeof node.style?.saturation === "number" ? node.style.saturation : undefined,
-        brightness: typeof node.style?.brightness === "number" ? node.style.brightness : undefined,
-        negative: typeof node.style?.negative === "boolean" ? node.style.negative : undefined,
-        fontSize: typeof node.style?.fontSize === "string" ? node.style.fontSize : undefined,
-        fontFamily: typeof node.style?.fontFamily === "string" ? node.style.fontFamily : undefined,
-        fontWeight: typeof node.style?.fontWeight === "string" ? node.style.fontWeight : undefined,
-        fontStyle: typeof node.style?.fontStyle === "string" ? node.style.fontStyle : undefined,
-        textDecoration: typeof node.style?.textDecoration === "string" ? node.style.textDecoration : undefined,
-        textAlign: typeof node.style?.textAlign === "string" ? (node.style.textAlign as "left" | "center" | "right") : undefined,
-        scale: typeof node.style?.scale === "number" ? Math.round(node.style.scale * 1000) / 1000 : undefined,
-        minHeight: typeof node.style?.minHeight === "string" ? node.style.minHeight : undefined,
-        paddingTop: typeof node.style?.paddingTop === "string" ? node.style.paddingTop : undefined,
-        paddingBottom: typeof node.style?.paddingBottom === "string" ? node.style.paddingBottom : undefined,
-      },
-      content,
-      explicitContent: node.explicitContent,
-      explicitStyle: node.explicitStyle,
-      explicitPosition: node.explicitPosition,
-      explicitSize: node.explicitSize,
-      updatedAt: new Date().toISOString(),
-    },
-    skippedImageSrc,
-  }
 }
 
 /** Persist brand name, CTA, and link rows from editor nodes (explicitContent). */
@@ -742,7 +675,7 @@ export async function POST(request: Request) {
       perspective: "published",
     })
 
-    const [existingHero, existingNavigation, existingIntro, existingHomeEditorState] = await Promise.all([
+    const [existingHero, existingNavigation, existingIntro] = await Promise.all([
       writeClient.fetch<{
         _id: string
         title?: string
@@ -772,10 +705,6 @@ export async function POST(request: Request) {
       } | null>(
         `*[_type == $introType][0]{ _id, bannerText, gifUrl, bookLabel, bookHref, pressLabel, pressHref, elementStyles }`,
         { introType: SANITY_DOC_INTRO }
-      ),
-      writeClient.fetch<{ _id: string; nodes?: HomeEditorNodeOverride[] } | null>(
-        `*[_type == $homeType && _id == $homeId][0]{ _id, nodes }`,
-        { homeType: SANITY_DOC_HOME_EDITOR_STATE, homeId: HOME_EDITOR_STATE_DOCUMENT_ID }
       ),
     ])
     log("document fetch", { hero: !!existingHero?._id, navigation: !!existingNavigation?._id, intro: !!existingIntro?._id })
@@ -1206,74 +1135,25 @@ export async function POST(request: Request) {
       if (!skippedNodes.includes("intro-banner-gif")) skippedNodes.push("intro-banner-gif")
     }
 
-    const centralHomeNodes: HomeEditorNodeOverride[] = []
-    const skippedNodeDiagnostics: string[] = []
-    for (const node of payload.nodes) {
-      const isImageLikeNode = node.type === "image" || node.type === "background"
-      if (isImageLikeNode && node.explicitContent && (!node.content?.src || String(node.content.src).trim().length === 0)) {
-        const reason = `${node.id}:missing-content-src`
-        skippedNodeDiagnostics.push(reason)
-        if (!skippedNodes.includes(node.id)) skippedNodes.push(node.id)
-        if (!failedNodes.includes(reason)) failedNodes.push(reason)
-        continue
-      }
-      if (isImageLikeNode && node.explicitContent && typeof node.content?.src === "string" && !isImageSrcPersistable(node.content.src)) {
-        const reason = `${node.id}:src(blob/data url)`
-        skippedNodeDiagnostics.push(reason)
-        if (!skippedNodes.includes(node.id)) skippedNodes.push(node.id)
-        continue
-      }
-      if (!shouldPersistInCentralHomeState(node)) continue
-      const built = buildHomeEditorStateNode(node)
-      centralHomeNodes.push(built.node)
-      if (built.skippedImageSrc) {
-        skippedNodeDiagnostics.push(`${node.id}:src(blob/data url)`)
-        if (!skippedNodes.includes(node.id)) skippedNodes.push(node.id)
-      }
-      if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
-    }
-
     let homeEditorStateDocumentId: string | null = null
-    if (centralHomeNodes.length > 0) {
-      const existingNodes = Array.isArray(existingHomeEditorState?.nodes) ? existingHomeEditorState.nodes : []
-      const mergedById = new Map<string, HomeEditorNodeOverride>()
-      existingNodes.forEach((node) => {
-        if (!node?.nodeId) return
-        mergedById.set(node.nodeId, node)
-      })
-      centralHomeNodes.forEach((node) => {
-        mergedById.set(node.nodeId, node)
-      })
-      const mergedNodes = Array.from(mergedById.values()).sort((a, b) => a.nodeId.localeCompare(b.nodeId))
-      log("[RELEASE-TRACE][route][central-merge]", {
-        mergedReleaseNodes: mergedNodes
-          .filter((node) => RELEASE_NODE_IDS.has(node.nodeId))
-          .map((node) => ({
-            nodeId: node.nodeId,
-            geometry: node.geometry,
-            style: node.style,
-            content: node.content,
-            explicitContent: node.explicitContent,
-            explicitStyle: node.explicitStyle,
-            explicitPosition: node.explicitPosition,
-            explicitSize: node.explicitSize,
-          })),
-      })
+    if (Array.isArray(payload.nodes) && payload.nodes.length > 0) {
       const homeStateDocument = {
         _id: HOME_EDITOR_STATE_DOCUMENT_ID,
         _type: SANITY_DOC_HOME_EDITOR_STATE,
         updatedAt: new Date().toISOString(),
-        nodes: mergedNodes,
+        nodesJson: JSON.stringify(payload.nodes),
       }
       const homeStateResponse = await writeClient.createOrReplace(homeStateDocument)
       homeEditorStateDocumentId = homeStateResponse._id
       steps.push({
         step: "saving",
         ok: true,
-        message: `Home editor central state saved: ${HOME_EDITOR_STATE_DOCUMENT_ID} (${mergedNodes.length} nodes).`,
+        message: `Home editor central state saved: ${HOME_EDITOR_STATE_DOCUMENT_ID} (${payload.nodes.length} nodes).`,
       })
-      persistedFields.push("homeEditorState.nodes")
-      skippedFields.push(...skippedNodeDiagnostics)
+      persistedFields.push("homeEditorState.nodesJson")
+      for (const node of payload.nodes) {
+        if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
+      }
     }
 
     // Process Hero element style overrides (position, size, typography)
@@ -1483,8 +1363,8 @@ export async function POST(request: Request) {
         `*[_type == $type][0]{ elementStyles, bannerText, gifUrl, bookLabel, bookHref, pressLabel, pressHref }`,
         { type: SANITY_DOC_INTRO }
       ),
-      writeClient.fetch<{ nodes?: HomeEditorNodeOverride[] } | null>(
-        `*[_type == $homeType && _id == $homeId][0]{ nodes }`,
+      writeClient.fetch<{ nodesJson?: string } | null>(
+        `*[_type == $homeType && _id == $homeId][0]{ nodesJson }`,
         { homeType: SANITY_DOC_HOME_EDITOR_STATE, homeId: HOME_EDITOR_STATE_DOCUMENT_ID }
       ),
     ])
@@ -1564,7 +1444,7 @@ export async function POST(request: Request) {
         nodeId === "hero-buttons"
       const isNavLayoutIdChanged = isNavLayoutId(nodeId)
       const isIntroLayoutIdChanged = INTRO_LAYOUT_IDS.has(nodeId)
-      const shouldVerifyHomeState = shouldPersistInCentralHomeState(node)
+      const shouldVerifyHomeState = shouldVerifyInHomeEditorState(node)
 
       const expectedScale =
         node.explicitStyle && typeof node.style.scale === "number"
@@ -1730,8 +1610,20 @@ export async function POST(request: Request) {
           readBack.pressHref = introReadback?.pressHref
         }
       } else if (shouldVerifyHomeState) {
-        storageTarget = "homeEditorState.nodes"
-        const readNode = homeStateReadback?.nodes?.find((n) => n.nodeId === nodeId)
+        storageTarget = "homeEditorState.nodesJson"
+        const homeStateNodes = (() => {
+          try {
+            const parsed = JSON.parse(homeStateReadback?.nodesJson || "[]")
+            return Array.isArray(parsed) ? parsed : []
+          } catch {
+            return []
+          }
+        })() as Array<HomeEditorNodeOverride & { id?: string }>
+
+        const readNode = homeStateNodes.find((n) => {
+          const withNodeId = n as HomeEditorNodeOverride & { id?: string }
+          return withNodeId.nodeId === nodeId || withNodeId.id === nodeId
+        })
         if (!readNode) {
           changedNodesFailed.push(nodeId)
           const mismatchReason = "missing-home-editor-state-node"
