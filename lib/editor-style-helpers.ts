@@ -30,14 +30,16 @@ export function buildInlineStyleFromOverride(
       style.backgroundColor = override.style.backgroundColor
     }
     if (override.style.color) style.color = override.style.color
-    if (override.style.fontSize) style.fontSize = override.style.fontSize
-    if (override.style.fontFamily) style.fontFamily = override.style.fontFamily
     if (override.style.fontWeight) style.fontWeight = override.style.fontWeight as CSSProperties["fontWeight"]
     if (override.style.fontStyle) style.fontStyle = override.style.fontStyle as CSSProperties["fontStyle"]
     if (override.style.textDecoration) style.textDecoration = override.style.textDecoration as CSSProperties["textDecoration"]
-    if (override.style.minHeight) style.minHeight = override.style.minHeight
-    if (override.style.paddingTop) style.paddingTop = override.style.paddingTop
-    if (override.style.paddingBottom) style.paddingBottom = override.style.paddingBottom
+    if (includeGeometry) {
+      if (override.style.fontSize) style.fontSize = override.style.fontSize
+      if (override.style.fontFamily) style.fontFamily = override.style.fontFamily
+      if (override.style.minHeight) style.minHeight = override.style.minHeight
+      if (override.style.paddingTop) style.paddingTop = override.style.paddingTop
+      if (override.style.paddingBottom) style.paddingBottom = override.style.paddingBottom
+    }
   }
 
   return Object.keys(style).length > 0 ? style : undefined

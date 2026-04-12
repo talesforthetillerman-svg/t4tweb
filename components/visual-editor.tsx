@@ -243,7 +243,7 @@ function isEditingInput(target: EventTarget | null): boolean {
 function normalizeType(raw: string): NodeType {
   if (raw === "link") return "button"
   if (raw === "box") return "card"
-  if (raw === "section" || raw === "background" || raw === "card" || raw === "text" || raw === "button" || raw === "image") {
+  if (raw === "section" || raw === "background" || raw === "card" || raw === "text" || raw === "button" || raw === "image" || raw === "group") {
     return raw
   }
   return "text"

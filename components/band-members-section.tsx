@@ -83,7 +83,7 @@ export function BandMembersSection({ initialMembers, overrides = {} }: BandMembe
   const { opacity, y } = useScrollAnimation(sectionRef)
   const { isEditing } = useVisualEditor()
   const traceNodeId = getTraceNodeId()
-  const resolvedBandMembersBackgroundSrc = useHomeEditorImageSrc("band-members-bg", "/images/sections/band-member-bg.jpg")
+  const resolvedBandMembersBackgroundSrc = useHomeEditorImageSrc("band-members-bg", "/images/sections/band-section.jpg")
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024)

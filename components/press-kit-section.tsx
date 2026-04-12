@@ -3,10 +3,8 @@
 import { useRef, useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
-import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { SectionHeader } from "@/components/section-header"
 import { useVisualEditor } from "@/components/visual-editor"
-import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-overrides"
 import type { CSSProperties } from "react"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 
@@ -68,7 +66,6 @@ function resolveImageSrcOverride(override: HomeEditorNodeOverride | undefined, f
 
 export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
-  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
   const sectionRef = useRef<HTMLElement>(null)
   const bgRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
@@ -79,8 +76,6 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
   const downloadButtonRef = useRef<HTMLAnchorElement>(null)
   const resourceRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const managerRef = useRef<HTMLButtonElement>(null)
-
-  const { opacity, y } = useScrollAnimation(sectionRef)
 
   const resources = useMemo(() => [
     {
@@ -303,9 +298,9 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
       data-editor-node-id="press-kit-section"
       data-editor-node-type="section"
       data-editor-node-label="Press Kit Section"
-      style={buildInlineStyleFromOverride(sectionOverride, allowGeometryOverrides)}
+      style={buildInlineStyleFromOverride(sectionOverride, false)}
     >
-      <div ref={bgRef} className="absolute inset-0 -z-10" style={buildInlineStyleFromOverride(bgOverride, allowGeometryOverrides)}>
+      <div ref={bgRef} className="absolute inset-0 -z-10" style={buildInlineStyleFromOverride(bgOverride, false)}>
         <Image
           src={pressKitBgSrc}
           alt="Press kit background"
@@ -326,10 +321,9 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
         <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
           <motion.div 
             ref={headerRef}
-            style={isEditing ? undefined : { opacity, y }} 
             className="mb-10 md:mb-12"
           >
-            <div style={buildInlineStyleFromOverride(headerOverride, allowGeometryOverrides)}>
+            <div style={buildInlineStyleFromOverride(headerOverride, false)}>
               <SectionHeader
               eyebrow="Media Resources"
               title="Professional Press Materials"
@@ -348,7 +342,7 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
             viewport={isEditing ? undefined : { once: true, amount: 0.2 }}
             transition={isEditing ? undefined : { duration: 0.45 }}
             className="mb-10 md:mb-12"
-            style={buildInlineStyleFromOverride(mainCardOverride, allowGeometryOverrides)}
+            style={buildInlineStyleFromOverride(mainCardOverride, false)}
           >
             <div 
               className="rounded-xl border border-border bg-card/35 p-4 text-center shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-6 md:p-9"
@@ -365,7 +359,7 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
                 data-editor-node-id="press-kit-title"
                 data-editor-node-type="text"
                 data-editor-node-label="Press Kit Title"
-                style={buildInlineStyleFromOverride(titleOverride, allowGeometryOverrides)}
+                style={buildInlineStyleFromOverride(titleOverride, false)}
               >
                 {pressKitTitle}
               </h3>
@@ -375,7 +369,7 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
                 data-editor-node-id="press-kit-description"
                 data-editor-node-type="text"
                 data-editor-node-label="Press Kit Description"
-                style={buildInlineStyleFromOverride(descriptionOverride, allowGeometryOverrides)}
+                style={buildInlineStyleFromOverride(descriptionOverride, false)}
               >
                 {pressKitDescription}
               </p>
@@ -387,7 +381,7 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
                 data-editor-node-id="press-kit-download-button"
                 data-editor-node-type="button"
                 data-editor-node-label="Download Press Kit Button"
-                style={buildInlineStyleFromOverride(downloadButtonOverride, allowGeometryOverrides)}
+                style={buildInlineStyleFromOverride(downloadButtonOverride, false)}
               >
                 <DownloadIcon className="h-6 w-6" />
                 {pressKitButtonLabel}
@@ -420,7 +414,7 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
                   data-editor-node-type="card"
                   data-editor-node-label={`Resource: ${resource.title}`}
                   data-editor-grouped="true"
-                  style={buildInlineStyleFromOverride(resourceOverride, allowGeometryOverrides)}
+                  style={buildInlineStyleFromOverride(resourceOverride, false)}
                 >
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition-colors group-hover:text-foreground">
                     <Icon />
@@ -435,7 +429,7 @@ export function PressKitSection({ overrides = {} }: PressKitSectionProps) {
               managerRef={managerRef}
               isEditing={isEditing}
               managerTitle={pressKitManagerTitle}
-              managerStyle={buildInlineStyleFromOverride(managerOverride, allowGeometryOverrides)}
+              managerStyle={buildInlineStyleFromOverride(managerOverride, false)}
             />
           </div>
         </div>

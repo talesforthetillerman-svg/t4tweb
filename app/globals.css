@@ -672,8 +672,22 @@
   }
 }
 
+@keyframes hero-shine {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.24;
+  }
+}
+
 .animate-fade-in-up {
   animation: fade-in-up 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-hero-shine {
+  animation: hero-shine 16s ease-in-out infinite;
 }
 
 .animate-fade-in {
@@ -996,6 +1010,12 @@ body[data-editor-mode="true"] [data-editor-node-id] * {
 
 body[data-editor-mode="true"] [data-editor-node-id="nav-logo"],
 body[data-editor-mode="true"] [data-editor-node-id="hero-logo"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+body[data-editor-mode="true"] [data-editor-node-id="hero-title"],
+body[data-editor-mode="true"] [data-editor-node-id="hero-title"] * {
   opacity: 1 !important;
   visibility: visible !important;
 }

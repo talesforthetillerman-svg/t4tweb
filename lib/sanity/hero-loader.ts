@@ -29,6 +29,8 @@ export interface HeroData {
   description: string
   logoUrl: string
   bgUrl: string
+  scrollLabel: string
+  ctaButtons: Array<{ label: string; href: string; variant: string }>
   elementStyles?: Record<string, Record<string, unknown>> // style overrides by targetId
 }
 
@@ -43,6 +45,8 @@ const FALLBACK: HeroData = {
   description: "",
   logoUrl: "/images/t4tPics/logo-white.png",
   bgUrl: "/images/t4tPics/hero-bg.jpg",
+  scrollLabel: "SCROLL",
+  ctaButtons: [],
   elementStyles: {},
 }
 
@@ -75,6 +79,12 @@ export async function loadHeroData(): Promise<HeroData> {
       },
       subtitle,
       description,
+      scrollLabel,
+      ctaButtons[]{
+        label,
+        href,
+        variant
+      },
       "logoUrl": logo.asset->url,
       "bgUrl": backgroundImage.asset->url,
       elementStyles
@@ -103,6 +113,8 @@ export async function loadHeroData(): Promise<HeroData> {
       description: fetched.description || FALLBACK.description,
       logoUrl: fetched.logoUrl || FALLBACK.logoUrl,
       bgUrl: fetched.bgUrl || FALLBACK.bgUrl,
+      scrollLabel: fetched.scrollLabel ?? FALLBACK.scrollLabel,
+      ctaButtons: Array.isArray(fetched.ctaButtons) ? fetched.ctaButtons : FALLBACK.ctaButtons,
       elementStyles: elementStyles ?? FALLBACK.elementStyles,
     }
   } catch (error) {

@@ -41,7 +41,7 @@ export function SectionDivider({ editorId }: SectionDividerProps) {
       data-editor-node-id={editorId}
       data-editor-node-type="background"
       data-editor-node-label="Section Divider"
-      className="relative h-8 w-full bg-gradient-to-b from-transparent via-black/10 to-transparent md:h-12"
+      className="relative h-6 w-full bg-gradient-to-b from-black via-black/10 to-black/5 md:h-8"
     />
   )
 }

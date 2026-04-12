@@ -34,14 +34,16 @@ function buildInlineStyleFromOverride(
     if (override.style.opacity !== undefined) style.opacity = override.style.opacity
     if (override.style.backgroundColor) style.backgroundColor = override.style.backgroundColor
     if (override.style.color) style.color = override.style.color
-    if (override.style.fontSize) style.fontSize = override.style.fontSize
-    if (override.style.fontFamily) style.fontFamily = override.style.fontFamily
     if (override.style.fontWeight) style.fontWeight = override.style.fontWeight as CSSProperties["fontWeight"]
     if (override.style.fontStyle) style.fontStyle = override.style.fontStyle as CSSProperties["fontStyle"]
     if (override.style.textDecoration) style.textDecoration = override.style.textDecoration as CSSProperties["textDecoration"]
-    if (override.style.minHeight) style.minHeight = override.style.minHeight
-    if (override.style.paddingTop) style.paddingTop = override.style.paddingTop
-    if (override.style.paddingBottom) style.paddingBottom = override.style.paddingBottom
+    if (includeGeometry) {
+      if (override.style.fontSize) style.fontSize = override.style.fontSize
+      if (override.style.fontFamily) style.fontFamily = override.style.fontFamily
+      if (override.style.minHeight) style.minHeight = override.style.minHeight
+      if (override.style.paddingTop) style.paddingTop = override.style.paddingTop
+      if (override.style.paddingBottom) style.paddingBottom = override.style.paddingBottom
+    }
   }
   return Object.keys(style).length > 0 ? style : undefined
 }
@@ -66,7 +68,6 @@ function resolveImageSrcOverride(override: HomeEditorNodeOverride | undefined, f
 
 export function Footer({ overrides = {} }: FooterProps) {
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
-  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
   const footerRef = useRef<HTMLElement>(null)
   const logoRef = useRef<HTMLDivElement>(null)
   const descRef = useRef<HTMLParagraphElement>(null)
@@ -270,11 +271,11 @@ export function Footer({ overrides = {} }: FooterProps) {
       data-editor-node-type="section"
       data-editor-node-label="Footer Section"
       className="bg-black"
-      style={buildInlineStyleFromOverride(footerSectionOverride, allowGeometryOverrides)}
+      style={buildInlineStyleFromOverride(footerSectionOverride, false)}
     >
-      <div className="h-5 bg-gradient-to-b from-black/40 to-black sm:h-7" />
+      <div className="h-8 bg-gradient-to-b from-black/30 to-black sm:h-10 sm:from-black/20 md:h-12" />
       
-      <div className="mx-auto max-w-4xl px-4 py-8 text-center sm:px-6 sm:py-11">
+      <div className="mx-auto max-w-4xl px-4 py-10 text-center sm:px-6 sm:py-12 flex flex-col items-center gap-10">
         
         <div 
           ref={logoRef}
@@ -282,7 +283,7 @@ export function Footer({ overrides = {} }: FooterProps) {
           data-editor-node-type="image"
           data-editor-node-label="Footer Logo"
           className="mb-4 sm:mb-6"
-          style={buildInlineStyleFromOverride(footerLogoOverride, allowGeometryOverrides)}
+          style={buildInlineStyleFromOverride(footerLogoOverride, false)}
         >
           <Image
             src={resolvedFooterLogoSrc}
@@ -299,7 +300,7 @@ export function Footer({ overrides = {} }: FooterProps) {
           data-editor-node-type="text"
           data-editor-node-label="Footer Description"
           className="mx-auto mb-5 max-w-2xl px-2 text-sm text-white/70 sm:mb-6 sm:text-lg"
-          style={buildInlineStyleFromOverride(footerDescriptionOverride, allowGeometryOverrides)}
+          style={buildInlineStyleFromOverride(footerDescriptionOverride, false)}
         >
           {footerDescription}
         </p>
@@ -312,7 +313,7 @@ export function Footer({ overrides = {} }: FooterProps) {
             data-editor-node-label="Book the Band"
             href={footerCtaHref}
             className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-7 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#FF8C21]/30 transition-all hover:shadow-xl hover:shadow-[#FF8C21]/40 sm:w-auto sm:px-8 sm:py-3 sm:text-base"
-            style={buildInlineStyleFromOverride(footerCtaOverride, allowGeometryOverrides)}
+            style={buildInlineStyleFromOverride(footerCtaOverride, false)}
           >
             {footerCtaLabel}
           </a>
@@ -326,7 +327,7 @@ export function Footer({ overrides = {} }: FooterProps) {
           data-editor-grouped="true"
           data-link-group-summary="Footer Social Links"
           className="mb-7 flex flex-wrap items-center justify-center gap-2 sm:gap-3"
-          style={buildInlineStyleFromOverride(footerSocialGroupOverride, allowGeometryOverrides)}
+          style={buildInlineStyleFromOverride(footerSocialGroupOverride, false)}
         >
           {socialLinks.map((link) => (
             <a
@@ -341,7 +342,7 @@ export function Footer({ overrides = {} }: FooterProps) {
               rel="noopener noreferrer"
               aria-label={link.name}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-primary sm:h-12 sm:w-12"
-              style={buildInlineStyleFromOverride(overrides[link.id], allowGeometryOverrides)}
+              style={buildInlineStyleFromOverride(overrides[link.id], false)}
             >
               <link.icon />
             </a>
@@ -353,16 +354,16 @@ export function Footer({ overrides = {} }: FooterProps) {
           data-editor-node-id="footer-divider"
           data-editor-node-type="card"
           data-editor-node-label="Footer Divider"
-          className="border-t border-white/10 pt-5 sm:pt-6"
-          style={buildInlineStyleFromOverride(footerDividerOverride, allowGeometryOverrides)}
+          className="flex flex-col items-center border-t border-white/10 pt-6 sm:pt-8 gap-4 w-full"
+          style={buildInlineStyleFromOverride(footerDividerOverride, false)}
         >
           <p 
             ref={copyrightRef}
             data-editor-node-id="footer-copyright"
             data-editor-node-type="text"
             data-editor-node-label="Footer Copyright"
-            className="text-white/40 text-sm text-center"
-            style={buildInlineStyleFromOverride(footerCopyrightOverride, allowGeometryOverrides)}
+            className="text-white/40 text-sm text-center max-w-full"
+            style={buildInlineStyleFromOverride(footerCopyrightOverride, false)}
           >
             {footerCopyright}
           </p>

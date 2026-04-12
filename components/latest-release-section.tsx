@@ -4,7 +4,6 @@ import { useRef, useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
 import { useVisualEditor } from "@/components/visual-editor"
-import { useDesktopLayoutOverridesEnabled } from "@/hooks/use-desktop-layout-overrides"
 import { buildInlineStyleFromOverride, resolveHrefOverride, resolveTextOverride } from "@/lib/editor-style-helpers"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 
@@ -14,7 +13,6 @@ interface LatestReleaseSectionProps {
 
 export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionProps) {
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
-  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
   const [isIosMobile, setIsIosMobile] = useState(false)
   const [isAndroidMobile, setIsAndroidMobile] = useState(false)
 
@@ -173,7 +171,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
       data-editor-node-type="section"
       data-editor-node-label="Release Section"
       className="relative overflow-hidden bg-black"
-      style={buildInlineStyleFromOverride(sectionOverride, allowGeometryOverrides)}
+      style={buildInlineStyleFromOverride(sectionOverride, false)}
     >
       <div 
         ref={bgRef}
@@ -182,7 +180,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
         data-editor-media-kind="video"
         data-editor-node-label="Fondo Video YouTube"
         className="absolute left-0 top-0 z-0 h-full w-full"
-        style={buildInlineStyleFromOverride(bgOverride, allowGeometryOverrides)}
+        style={buildInlineStyleFromOverride(bgOverride, false)}
       >
         {isIosMobile ? (
           <img
@@ -218,7 +216,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
               data-editor-node-type="card"
               data-editor-node-label="Release Card"
               className="mx-auto flex w-full max-w-4xl flex-col items-center rounded-xl border border-primary/28 bg-black/24 p-4 text-center shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-6 md:p-8"
-              style={buildInlineStyleFromOverride(cardOverride, allowGeometryOverrides)}
+              style={buildInlineStyleFromOverride(cardOverride, false)}
             >
               <h2 
                 ref={titleRef}
@@ -226,7 +224,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                 data-editor-node-type="text"
                 data-editor-node-label="Título del Lanzamiento"
                 className="mb-[var(--spacing-sm)] w-full text-balance text-center font-serif text-[clamp(1.65rem,7.2vw,2.4rem)] leading-[1.1] text-foreground sm:text-[length:var(--text-h2)] sm:leading-[var(--line-height-tight)]"
-                style={buildInlineStyleFromOverride(titleOverride, allowGeometryOverrides)}
+                style={buildInlineStyleFromOverride(titleOverride, false)}
               >
                 {releaseTitle}
               </h2>
@@ -237,7 +235,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                 data-editor-node-type="text"
                 data-editor-node-label="Subtítulo del Lanzamiento"
                 className="mb-5 w-full max-w-3xl text-balance text-center text-sm leading-relaxed text-muted-foreground sm:mb-6 sm:text-[length:var(--text-body)]"
-                style={buildInlineStyleFromOverride(subtitleOverride, allowGeometryOverrides)}
+                style={buildInlineStyleFromOverride(subtitleOverride, false)}
               >
                 {releaseSubtitle}
               </p>
@@ -252,7 +250,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                   data-editor-node-type="button"
                   data-editor-node-label="Watch Video Button"
                   className={`min-h-[46px] w-full rounded-xl px-5 py-2.5 text-center text-sm font-semibold shadow-md sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
-                  style={buildInlineStyleFromOverride(watchButtonOverride, allowGeometryOverrides)}
+                  style={buildInlineStyleFromOverride(watchButtonOverride, false)}
                 >
                   {releaseWatchLabel}
                 </a>
@@ -265,7 +263,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                   data-editor-node-type="button"
                   data-editor-node-label="See Shows Button"
                   className="min-h-[46px] w-full rounded-xl border border-primary/35 px-5 py-2.5 text-center text-sm font-semibold text-primary transition-colors hover:bg-primary/10 sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base"
-                  style={buildInlineStyleFromOverride(showsButtonOverride, allowGeometryOverrides)}
+                  style={buildInlineStyleFromOverride(showsButtonOverride, false)}
                 >
                   {releaseShowsLabel}
                 </a>
@@ -289,7 +287,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
               data-editor-node-type="text"
               data-editor-node-label="Título del Lanzamiento"
               className="mb-[var(--spacing-sm)] w-full text-balance text-center font-serif text-[clamp(1.65rem,7.2vw,2.4rem)] leading-[1.1] text-foreground sm:text-[length:var(--text-h2)] sm:leading-[var(--line-height-tight)]"
-              style={buildInlineStyleFromOverride(titleOverride, allowGeometryOverrides)}
+              style={buildInlineStyleFromOverride(titleOverride, false)}
             >
               {releaseTitle}
             </h2>
@@ -300,7 +298,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
               data-editor-node-type="text"
               data-editor-node-label="Subtítulo del Lanzamiento"
               className="mb-5 w-full max-w-3xl text-balance text-center text-sm leading-relaxed text-muted-foreground sm:mb-6 sm:text-[length:var(--text-body)]"
-              style={buildInlineStyleFromOverride(subtitleOverride, allowGeometryOverrides)}
+              style={buildInlineStyleFromOverride(subtitleOverride, false)}
             >
               {releaseSubtitle}
             </p>
@@ -315,7 +313,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                 data-editor-node-type="button"
                 data-editor-node-label="Watch Video Button"
                 className={`min-h-[46px] w-full rounded-xl px-5 py-2.5 text-center text-sm font-semibold shadow-md sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
-                style={buildInlineStyleFromOverride(watchButtonOverride, allowGeometryOverrides)}
+                style={buildInlineStyleFromOverride(watchButtonOverride, false)}
               >
                 {releaseWatchLabel}
               </a>
@@ -328,7 +326,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
                 data-editor-node-type="button"
                 data-editor-node-label="See Shows Button"
                 className="min-h-[46px] w-full rounded-xl border border-primary/35 px-5 py-2.5 text-center text-sm font-semibold text-primary transition-colors hover:bg-primary/10 sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base"
-                style={buildInlineStyleFromOverride(showsButtonOverride, allowGeometryOverrides)}
+                style={buildInlineStyleFromOverride(showsButtonOverride, false)}
               >
                 {releaseShowsLabel}
               </a>

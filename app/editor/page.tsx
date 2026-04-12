@@ -1,11 +1,12 @@
 import { draftMode } from 'next/headers'
-import { redirect } from 'next/navigation'
+import HomePage from "../home-page"
 
 export default async function EditorPage() {
-  // Enable Draft Mode
+  // Enable Draft Mode to fetch drafts from Sanity
   const draft = await draftMode()
   draft.enable()
 
-  // Redirect to home with edit mode
-  redirect('/?editMode=true')
+  // Render same page as home - VisualEditorProvider will detect /editor route
+  // and activate editor based on pathname === "/editor"
+  return <HomePage />
 }

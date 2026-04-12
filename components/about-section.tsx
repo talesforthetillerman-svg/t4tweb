@@ -120,9 +120,9 @@ export function AboutSection({ className = "", overrides = {} }: AboutSectionPro
       }
 
       if (headerRef.current) {
-        const existing = getElementById('about-header')
+        const existing = getElementById('about-header-title')
         registerEditable({
-          id: 'about-header',
+          id: 'about-header-title',
           type: 'text',
           label: 'About Header',
           parentId: null,
@@ -209,7 +209,7 @@ export function AboutSection({ className = "", overrides = {} }: AboutSectionPro
     return () => {
       unregisterEditable('about-section')
       unregisterEditable('about-bg-image')
-      unregisterEditable('about-header')
+      unregisterEditable('about-header-title')
       unregisterEditable('about-text-card')
       unregisterEditable('about-text-1')
       unregisterEditable('about-text-2')

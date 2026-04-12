@@ -48,6 +48,7 @@ export default defineType({
     }),
     defineField({ name: 'subtitle', title: 'Subtitle', type: 'string' }),
     defineField({ name: 'description', title: 'Description', type: 'text' }),
+    defineField({ name: 'scrollLabel', title: 'Scroll Label', type: 'string', description: 'Text shown in scroll indicator (e.g. "SCROLL")' }),
     defineField({ name: 'logo', title: 'Logo', type: 'image' }),
     defineField({ name: 'backgroundImage', title: 'Background Image', type: 'image' }),
     defineField({

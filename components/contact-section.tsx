@@ -37,14 +37,16 @@ function buildInlineStyleFromOverride(
     if (override.style.opacity !== undefined) style.opacity = override.style.opacity
     if (override.style.backgroundColor) style.backgroundColor = override.style.backgroundColor
     if (override.style.color) style.color = override.style.color
-    if (override.style.fontSize) style.fontSize = override.style.fontSize
-    if (override.style.fontFamily) style.fontFamily = override.style.fontFamily
     if (override.style.fontWeight) style.fontWeight = override.style.fontWeight as CSSProperties["fontWeight"]
     if (override.style.fontStyle) style.fontStyle = override.style.fontStyle as CSSProperties["fontStyle"]
     if (override.style.textDecoration) style.textDecoration = override.style.textDecoration as CSSProperties["textDecoration"]
-    if (override.style.minHeight) style.minHeight = override.style.minHeight
-    if (override.style.paddingTop) style.paddingTop = override.style.paddingTop
-    if (override.style.paddingBottom) style.paddingBottom = override.style.paddingBottom
+    if (includeGeometry) {
+      if (override.style.fontSize) style.fontSize = override.style.fontSize
+      if (override.style.fontFamily) style.fontFamily = override.style.fontFamily
+      if (override.style.minHeight) style.minHeight = override.style.minHeight
+      if (override.style.paddingTop) style.paddingTop = override.style.paddingTop
+      if (override.style.paddingBottom) style.paddingBottom = override.style.paddingBottom
+    }
   }
   return Object.keys(style).length > 0 ? style : undefined
 }
@@ -82,7 +84,6 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
   const middleTextRef = useRef<HTMLParagraphElement>(null)
   const { opacity, y } = useScrollAnimation(sectionRef)
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
-  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled(isEditing)
   const sectionOverride = overrides["contact-section"]
   const bgOverride = overrides["contact-bg-image"]
   // SectionHeader creates data-editor-node-id="contact-header-title" (with -title suffix),
@@ -309,7 +310,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
       data-editor-node-type="section"
       data-editor-node-label="Sección de Contacto"
       className="relative min-h-[82vh] min-h-[82dvh] overflow-hidden sm:min-h-screen sm:min-h-[100dvh]"
-      style={buildInlineStyleFromOverride(sectionOverride, allowGeometryOverrides)}
+      style={buildInlineStyleFromOverride(sectionOverride, false)}
     >
       <div 
         ref={bgRef}
@@ -318,7 +319,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
         data-editor-media-kind="image"
         data-editor-node-label="Imagen de fondo contacto"
         className="absolute inset-0 -z-10"
-        style={buildInlineStyleFromOverride(bgOverride, allowGeometryOverrides)}
+        style={buildInlineStyleFromOverride(bgOverride, false)}
       >
         <Image
           src={contactBgSrc}
@@ -335,7 +336,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
 
       <div className="relative z-10 mx-auto w-full max-w-5xl min-h-screen flex flex-col justify-end">
         <motion.div ref={headerRef} style={isEditing ? undefined : { opacity, y }} className="mb-10 md:mb-12">
-          <div style={buildInlineStyleFromOverride(headerOverride, allowGeometryOverrides)}>
+          <div style={buildInlineStyleFromOverride(headerOverride, false)}>
           <SectionHeader
             eyebrow="Contact"
             title={contactHeaderTitle}
@@ -363,7 +364,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
             className={`group rounded-xl border border-border bg-card/90 p-4 md:p-5 lg:p-7 text-center shadow-md backdrop-blur-sm flex-1 max-w-xs ${
               isEditing ? "" : "transition-all duration-300 hover:border-primary/45 hover:shadow-lg"
             }`}
-            style={buildInlineStyleFromOverride(emailCardOverride, allowGeometryOverrides)}
+            style={buildInlineStyleFromOverride(emailCardOverride, false)}
           >
             <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/18 group-hover:bg-primary/26 md:mb-4 md:h-14 md:w-14">
               <EmailIcon className="h-6 w-6 text-primary md:h-7 md:w-7" />
@@ -374,7 +375,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
               data-editor-node-type="text"
               data-editor-node-label="Título Email"
               className="mb-2 font-serif text-base text-foreground md:text-xl"
-              style={buildInlineStyleFromOverride(emailTitleOverride, allowGeometryOverrides)}
+              style={buildInlineStyleFromOverride(emailTitleOverride, false)}
             >
               {emailTitle}
             </h3>
@@ -384,7 +385,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
               data-editor-node-type="text"
               data-editor-node-label="Descripción Email"
               className="mb-3 text-sm text-muted-foreground md:mb-4 md:text-base"
-              style={buildInlineStyleFromOverride(emailDescriptionOverride, allowGeometryOverrides)}
+              style={buildInlineStyleFromOverride(emailDescriptionOverride, false)}
             >
               {emailDescription}
             </p>
@@ -395,7 +396,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
                 data-editor-node-type="text"
                 data-editor-node-label="Dirección Email"
                 className="truncate"
-                style={buildInlineStyleFromOverride(emailAddressOverride, allowGeometryOverrides)}
+                style={buildInlineStyleFromOverride(emailAddressOverride, false)}
               >
                 {emailAddress}
               </span>
@@ -409,7 +410,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
               data-editor-node-type="text"
               data-editor-node-label="Contact Middle Text"
               className="text-xs text-muted-foreground md:text-base"
-              style={buildInlineStyleFromOverride(middleTextOverride, allowGeometryOverrides)}
+              style={buildInlineStyleFromOverride(middleTextOverride, false)}
             >
               {middleText.split("\n").map((line, index) => (
                 <span key={`${line}-${index}`}>
@@ -436,7 +437,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
             className={`group rounded-xl border border-border bg-card/90 p-4 md:p-5 lg:p-7 text-center shadow-md backdrop-blur-sm flex-1 max-w-xs ${
               isEditing ? "" : "transition-all duration-300 hover:border-primary/45 hover:shadow-lg"
             }`}
-            style={buildInlineStyleFromOverride(telegramCardOverride, allowGeometryOverrides)}
+            style={buildInlineStyleFromOverride(telegramCardOverride, false)}
           >
             <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/18 group-hover:bg-primary/26 md:mb-4 md:h-14 md:w-14">
               <TelegramIcon className="h-6 w-6 text-primary md:h-7 md:w-7" />
@@ -447,7 +448,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
               data-editor-node-type="text"
               data-editor-node-label="Título Telegram"
               className="mb-2 font-serif text-base text-foreground md:text-xl"
-              style={buildInlineStyleFromOverride(telegramTitleOverride, allowGeometryOverrides)}
+              style={buildInlineStyleFromOverride(telegramTitleOverride, false)}
             >
               {telegramTitle}
             </h3>
@@ -457,7 +458,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
               data-editor-node-type="text"
               data-editor-node-label="Descripción Telegram"
               className="mb-3 text-sm text-muted-foreground md:mb-4 md:text-base"
-              style={buildInlineStyleFromOverride(telegramDescriptionOverride, allowGeometryOverrides)}
+              style={buildInlineStyleFromOverride(telegramDescriptionOverride, false)}
             >
               {telegramDescription}
             </p>
@@ -468,7 +469,7 @@ export function ContactSection({ overrides = {} }: ContactSectionProps) {
                 data-editor-node-type="text"
                 data-editor-node-label="Handle Telegram"
                 className="truncate"
-                style={buildInlineStyleFromOverride(telegramHandleOverride, allowGeometryOverrides)}
+                style={buildInlineStyleFromOverride(telegramHandleOverride, false)}
               >
                 {telegramHandle}
               </span>

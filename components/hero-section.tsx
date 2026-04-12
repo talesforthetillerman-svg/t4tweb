@@ -15,9 +15,8 @@ export function HeroSection({ data }: { data: HeroData }) {
   // Editable refs
   const heroSectionRef = useRef<HTMLElement>(null)
   const heroBgRef = useRef<HTMLDivElement>(null)
+  const heroTitleRef = useRef<HTMLHeadingElement>(null)
   const heroLogoRef = useRef<HTMLDivElement>(null)
-  const heroTitleMainRef = useRef<HTMLSpanElement>(null)
-  const heroTitleAccentRef = useRef<HTMLSpanElement>(null)
   const heroSubtitleRef = useRef<HTMLParagraphElement>(null)
   const heroButtonsRef = useRef<HTMLDivElement>(null)
   const heroScrollRef = useRef<HTMLDivElement>(null)
@@ -35,7 +34,12 @@ export function HeroSection({ data }: { data: HeroData }) {
     if (isEditing || !data.elementStyles) return
 
     const applyStyles = (targetId: string, styles: Record<string, unknown>) => {
-      const element = document.querySelector(`[data-editor-node-id="${targetId}"]`) as HTMLElement
+      // For hero-title internal spans, search by data-editor-internal-id instead
+      const isInternalSpan = targetId === "hero-title-main" || targetId === "hero-title-accent"
+      const selector = isInternalSpan
+        ? `[data-editor-internal-id="${targetId}"]`
+        : `[data-editor-node-id="${targetId}"]`
+      const element = document.querySelector(selector) as HTMLElement
       if (!element) return
 
       // Text styles
@@ -114,31 +118,17 @@ export function HeroSection({ data }: { data: HeroData }) {
         })
       }
 
-      if (heroTitleMainRef.current) {
-        const existing = getElementById('hero-title-main')
+      if (heroTitleRef.current) {
+        const existing = getElementById('hero-title')
         registerEditable({
-          id: 'hero-title-main',
-          type: 'text',
-          label: 'Hero Title (Main)',
+          id: 'hero-title',
+          type: 'group',
+          label: 'Hero Title',
           parentId: null,
-          element: heroTitleMainRef.current,
-          originalRect: heroTitleMainRef.current.getBoundingClientRect(),
+          element: heroTitleRef.current,
+          originalRect: heroTitleRef.current.getBoundingClientRect(),
           transform: existing?.transform || { x: 0, y: 0 },
-          dimensions: existing?.dimensions || { width: heroTitleMainRef.current.offsetWidth, height: heroTitleMainRef.current.offsetHeight },
-        })
-      }
-
-      if (heroTitleAccentRef.current) {
-        const existing = getElementById('hero-title-accent')
-        registerEditable({
-          id: 'hero-title-accent',
-          type: 'text',
-          label: 'Hero Title (Accent)',
-          parentId: null,
-          element: heroTitleAccentRef.current,
-          originalRect: heroTitleAccentRef.current.getBoundingClientRect(),
-          transform: existing?.transform || { x: 0, y: 0 },
-          dimensions: existing?.dimensions || { width: heroTitleAccentRef.current.offsetWidth, height: heroTitleAccentRef.current.offsetHeight },
+          dimensions: existing?.dimensions || { width: heroTitleRef.current.offsetWidth, height: heroTitleRef.current.offsetHeight },
         })
       }
 
@@ -204,8 +194,7 @@ export function HeroSection({ data }: { data: HeroData }) {
     return () => {
       unregisterEditable('hero-section')
       unregisterEditable('hero-bg-image')
-      unregisterEditable('hero-title-main')
-      unregisterEditable('hero-title-accent')
+      unregisterEditable('hero-title')
       unregisterEditable('hero-logo')
       unregisterEditable('hero-subtitle')
       unregisterEditable('hero-buttons')
@@ -281,21 +270,21 @@ export function HeroSection({ data }: { data: HeroData }) {
 
       <div className="relative z-10 flex min-h-screen min-h-[100dvh] w-full flex-col justify-center px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center pb-6 pt-8 text-center sm:pb-8 sm:pt-12">
-          <h1 className="max-w-[880px] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.9rem] mb-6">
+          <h1
+            ref={heroTitleRef}
+            data-editor-node-id="hero-title"
+            data-editor-node-type="group"
+            data-editor-node-label="Hero Title"
+            className="max-w-[880px] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.9rem] mb-6"
+          >
             <span
-              ref={heroTitleMainRef}
-              data-editor-node-id="hero-title-main"
-              data-editor-node-type="text"
-              data-editor-node-label="Hero Title (Main)"
+              data-editor-internal-id="hero-title-main"
               className="mr-[0.25em]"
             >
               {mainTitleText}
             </span>
             <span
-              ref={heroTitleAccentRef}
-              data-editor-node-id="hero-title-accent"
-              data-editor-node-type="text"
-              data-editor-node-label="Hero Title (Accent)"
+              data-editor-internal-id="hero-title-accent"
               className="bg-gradient-to-r from-[#FFB15A] via-[#FF8C21] to-[#FF6C00] bg-clip-text text-transparent"
             >
               {accentTitleText}

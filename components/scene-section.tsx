@@ -23,9 +23,9 @@ export function SceneSection({ id, children, className = "" }: SceneSectionProps
       data-editor-node-id={`scene-section-${id}`}
       data-editor-node-type="section"
       data-editor-node-label={`Scene Section: ${id}`}
-      className={`relative min-h-screen min-h-[100dvh] w-full overflow-x-clip ${className}`}
+      className={`relative min-h-[85vh] min-h-[85dvh] w-full overflow-x-clip ${className}`}
     >
-      <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+      <div className="relative z-10 flex min-h-[85vh] min-h-[85dvh] w-full items-center justify-center px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
         {isEditing ? (
           <div className="w-full">{children}</div>
         ) : (

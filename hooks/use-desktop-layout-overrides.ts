@@ -1,27 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
-
 /**
- * Geometry overrides from desktop editing (x/y/width/height/scale) should only
- * affect desktop rendering. On mobile/tablet we keep responsive CSS layout.
+ * Architecture rule:
+ * - pública = responsive (no geometry overrides)
+ * - editor geometry = only desktop (disabled for now)
+ * - público/mobile/tablet = always ignore geometry overrides
+ * - no DOM base changes for overlays
+ * - una sola caja general = resolved in overlay/routing, not HTML
+ *
+ * This hook always returns false to ensure:
+ * 1. No hydration mismatches (always consistent SSR/client)
+ * 2. Responsive layout always preserved
+ * 3. No inline geometry styles applied
  */
-export function useDesktopLayoutOverridesEnabled(forceEnable = false): boolean {
-  const [enabled, setEnabled] = useState<boolean>(() => {
-    if (forceEnable) return true
-    if (typeof window === "undefined") return false
-    return window.matchMedia("(min-width: 1024px)").matches
-  })
-
-  useEffect(() => {
-    if (forceEnable) return
-    const mediaQuery = window.matchMedia("(min-width: 1024px)")
-    const update = () => setEnabled(mediaQuery.matches)
-    mediaQuery.addEventListener("change", update)
-    return () => {
-      mediaQuery.removeEventListener("change", update)
-    }
-  }, [forceEnable])
-
-  return forceEnable || enabled
+export function useDesktopLayoutOverridesEnabled(_forceEnable = false): boolean {
+  return false
 }

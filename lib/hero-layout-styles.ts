@@ -127,10 +127,10 @@ export function getElementLayoutStyle(
     if (typeof styles.width === "number") result.width = `${roundLayoutPx(styles.width as number)}px`
     if (typeof styles.height === "number") result.height = `${roundLayoutPx(styles.height as number)}px`
   }
-  if (typeof styles.fontSize === "number") result.fontSize = `${styles.fontSize}px`
+  if (includeGeometry && typeof styles.fontSize === "number") result.fontSize = `${styles.fontSize}px`
   if (typeof styles.fontWeight === "number") result.fontWeight = styles.fontWeight
-  if (typeof styles.letterSpacing === "number") result.letterSpacing = `${styles.letterSpacing}px`
-  if (typeof styles.lineHeight === "number") result.lineHeight = styles.lineHeight
+  if (includeGeometry && typeof styles.letterSpacing === "number") result.letterSpacing = `${styles.letterSpacing}px`
+  if (includeGeometry && typeof styles.lineHeight === "number") result.lineHeight = styles.lineHeight
   if (typeof styles.color === "string") result.color = styles.color
   if (includeGeometry && typeof styles.maxWidth === "number") result.maxWidth = `${styles.maxWidth}px`
 
