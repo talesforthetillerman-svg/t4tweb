@@ -2187,6 +2187,20 @@ export function VisualEditorOverlay() {
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="text-[10px]">Font Family</label>
+                  <select
+                    className="w-full rounded border p-1 text-xs"
+                    value={selectedNode.style.fontFamily || "sans-serif"}
+                    onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { fontFamily: e.target.value } })}
+                  >
+                    <option value="sans-serif">Sans Serif</option>
+                    <option value="serif">Serif</option>
+                    <option value="monospace">Monospace</option>
+                    <option value="cursive">Cursive</option>
+                    <option value="system-ui">System UI</option>
+                  </select>
+                </div>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -2453,44 +2467,7 @@ export function VisualEditorOverlay() {
               </>
             )}
 
-            {/* Keep this block structurally flat to avoid JSX tag mismatch regressions in CI. */}
-            {(selectedNode.type === "text" || selectedNode.type === "button") && (
-              <div className="pt-1">
-                <details>
-                  <summary className="cursor-pointer text-xs font-semibold text-slate-600">Advanced Size</summary>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px]">Width</label>
-                      <input
-                        type="number"
-                        className="w-full rounded border p-1 text-xs"
-                        value={Math.round(selectedNode.geometry.width)}
-                        onChange={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: Number(e.target.value) || selectedNode.geometry.width, height: selectedNode.geometry.height, transient: true })}
-                        onBlur={(e) => {
-                          dispatch({ type: "BEGIN_TRANSACTION" })
-                          dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: Number(e.target.value) || selectedNode.geometry.width, height: selectedNode.geometry.height, transient: true })
-                          dispatch({ type: "END_TRANSACTION" })
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px]">Height</label>
-                      <input
-                        type="number"
-                        className="w-full rounded border p-1 text-xs"
-                        value={Math.round(selectedNode.geometry.height)}
-                        onChange={(e) => dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: selectedNode.geometry.width, height: Number(e.target.value) || selectedNode.geometry.height, transient: true })}
-                        onBlur={(e) => {
-                          dispatch({ type: "BEGIN_TRANSACTION" })
-                          dispatch({ type: "RESIZE_NODE", nodeId: selectedNode.id, width: selectedNode.geometry.width, height: Number(e.target.value) || selectedNode.geometry.height, transient: true })
-                          dispatch({ type: "END_TRANSACTION" })
-                        }}
-                      />
-                    </div>
-                  </div>
-                </details>
-              </div>
-            )}
+            {/* Advanced Size UI removed - use visual resize handles instead */}
 
             {selectedNode.type === "section" && (
               <>
