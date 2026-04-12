@@ -20,9 +20,9 @@ export interface HeroData {
 }
 
 const FALLBACK: HeroData = {
-  title: "A vibrant blend of",
-  titleHighlight: "funk, soul and world music",
-  subtitle: "BERLIN-BASED LIVE COLLECTIVE",
+  title: "",
+  titleHighlight: "",
+  subtitle: "",
   description: "",
   logoUrl: "/images/t4tPics/logo-white.png",
   bgUrl: "/images/t4tPics/hero-bg.jpg",

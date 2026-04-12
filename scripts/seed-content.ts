@@ -32,10 +32,6 @@ async function seedContent() {
     },
     {
       _type: 'heroSection',
-      title: 'A vibrant blend of',
-      titleHighlight: 'funk, soul and world music',
-      subtitle: 'BERLIN-BASED LIVE COLLECTIVE',
-      description: 'Tales for the Tillerman brings groove-driven live energy to festivals, clubs and special events — with a warm, rhythmic sound made to move a room.',
     },
     {
       _type: 'aboutSection',
