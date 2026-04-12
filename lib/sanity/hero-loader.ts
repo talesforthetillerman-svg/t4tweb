@@ -7,24 +7,9 @@ import { resolveSanityDataset, resolveSanityProjectId } from "@/lib/sanity/env"
  * and ensuring deploy->public updates are visible immediately.
  */
 
-interface HeroTitleSegment {
-  text: string
-  color?: string
-  bold?: boolean
-  italic?: boolean
-  underline?: boolean
-  opacity?: number
-  fontSize?: string
-  fontFamily?: string
-  gradientEnabled?: boolean
-  gradientStart?: string
-  gradientEnd?: string
-}
-
 export interface HeroData {
   title: string
   titleHighlight: string
-  titleSegments: HeroTitleSegment[]
   subtitle: string
   description: string
   logoUrl: string
@@ -37,10 +22,6 @@ export interface HeroData {
 const FALLBACK: HeroData = {
   title: "A vibrant blend of",
   titleHighlight: "funk, soul and world music",
-  titleSegments: [
-    { text: "A vibrant blend of", color: "#ffffff", bold: true, italic: false, underline: false, opacity: 1 },
-    { text: "funk, soul and world music", color: "#FF8C21", bold: true, italic: false, underline: false, opacity: 1, gradientEnabled: true, gradientStart: "#FFB15A", gradientEnd: "#FF6C00" },
-  ],
   subtitle: "BERLIN-BASED LIVE COLLECTIVE",
   description: "",
   logoUrl: "/images/t4tPics/logo-white.png",
@@ -64,19 +45,6 @@ export async function loadHeroData(): Promise<HeroData> {
     const query = `*[_type == "heroSection"][0]{
       title,
       titleHighlight,
-      titleSegments[]{
-        text,
-        color,
-        bold,
-        italic,
-        underline,
-        opacity,
-        fontSize,
-        fontFamily,
-        gradientEnabled,
-        gradientStart,
-        gradientEnd
-      },
       subtitle,
       description,
       scrollLabel,
@@ -97,7 +65,7 @@ export async function loadHeroData(): Promise<HeroData> {
       return FALLBACK
     }
 
-    // Ensure titleSegments is always an array; pass through elementStyles from CMS / visual deploy
+    // Pass through elementStyles from CMS / visual deploy
     const elementStyles =
       fetched.elementStyles && typeof fetched.elementStyles === 'object' && !Array.isArray(fetched.elementStyles)
         ? (fetched.elementStyles as HeroData['elementStyles'])
@@ -106,9 +74,6 @@ export async function loadHeroData(): Promise<HeroData> {
     return {
       title: fetched.title || FALLBACK.title,
       titleHighlight: fetched.titleHighlight || FALLBACK.titleHighlight,
-      titleSegments: Array.isArray(fetched.titleSegments) && fetched.titleSegments.length > 0
-        ? fetched.titleSegments
-        : FALLBACK.titleSegments,
       subtitle: fetched.subtitle || FALLBACK.subtitle,
       description: fetched.description || FALLBACK.description,
       logoUrl: fetched.logoUrl || FALLBACK.logoUrl,

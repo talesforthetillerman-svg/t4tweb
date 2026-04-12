@@ -714,9 +714,8 @@ export async function POST(request: Request) {
       ),
     ])
     log("document fetch", { hero: !!existingHero?._id, navigation: !!existingNavigation?._id, intro: !!existingIntro?._id })
-    const heroTitleMode: "legacy" | "segmented" = hasSegments || (Array.isArray(existingHero?.titleSegments) && existingHero.titleSegments.length > 0)
-      ? "segmented"
-      : "legacy"
+    // Always use "legacy" mode: title + titleHighlight only. No titleSegments.
+    const heroTitleMode: "legacy" | "segmented" = "legacy"
 
     if (!existingHero?._id) {
       steps.push({ step: "saving", ok: false, message: "Hero section document not found; refusing to create implicit duplicate." })
@@ -757,6 +756,12 @@ export async function POST(request: Request) {
     const failedNodes: string[] = []
     const heroPatch: Record<string, unknown> = {}
 
+    // Clean up legacy titleSegments field if it exists
+    if (Array.isArray(existingHero?.titleSegments) && existingHero.titleSegments.length > 0) {
+      heroPatch.titleSegments = null
+      skippedNodes.push("legacy-titleSegments-cleanup")
+    }
+
     if (heroTitleNode?.explicitContent || heroTitleGroupNode?.explicitContent || heroTitleMainNode?.explicitContent || heroTitleAccentNode?.explicitContent || hasSegments) {
       if (hasGroupedText) {
         // New grouped editor structure: hero-title group node with text and accentText
@@ -777,17 +782,8 @@ export async function POST(request: Request) {
           failedNodes.push("hero-title-empty")
           skippedNodes.push("hero-title")
         }
-      } else if (hasSegments && heroTitleMode === "segmented") {
-        heroPatch.titleSegments = validSegments
-        persistedFields.push("titleSegments")
-        persistedNodes.push("hero-title")
-        heroPatch.title = validSegments[0].text.trim()
-        if (!persistedFields.includes("title")) persistedFields.push("title")
-        persistedNodes.push("hero-title-main")
-        heroPatch.titleHighlight = validSegments[1].text.trim()
-        if (!persistedFields.includes("titleHighlight")) persistedFields.push("titleHighlight")
-        persistedNodes.push("hero-title-accent")
-      } else if (hasSegments && heroTitleMode === "legacy") {
+      } else if (hasSegments) {
+        // Always use legacy mode: convert segments to title + titleHighlight
         heroPatch.title = validSegments[0].text.trim()
         if (!persistedFields.includes("title")) persistedFields.push("title")
         persistedNodes.push("hero-title-main")
@@ -1291,54 +1287,21 @@ export async function POST(request: Request) {
         token: sanityToken,
         perspective: "published",
       })
-      const verifyQuery = `*[_type == $type][0]{ title, titleHighlight, titleSegments[] }`
-      const verified = await readClient.fetch<{ title?: string; titleHighlight?: string; titleSegments?: HeroTitleSegment[] } | null>(
+      const verifyQuery = `*[_type == $type][0]{ title, titleHighlight }`
+      const verified = await readClient.fetch<{ title?: string; titleHighlight?: string } | null>(
         verifyQuery,
         { type: SANITY_DOC_TYPE }
       )
-      const normalizedPayloadSegs = heroPatch.titleSegments 
-        ? normalizeTitleSegments(heroPatch.titleSegments as unknown[])
-        : []
-      const normalizedFetchedSegs = verified?.titleSegments 
-        ? normalizeTitleSegments(verified.titleSegments)
-        : []
-      
-      log("post-patch verification", { 
+
+      log("post-patch verification", {
         title: { sent: heroPatch.title, read: verified?.title, match: verified?.title === heroPatch.title },
-        titleHighlight: { sent: heroPatch.titleHighlight, read: verified?.titleHighlight, match: verified?.titleHighlight === heroPatch.titleHighlight },
-        segments: { 
-          sentCount: Array.isArray(heroPatch.titleSegments) ? heroPatch.titleSegments.length : 0, 
-          readCount: Array.isArray(verified?.titleSegments) ? verified.titleSegments.length : 0,
-          normalizedPayload: normalizedPayloadSegs.slice(0, 1), // first segment only
-          normalizedFetched: normalizedFetchedSegs.slice(0, 1)
-        }
+        titleHighlight: { sent: heroPatch.titleHighlight, read: verified?.titleHighlight, match: verified?.titleHighlight === heroPatch.titleHighlight }
       })
-      
+
       // Validation: check critical fields
       const titleOk = !heroPatch.title || verified?.title === heroPatch.title
       const highlightOk = !heroPatch.titleHighlight || verified?.titleHighlight === heroPatch.titleHighlight
-      
-      // Normalize and compare titleSegments only when this deploy patches segments.
-      // Layout-only deploys (elementStyles / logo geometry) omit titleSegments; comparing
-      // [] to existing CMS segments incorrectly failed verification and blocked revalidate.
-      const normalizedPayloadSegments = heroPatch.titleSegments
-        ? normalizeTitleSegments(heroPatch.titleSegments as unknown[])
-        : []
-      const normalizedFetchedSegments = verified?.titleSegments
-        ? normalizeTitleSegments(verified.titleSegments)
-        : []
-      const segmentsTouched = Object.prototype.hasOwnProperty.call(heroPatch, "titleSegments")
-      const segmentsOk = segmentsTouched
-        ? JSON.stringify(normalizedPayloadSegments) === JSON.stringify(normalizedFetchedSegments)
-        : true
-      
-      log("segments comparison", {
-        payloadSegmentsCount: Array.isArray(heroPatch.titleSegments) ? heroPatch.titleSegments.length : 0,
-        fetchedSegmentsCount: Array.isArray(verified?.titleSegments) ? verified.titleSegments.length : 0,
-        normalizedPayloadSegments: normalizedPayloadSegments.slice(0, 2), // show first 2 for brevity
-        normalizedFetchedSegments: normalizedFetchedSegments.slice(0, 2),
-        segmentsOk
-      })
+      const segmentsOk = true  // No longer validating legacy titleSegments
       
       if (!titleOk || !highlightOk || !segmentsOk) {
         log("validation failed", { titleOk, highlightOk, segmentsOk })
