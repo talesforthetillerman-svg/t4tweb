@@ -24,7 +24,7 @@ import { getTraceNodeId } from "@/lib/sanity/env"
 
 export const dynamic = "force-dynamic"
 
-export default async function HomePage() {
+export default async function HomePage({ perspective = "published" }: { perspective?: "published" | "previewDrafts" } = {}) {
   const traceNodeId = getTraceNodeId()
   const [heroData, navigationData, introBannerData, bandMembersData, liveConcerts, homeEditorNodes] = await Promise.all([
     loadHeroData(),
@@ -32,7 +32,7 @@ export default async function HomePage() {
     loadIntroBannerData(),
     loadBandMembersData(),
     loadLiveConcerts(),
-    loadHomeEditorState(),
+    loadHomeEditorState(perspective),
   ])
   const latestReleaseNodeOverrides = homeEditorNodes
     .filter((node) => node.nodeId.startsWith("latest-release-"))

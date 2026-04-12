@@ -6,7 +6,7 @@ export default async function EditorPage() {
   const draft = await draftMode()
   draft.enable()
 
-  // Render same page as home - VisualEditorProvider will detect /editor route
-  // and activate editor based on pathname === "/editor"
-  return <HomePage />
+  // Load editor state from previewDrafts perspective to show draft content
+  // VisualEditorProvider will detect /editor route and activate editor based on pathname
+  return <HomePage perspective="previewDrafts" />
 }

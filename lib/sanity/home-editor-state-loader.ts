@@ -6,19 +6,26 @@ interface HomeEditorStateRaw {
   nodesJson?: string
 }
 
-function createReadClient() {
-  return createClient({
+function createReadClient(perspective: "published" | "previewDrafts" = "published") {
+  const config: any = {
     projectId: resolveSanityProjectId(),
     dataset: resolveSanityDataset(),
     apiVersion: "2024-01-01",
     useCdn: false,
-    perspective: "published",
-  })
+    perspective,
+  }
+
+  // Include token when loading drafts to access previewDrafts perspective
+  if (perspective === "previewDrafts" && process.env.SANITY_API_TOKEN) {
+    config.token = process.env.SANITY_API_TOKEN
+  }
+
+  return createClient(config)
 }
 
-export async function loadHomeEditorState(): Promise<HomeEditorNodeOverride[]> {
+export async function loadHomeEditorState(perspective: "published" | "previewDrafts" = "published"): Promise<HomeEditorNodeOverride[]> {
   try {
-    const client = createReadClient()
+    const client = createReadClient(perspective)
     const doc = await client.fetch<HomeEditorStateRaw | null>(
       `*[_id == "homeEditorState-singleton"][0]{ nodesJson }`
     )
