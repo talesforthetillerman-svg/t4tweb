@@ -190,6 +190,10 @@ export function Footer({}: FooterProps) {
       icon: LinktreeIcon,
     },
   ]
+  const footerDescription = "Tales for the Tillerman is a Berlin-based collective blending world music, funk, soul, and reggae. Join us on social media and streaming platforms."
+  const footerCtaLabel = "Book the Band"
+  const footerCtaHref = "https://www.bandsintown.com/e/108124718-tales-for-the-tillerman-at-mauerpark?came_from=250&utm_medium=web&utm_source=artist_page&utm_campaign=search_bar"
+  const footerCopyright = "© 2025 Tales for the Tillerman. All rights reserved."
   return (
     <footer 
       ref={footerRef}
