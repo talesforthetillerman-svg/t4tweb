@@ -32,8 +32,6 @@ interface DeployNodePayload {
   }
   content: {
     text?: string
-    textSegments?: HeroTitleSegment[]
-    titleSegments?: HeroTitleSegment[]
     href?: string
     src?: string
     alt?: string
@@ -61,20 +59,6 @@ interface DeployNodePayload {
   explicitStyle: boolean
   explicitPosition: boolean
   explicitSize: boolean
-}
-
-interface HeroTitleSegment {
-  text: string
-  color: string
-  bold: boolean
-  italic: boolean
-  underline: boolean
-  opacity: number
-  fontSize?: string
-  fontFamily?: string
-  gradientEnabled?: boolean
-  gradientStart?: string
-  gradientEnd?: string
 }
 
 interface DeployRequestPayload {
@@ -248,7 +232,8 @@ function getNodeFailureMarker(nodeId: string, markers: string[]): string | null 
 
 function approxEqualNumber(a: unknown, b: unknown): boolean {
   if (typeof a !== "number" || typeof b !== "number") return false
-  return Math.abs(a - b) < 0.01
+  // Tolerance: 0.5px for browser subpixel rendering, antialiasing, rounding differences
+  return Math.abs(a - b) < 0.5
 }
 
 function normalizeComparableValue(value: unknown): unknown {
@@ -584,12 +569,8 @@ export async function POST(request: Request) {
 
     log("environment", { projectId: projectId ? "set" : "missing", dataset, writeToken: sanityToken ? "set" : "missing" })
 
-    const heroTitleNode = payload.nodes.find((node) => node.id === "hero-title" && node.type === "text") // legacy alias
-    const heroTitleGroupNode = payload.nodes.find((node) => node.id === "hero-title" && node.type === "group") // new grouped node
-    const heroTitleMainNode = payload.nodes.find((node) => node.id === "hero-title-main" && node.type === "text")
-    const heroTitleAccentNode = payload.nodes.find((node) => node.id === "hero-title-accent" && node.type === "text")
+    const heroTitleGroupNode = payload.nodes.find((node) => node.id === "hero-title" && node.type === "group")
     const heroSubtitleNode = payload.nodes.find((node) => node.id === "hero-subtitle" && node.type === "text")
-    const hasGroupedText = heroTitleGroupNode?.explicitContent && (typeof heroTitleGroupNode?.content?.text === "string" || typeof heroTitleGroupNode?.content?.accentText === "string")
 
     const steps: DeployStepResult[] = [{
       step: "checking",
@@ -749,48 +730,25 @@ export async function POST(request: Request) {
     const failedNodes: string[] = []
     const heroPatch: Record<string, unknown> = {}
 
-    if (heroTitleNode?.explicitContent || heroTitleGroupNode?.explicitContent || heroTitleMainNode?.explicitContent || heroTitleAccentNode?.explicitContent) {
-      if (hasGroupedText) {
-        // New grouped editor structure: hero-title group node with text and accentText
-        const groupMainText = typeof heroTitleGroupNode?.content?.text === "string" ? heroTitleGroupNode.content.text.trim() : ""
-        const groupAccentText = typeof heroTitleGroupNode?.content?.accentText === "string" ? heroTitleGroupNode.content.accentText.trim() : ""
+    if (heroTitleGroupNode?.explicitContent) {
+      // Grouped editor structure: hero-title group node with text and accentText
+      const groupMainText = typeof heroTitleGroupNode?.content?.text === "string" ? heroTitleGroupNode.content.text.trim() : ""
+      const groupAccentText = typeof heroTitleGroupNode?.content?.accentText === "string" ? heroTitleGroupNode.content.accentText.trim() : ""
 
-        // Both title and titleHighlight must be persisted together for the modern model
-        if (groupMainText || groupAccentText) {
-          if (groupMainText) {
-            heroPatch.title = groupMainText
-            if (!persistedFields.includes("title")) persistedFields.push("title")
-            if (!persistedNodes.includes("hero-title")) persistedNodes.push("hero-title")
-          }
-          // Always persist titleHighlight when there's grouped content, even if empty
-          heroPatch.titleHighlight = groupAccentText
-          if (!persistedFields.includes("titleHighlight")) persistedFields.push("titleHighlight")
+      // Both title and titleHighlight must be persisted together
+      if (groupMainText || groupAccentText) {
+        if (groupMainText) {
+          heroPatch.title = groupMainText
+          if (!persistedFields.includes("title")) persistedFields.push("title")
           if (!persistedNodes.includes("hero-title")) persistedNodes.push("hero-title")
-        } else {
-          skippedFields.push("title")
-          failedNodes.push("hero-title-empty")
-          skippedNodes.push("hero-title")
         }
+        // Always persist titleHighlight when there's grouped content, even if empty
+        heroPatch.titleHighlight = groupAccentText
+        if (!persistedFields.includes("titleHighlight")) persistedFields.push("titleHighlight")
+        if (!persistedNodes.includes("hero-title")) persistedNodes.push("hero-title")
       } else {
-        const mainText = typeof heroTitleMainNode?.content?.text === "string" ? heroTitleMainNode.content.text.trim() : ""
-        const accentText = typeof heroTitleAccentNode?.content?.text === "string" ? heroTitleAccentNode.content.text.trim() : ""
-
-        // Both title and titleHighlight must be persisted together for the modern model
-        if (mainText || accentText) {
-          if (mainText) {
-            heroPatch.title = mainText
-            if (!persistedFields.includes("title")) persistedFields.push("title")
-            if (!persistedNodes.includes("hero-title-main")) persistedNodes.push("hero-title-main")
-          }
-          // Always persist titleHighlight when there are separated title nodes, even if empty
-          heroPatch.titleHighlight = accentText
-          if (!persistedFields.includes("titleHighlight")) persistedFields.push("titleHighlight")
-          if (!persistedNodes.includes("hero-title-accent")) persistedNodes.push("hero-title-accent")
-        } else {
-          skippedFields.push("title")
-          failedNodes.push("hero-title-empty")
-          skippedNodes.push("hero-title")
-        }
+        skippedFields.push("title")
+        skippedNodes.push("hero-title")
       }
     }
 
@@ -1446,8 +1404,7 @@ export async function POST(request: Request) {
       const isHeroLayoutId =
         nodeId === "hero-section" ||
         nodeId === "hero-bg-image" ||
-        nodeId === "hero-title-main" ||
-        nodeId === "hero-title-accent" ||
+        nodeId === "hero-title" ||
         nodeId === "hero-subtitle" ||
         nodeId === "hero-logo" ||
         nodeId === "hero-scroll-indicator" ||
@@ -1461,15 +1418,13 @@ export async function POST(request: Request) {
           ? Math.round(node.style.scale * 1000) / 1000
           : undefined
 
-      if (nodeId === "hero-title-main" && node.explicitContent) {
+      if (nodeId === "hero-title" && node.explicitContent && node.type === "group") {
         storageTarget = "heroSection.fields"
-        const expectedText = typeof node.content.text === "string" ? node.content.text.trim() : ""
-        expected.title = expectedText
+        const mainText = typeof node.content?.text === "string" ? node.content.text.trim() : ""
+        const accentText = typeof node.content?.accentText === "string" ? node.content.accentText.trim() : ""
+        if (mainText) expected.title = mainText
+        if (accentText || mainText) expected.titleHighlight = accentText
         readBack.title = heroReadback?.title
-      } else if (nodeId === "hero-title-accent" && node.explicitContent) {
-        storageTarget = "heroSection.fields"
-        const expectedText = typeof node.content.text === "string" ? node.content.text.trim() : ""
-        expected.titleHighlight = expectedText
         readBack.titleHighlight = heroReadback?.titleHighlight
       } else if (nodeId === "hero-subtitle" && node.explicitContent) {
         storageTarget = "heroSection.fields"
@@ -1487,14 +1442,18 @@ export async function POST(request: Request) {
         if (node.explicitPosition) {
           expected.x = roundLayoutPx(node.geometry.x)
           expected.y = roundLayoutPx(node.geometry.y)
-          readBack.x = (heroStyle as Record<string, unknown>).x
-          readBack.y = (heroStyle as Record<string, unknown>).y
+          const readX = (heroStyle as Record<string, unknown>).x
+          const readY = (heroStyle as Record<string, unknown>).y
+          readBack.x = typeof readX === "number" ? roundLayoutPx(readX) : readX
+          readBack.y = typeof readY === "number" ? roundLayoutPx(readY) : readY
         }
         if (node.explicitSize) {
           expected.width = roundLayoutPx(node.geometry.width)
           expected.height = roundLayoutPx(node.geometry.height)
-          readBack.width = (heroStyle as Record<string, unknown>).width
-          readBack.height = (heroStyle as Record<string, unknown>).height
+          const readWidth = (heroStyle as Record<string, unknown>).width
+          const readHeight = (heroStyle as Record<string, unknown>).height
+          readBack.width = typeof readWidth === "number" ? roundLayoutPx(readWidth) : readWidth
+          readBack.height = typeof readHeight === "number" ? roundLayoutPx(readHeight) : readHeight
         }
         if (expectedScale !== undefined) {
           expected.scale = expectedScale
@@ -1506,14 +1465,18 @@ export async function POST(request: Request) {
         if (node.explicitPosition) {
           expected.x = roundLayoutPx(node.geometry.x)
           expected.y = roundLayoutPx(node.geometry.y)
-          readBack.x = (navStyle as Record<string, unknown>).x
-          readBack.y = (navStyle as Record<string, unknown>).y
+          const readX = (navStyle as Record<string, unknown>).x
+          const readY = (navStyle as Record<string, unknown>).y
+          readBack.x = typeof readX === "number" ? roundLayoutPx(readX) : readX
+          readBack.y = typeof readY === "number" ? roundLayoutPx(readY) : readY
         }
         if (node.explicitSize) {
           expected.width = roundLayoutPx(node.geometry.width)
           expected.height = roundLayoutPx(node.geometry.height)
-          readBack.width = (navStyle as Record<string, unknown>).width
-          readBack.height = (navStyle as Record<string, unknown>).height
+          const readWidth = (navStyle as Record<string, unknown>).width
+          const readHeight = (navStyle as Record<string, unknown>).height
+          readBack.width = typeof readWidth === "number" ? roundLayoutPx(readWidth) : readWidth
+          readBack.height = typeof readHeight === "number" ? roundLayoutPx(readHeight) : readHeight
         }
         if (expectedScale !== undefined) {
           expected.scale = expectedScale
