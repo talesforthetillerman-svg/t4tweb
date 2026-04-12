@@ -220,19 +220,6 @@ const typePriority: Record<NodeType, number> = {
   group: 2,
 }
 
-const RELEASE_TRACE_IDS = new Set([
-  "latest-release-section",
-  "latest-release-bg",
-  "latest-release-card",
-  "latest-release-title",
-  "latest-release-subtitle",
-  "latest-release-watch-button",
-  "latest-release-shows-button",
-])
-
-function isReleaseTraceNode(nodeId: string | null | undefined): boolean {
-  return !!nodeId && RELEASE_TRACE_IDS.has(nodeId)
-}
 
 function isEditingInput(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -758,7 +745,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       }
     }
     setNodes(nextNodes)
-    console.log("[VisualEditor] nodes built from", restoredFromSession ? "sessionStorage" : "DOM", "hero-title in:", nextNodes.has("hero-title"), "hero-title-main in:", nextNodes.has("hero-title-main"))
     snapshot(nextNodes)
   }, [isEditing, isHydrated, snapshot, refreshRegistry])
 
@@ -907,25 +893,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         const updated = updater(node)
         if (updated === node) return
         next.set(nodeId, updated)
-        if (isReleaseTraceNode(nodeId)) {
-          console.info("[RELEASE-TRACE][dispatch][patchNode]", {
-            nodeId,
-            before: {
-              geometry: node.geometry,
-              explicitContent: node.explicitContent,
-              explicitStyle: node.explicitStyle,
-              explicitPosition: node.explicitPosition,
-              explicitSize: node.explicitSize,
-            },
-            after: {
-              geometry: updated.geometry,
-              explicitContent: updated.explicitContent,
-              explicitStyle: updated.explicitStyle,
-              explicitPosition: updated.explicitPosition,
-              explicitSize: updated.explicitSize,
-            },
-          })
-        }
       }
 
       let shouldSnapshot = true

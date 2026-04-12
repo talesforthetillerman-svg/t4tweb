@@ -589,12 +589,6 @@ export async function POST(request: Request) {
     const heroTitleMainNode = payload.nodes.find((node) => node.id === "hero-title-main" && node.type === "text")
     const heroTitleAccentNode = payload.nodes.find((node) => node.id === "hero-title-accent" && node.type === "text")
     const heroSubtitleNode = payload.nodes.find((node) => node.id === "hero-subtitle" && node.type === "text")
-    const incomingSegments = Array.isArray(heroTitleNode?.content?.textSegments)
-      ? (heroTitleNode.content.textSegments as HeroTitleSegment[])
-      : []
-    const validSegments = incomingSegments.filter((segment) => typeof segment?.text === "string" && segment.text.length > 0)
-    const hasSegments = validSegments.length >= 2
-    const hasPlainText = typeof heroTitleNode?.content?.text === "string" && heroTitleNode.content.text.trim().length > 0
     const hasGroupedText = heroTitleGroupNode?.explicitContent && (typeof heroTitleGroupNode?.content?.text === "string" || typeof heroTitleGroupNode?.content?.accentText === "string")
 
     const steps: DeployStepResult[] = [{
@@ -686,9 +680,8 @@ export async function POST(request: Request) {
         _id: string
         title?: string
         titleHighlight?: string
-        titleSegments?: HeroTitleSegment[]
         elementStyles?: Record<string, Record<string, unknown>>
-      } | null>(`*[_type == $type][0]{ _id, title, titleHighlight, titleSegments, elementStyles }`, { type: SANITY_DOC_TYPE }),
+      } | null>(`*[_type == $type][0]{ _id, title, titleHighlight, elementStyles }`, { type: SANITY_DOC_TYPE }),
       writeClient.fetch<{
         _id: string
         brandName?: string
@@ -756,12 +749,7 @@ export async function POST(request: Request) {
     const failedNodes: string[] = []
     const heroPatch: Record<string, unknown> = {}
 
-    // Clean up legacy titleSegments field if it exists (don't report as skipped node, it's data cleanup)
-    if (Array.isArray(existingHero?.titleSegments) && existingHero.titleSegments.length > 0) {
-      heroPatch.titleSegments = null
-    }
-
-    if (heroTitleNode?.explicitContent || heroTitleGroupNode?.explicitContent || heroTitleMainNode?.explicitContent || heroTitleAccentNode?.explicitContent || hasSegments) {
+    if (heroTitleNode?.explicitContent || heroTitleGroupNode?.explicitContent || heroTitleMainNode?.explicitContent || heroTitleAccentNode?.explicitContent) {
       if (hasGroupedText) {
         // New grouped editor structure: hero-title group node with text and accentText
         const groupMainText = typeof heroTitleGroupNode?.content?.text === "string" ? heroTitleGroupNode.content.text.trim() : ""
@@ -783,14 +771,6 @@ export async function POST(request: Request) {
           failedNodes.push("hero-title-empty")
           skippedNodes.push("hero-title")
         }
-      } else if (hasSegments) {
-        // Always use legacy mode: convert segments to title + titleHighlight
-        heroPatch.title = validSegments[0].text.trim()
-        if (!persistedFields.includes("title")) persistedFields.push("title")
-        persistedNodes.push("hero-title-main")
-        heroPatch.titleHighlight = validSegments[1].text.trim()
-        if (!persistedFields.includes("titleHighlight")) persistedFields.push("titleHighlight")
-        persistedNodes.push("hero-title-accent")
       } else {
         const mainText = typeof heroTitleMainNode?.content?.text === "string" ? heroTitleMainNode.content.text.trim() : ""
         const accentText = typeof heroTitleAccentNode?.content?.text === "string" ? heroTitleAccentNode.content.text.trim() : ""
@@ -1293,11 +1273,10 @@ export async function POST(request: Request) {
       // Validation: check critical fields
       const titleOk = !heroPatch.title || verified?.title === heroPatch.title
       const highlightOk = !heroPatch.titleHighlight || verified?.titleHighlight === heroPatch.titleHighlight
-      const segmentsOk = true  // No longer validating legacy titleSegments
-      
-      if (!titleOk || !highlightOk || !segmentsOk) {
-        log("validation failed", { titleOk, highlightOk, segmentsOk })
-        steps.push({ step: "saving", ok: false, message: `Write verification failed: title=${titleOk}, highlight=${highlightOk}, segments=${segmentsOk}` })
+
+      if (!titleOk || !highlightOk) {
+        log("validation failed", { titleOk, highlightOk })
+        steps.push({ step: "saving", ok: false, message: `Write verification failed: title=${titleOk}, highlight=${highlightOk}` })
         const errorResponse = {
           status: "failed",
           ok: false,

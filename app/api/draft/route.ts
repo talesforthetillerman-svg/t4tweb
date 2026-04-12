@@ -6,8 +6,8 @@ export async function GET(request: Request) {
   const secret = searchParams.get('secret')
   const slug = searchParams.get('slug')
 
-  // Check for the secret - match what's in .env.local
-  if (secret !== 't4t-visual-editor-secret-2026') {
+  const expectedSecret = process.env.SANITY_PREVIEW_SECRET
+  if (!expectedSecret || secret !== expectedSecret) {
     return new Response('Invalid token', { status: 401 })
   }
 
