@@ -216,12 +216,11 @@ export function HeroSection({ data }: { data: HeroData }) {
 
   const content = data
   const resolvedHeroBgSrc = useHomeEditorImageSrc("hero-bg-image", content.bgUrl)
+  const resolvedHeroLogoSrc = useHomeEditorImageSrc("hero-logo", content.logoUrl)
 
   const mainTitleText = content.title || ""
   const accentTitleText = content.titleHighlight || ""
-
-  // Use white logo for hero (the one with transparent background for dark backgrounds)
-  const heroLogoSrc = "/images/t4tPics/logo-white.png"
+  const scrollLabelText = content.scrollLabel || "SCROLL"
 
   return (
     <section
@@ -302,7 +301,7 @@ export function HeroSection({ data }: { data: HeroData }) {
             }}
           >
             <Image
-              src={heroLogoSrc}
+              src={resolvedHeroLogoSrc}
               alt="Tales for the Tillerman logo"
               fill
               priority
@@ -319,6 +318,30 @@ export function HeroSection({ data }: { data: HeroData }) {
           >
             {content.subtitle}
           </p>
+
+          {content.ctaButtons && content.ctaButtons.length > 0 && (
+            <div
+              ref={heroButtonsRef}
+              data-editor-node-id="hero-buttons"
+              data-editor-node-type="box"
+              data-editor-node-label="Hero Buttons"
+              className="mt-8 flex flex-wrap items-center justify-center gap-4"
+            >
+              {content.ctaButtons.map((btn, i) => (
+                <a
+                  key={i}
+                  href={btn.href || "#"}
+                  className={`inline-flex items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold transition-all duration-200 ${
+                    btn.variant === "primary"
+                      ? "bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] text-white shadow-lg shadow-[#FF8C21]/20 hover:shadow-xl hover:shadow-[#FF8C21]/30"
+                      : "border border-white/30 text-white hover:border-white/60 hover:bg-white/10"
+                  }`}
+                >
+                  {btn.label}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -330,7 +353,7 @@ export function HeroSection({ data }: { data: HeroData }) {
         data-editor-grouped="true"
         className="absolute bottom-12 left-1/2 z-30 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 text-white/60"
       >
-        <span className="text-lg uppercase tracking-[0.42em]">SCROLL</span>
+        <span className="text-lg uppercase tracking-[0.42em]">{scrollLabelText}</span>
         <svg className="h-9 w-9" fill="none" stroke="currentColor" strokeWidth={2.7} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7" />
         </svg>
