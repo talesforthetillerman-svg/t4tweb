@@ -149,8 +149,6 @@ const HERO_NODE_IDS = new Set([
   "hero-section",
   "hero-bg-image",
   "hero-title",
-  "hero-title-main",
-  "hero-title-accent",
   "hero-subtitle",
   "hero-logo",
   "hero-scroll-indicator",
@@ -829,8 +827,6 @@ export async function POST(request: Request) {
       "hero-section",
       "hero-bg-image",
       "hero-title",
-      "hero-title-main",
-      "hero-title-accent",
       "hero-subtitle",
       "hero-logo",
       "hero-scroll-indicator",
@@ -866,7 +862,7 @@ export async function POST(request: Request) {
           if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
         }
         // Text styles
-        if (node.id === "hero-title" || node.id === "hero-subtitle" || node.id === "hero-title-main" || node.id === "hero-title-accent") {
+        if (node.id === "hero-title" || node.id === "hero-subtitle") {
           if (typeof st.color === "string") s.color = st.color
           if (typeof st.fontSize === "string") s.fontSize = st.fontSize
           if (typeof st.fontWeight === "string" || typeof st.fontWeight === "number") s.fontWeight = st.fontWeight

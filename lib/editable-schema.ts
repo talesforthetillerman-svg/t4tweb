@@ -16,35 +16,6 @@ export const HERO_EDITABLE_PROPS: Record<string, {
     step?: number
   }>
 }> = {
-  "hero-title-main": {
-    label: "Hero Title (Main)",
-    props: [
-      { key: "text", label: "Text", type: "text" },
-      { key: "color", label: "Color", type: "color" },
-      { key: "fontSize", label: "Font Size (px)", type: "number", min: 12, max: 200, step: 1 },
-      { key: "fontWeight", label: "Font Weight", type: "number", min: 100, max: 900, step: 100 },
-      { key: "letterSpacing", label: "Letter Spacing (px)", type: "number", min: -5, max: 20, step: 0.5 },
-      { key: "lineHeight", label: "Line Height", type: "number", min: 0.8, max: 2, step: 0.1 },
-      { key: "x", label: "X Position", type: "number", min: -1000, max: 1000, step: 1 },
-      { key: "y", label: "Y Position", type: "number", min: -1000, max: 1000, step: 1 },
-    ],
-  },
-  "hero-title-accent": {
-    label: "Hero Title (Accent)",
-    props: [
-      { key: "text", label: "Text", type: "text" },
-      { key: "color", label: "Color", type: "color" },
-      { key: "gradientEnabled", label: "Use Gradient", type: "text" },
-      { key: "gradientStart", label: "Gradient Start", type: "color" },
-      { key: "gradientEnd", label: "Gradient End", type: "color" },
-      { key: "fontSize", label: "Font Size (px)", type: "number", min: 12, max: 200, step: 1 },
-      { key: "fontWeight", label: "Font Weight", type: "number", min: 100, max: 900, step: 100 },
-      { key: "letterSpacing", label: "Letter Spacing (px)", type: "number", min: -5, max: 20, step: 0.5 },
-      { key: "lineHeight", label: "Line Height", type: "number", min: 0.8, max: 2, step: 0.1 },
-      { key: "x", label: "X Position", type: "number", min: -1000, max: 1000, step: 1 },
-      { key: "y", label: "Y Position", type: "number", min: -1000, max: 1000, step: 1 },
-    ],
-  },
   "hero-subtitle": {
     label: "Hero Subtitle",
     props: [

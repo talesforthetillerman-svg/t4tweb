@@ -173,7 +173,6 @@ export function HeroSection({ data }: { data: HeroData }) {
   const resolvedHeroLogoSrc = useHomeEditorImageSrc("hero-logo", content.logoUrl)
 
   const mainTitleText = content.title || ""
-  const accentTitleText = content.titleHighlight || ""
   const scrollLabelText = content.scrollLabel || "SCROLL"
 
   // Build filter effects for hero-bg-image from elementStyles
@@ -342,7 +341,6 @@ export function HeroSection({ data }: { data: HeroData }) {
         <div className="absolute top-4 right-4 z-[9999] rounded-lg bg-black/80 px-3 py-2 text-left text-[10px] font-mono text-white/80 backdrop-blur-sm border border-white/10">
           <div className="font-bold text-white/90 mb-1">Hero Debug</div>
           <div>title: <span className="text-yellow-300">{mainTitleText || "(empty)"}</span></div>
-          <div>titleHighlight: <span className="text-orange-400">{accentTitleText || "(empty)"}</span></div>
           <div className="mt-1 border-t border-white/10 pt-1">
             elementStyles keys:{" "}
             {data.elementStyles && Object.keys(data.elementStyles).length > 0

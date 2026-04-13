@@ -476,17 +476,6 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
   const content: EditorNode["content"] = {}
   const isStructuredConcertCard =
     entry.type === "card" && (el.dataset.concertCard === "true" || Boolean(el.querySelector("[data-concert-field]")))
-  if (entry.type === "group" && entry.id === "hero-title") {
-    // Special handling for hero-title group: extract text from internal spans
-    const mainSpan = el.querySelector("[data-editor-internal-id='hero-title-main']") as HTMLElement
-    const accentSpan = el.querySelector("[data-editor-internal-id='hero-title-accent']") as HTMLElement
-    if (mainSpan) {
-      content.text = mainSpan.textContent?.trim() || ""
-    }
-    if (accentSpan) {
-      content.accentText = accentSpan.textContent?.trim() || ""
-    }
-  }
   if (entry.type === "text" || entry.type === "button" || entry.type === "card") {
     content.text = el.textContent?.trim() || ""
     if (entry.id === "hero-subtitle") {
@@ -1150,10 +1139,6 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       const heroTitleRect = heroTitleEntry.element.getBoundingClientRect()
       const insideHeroTitle = x >= heroTitleRect.left && x <= heroTitleRect.right && y >= heroTitleRect.top && y <= heroTitleRect.bottom
       if (insideHeroTitle) {
-        const heroTitleMainEntry = candidates.find((c) => c.id === "hero-title-main")
-        const heroTitleAccentEntry = candidates.find((c) => c.id === "hero-title-accent")
-        if (heroTitleMainEntry) return heroTitleMainEntry
-        if (heroTitleAccentEntry) return heroTitleAccentEntry
         return heroTitleEntry
       }
     }
