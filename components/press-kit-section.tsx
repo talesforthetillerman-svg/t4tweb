@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useEffect, useMemo, useState } from "react"
+import type { CSSProperties } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { SectionHeader } from "@/components/section-header"
@@ -342,7 +343,8 @@ export function PressKitSection({}: PressKitSectionProps) {
             <ManagerCard
               managerRef={managerRef}
               isEditing={isEditing}
-              managerTitle={pressKitManagerTitle}/>
+              managerTitle={pressKitManagerTitle}
+              managerStyle={undefined}/>
           </div>
         </div>
       </div>

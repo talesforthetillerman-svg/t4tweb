@@ -30,14 +30,14 @@ const FALLBACK: NavigationData = {
   elementStyles: {},
 }
 
-export async function loadNavigationData(): Promise<NavigationData> {
+export async function loadNavigationData(perspective: "published" | "previewDrafts" = "published"): Promise<NavigationData> {
   try {
     const client = createClient({
       projectId: resolveSanityProjectId(),
       dataset: resolveSanityDataset(),
       apiVersion: "2024-01-01",
       useCdn: process.env.SANITY_USE_CDN === "true",
-      perspective: "published",
+      perspective: perspective,
     })
 
     const query = `*[_type == "navigation"][0]{

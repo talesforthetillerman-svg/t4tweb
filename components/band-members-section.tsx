@@ -224,7 +224,7 @@ export function BandMembersSection({ initialMembers }: BandMembersSectionProps) 
                   src={activeImage}
                   alt={activeMember.fullName}
                   className="absolute inset-0 w-full h-full object-cover"
-                  style={{ ...(activeImageStyle || {}), zIndex: 1 }}
+                  style={{ zIndex: 1 }}
                   draggable={false}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" style={{ zIndex: 2 }} />

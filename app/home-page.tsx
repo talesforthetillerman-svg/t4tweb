@@ -18,17 +18,15 @@ import { loadLiveConcerts } from "@/lib/live-concerts-loader"
 import { RibbonsBlock } from "@/components/ribbons-block"
 import { HomeEditorOverridesProvider } from "@/components/home-editor-overrides-provider"
 import { loadHomeEditorState } from "@/lib/sanity/home-editor-state-loader"
-import { getTraceNodeId } from "@/lib/sanity/env"
 
 export const dynamic = "force-dynamic"
 
 export default async function HomePage({ perspective = "published", isEditorRoute = false }: { perspective?: "published" | "previewDrafts"; isEditorRoute?: boolean } = {}) {
-  const traceNodeId = getTraceNodeId()
   const [heroData, navigationData, introBannerData, bandMembersData, liveConcerts] = await Promise.all([
-    loadHeroData(),
-    loadNavigationData(),
-    loadIntroBannerData(),
-    loadBandMembersData(),
+    loadHeroData(perspective),
+    loadNavigationData(perspective),
+    loadIntroBannerData(perspective),
+    loadBandMembersData(perspective),
     loadLiveConcerts(),
   ])
   // Load homeEditorNodes only for editor mode (for visual-editor state), but don't pass to sections

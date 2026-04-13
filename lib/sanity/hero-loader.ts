@@ -31,7 +31,7 @@ const FALLBACK: HeroData = {
   elementStyles: {},
 }
 
-export async function loadHeroData(): Promise<HeroData> {
+export async function loadHeroData(perspective: "published" | "previewDrafts" = "published"): Promise<HeroData> {
   try {
     const client = createClient({
       projectId: resolveSanityProjectId(),
@@ -39,7 +39,7 @@ export async function loadHeroData(): Promise<HeroData> {
       apiVersion: '2024-01-01',
       // API origin by default so post-deploy reads match what we wrote (opt into CDN with SANITY_USE_CDN=true).
       useCdn: process.env.SANITY_USE_CDN === 'true',
-      perspective: 'published',
+      perspective: perspective,
     })
 
     const query = `*[_type == "heroSection"][0]{

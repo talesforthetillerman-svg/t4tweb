@@ -16,14 +16,14 @@ const FALLBACK_MEMBERS: BandMemberData[] = [
   { id: 5, fullName: "Tarik Benatmane", role: "Electric Bass", image: "/images/members/Tarik Benatmane.JPG" },
 ]
 
-export async function loadBandMembersData(): Promise<BandMemberData[]> {
+export async function loadBandMembersData(perspective: "published" | "previewDrafts" = "published"): Promise<BandMemberData[]> {
   try {
     const client = createClient({
       projectId: resolveSanityProjectId(),
       dataset: resolveSanityDataset(),
       apiVersion: "2024-01-01",
       useCdn: process.env.SANITY_USE_CDN === "true",
-      perspective: "published",
+      perspective: perspective,
     })
     const query = `*[_type == "bandMember"] | order(order asc){
       fullName,
