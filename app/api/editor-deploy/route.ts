@@ -791,6 +791,7 @@ export async function POST(request: Request) {
     const heroScrollNode = payload.nodes.find((node) => node.id === "hero-scroll-indicator")
     if (heroScrollNode?.explicitContent) {
       const scrollText = typeof heroScrollNode.content?.text === "string" ? heroScrollNode.content.text.trim() : ""
+      log("[HERO-SCROLL][payload-text]", { text: scrollText, captured: !!scrollText })
       if (scrollText) {
         heroPatch.scrollLabel = scrollText
         if (!persistedFields.includes("scrollLabel")) persistedFields.push("scrollLabel")
@@ -819,8 +820,47 @@ export async function POST(request: Request) {
       }
     }
 
-    // hero-logo: URL is persisted via Sanity document, not from editor src.
-    // Only style/layout changes (filters, scale, position) are editable and persist to elementStyles.
+    // hero-logo: URL is now editable like hero-bg-image and nav-logo
+    const heroLogoNode = payload.nodes.find((node) => node.id === "hero-logo")
+    if (heroLogoNode?.explicitContent) {
+      const src = typeof heroLogoNode.content?.src === "string" ? heroLogoNode.content.src.trim() : ""
+      log("[HERO-LOGO][incoming-src]", { src, length: src.length, isSanity: src.includes("cdn.sanity.io") })
+      if (!src) {
+        skippedNodes.push("hero-logo:missing-content-src")
+      } else if (!isImageSrcPersistable(src)) {
+        log("[HERO-LOGO][persistable-check]", { reason: "blob/data url rejected", src: src.substring(0, 100) })
+        skippedNodes.push("hero-logo:src(blob/data url)")
+      } else {
+        log("[HERO-LOGO][persistable-check]", { reason: "passed persistable", src: src.substring(0, 100) })
+        let imageField = buildSanityImageFieldFromSrc(src, projectId, dataset)
+
+        // Log incoming URL analysis
+        const isSanityCDN = src.includes("cdn.sanity.io")
+        const isLocalhost = src.includes("localhost") || src.startsWith("/images/")
+        log("[HERO-LOGO][incoming-src]", { src: src.substring(0, 150), isSanityCDN, isLocalhost })
+
+        // Only accept Sanity CDN URLs - localhost URLs cannot be fetched from server-side API route
+        if (!imageField && !isSanityCDN && !isLocalhost) {
+          // Non-localhost, non-Sanity external URL - could potentially fetch, but not now
+          log("[HERO-LOGO][unknown-url-type]", { src: src.substring(0, 150) })
+          skippedNodes.push("hero-logo:src(unknown-url-type)")
+        } else if (!imageField && isLocalhost) {
+          // Localhost URL - cannot fetch from server API route
+          log("[HERO-LOGO][localhost-url]", { src: src.substring(0, 150), detail: "Localhost URLs cannot be uploaded from server API route. Upload must occur in /editor before deploy." })
+          skippedNodes.push("hero-logo:src(localhost-url)")
+        }
+
+        if (!imageField) {
+          log("[HERO-LOGO][sanity-parse-failed]", { reason: "buildSanityImageFieldFromSrc returned null or URL is localhost/local", src: src.substring(0, 200) })
+          skippedNodes.push("hero-logo:src(non-sanity-cdn url)")
+        } else {
+          log("[HERO-LOGO][sanity-patch]", { imageField })
+          heroPatch.logo = imageField
+          if (!persistedFields.includes("logo")) persistedFields.push("logo")
+          if (!persistedNodes.includes("hero-logo")) persistedNodes.push("hero-logo")
+        }
+      }
+    }
 
     /** Persist layout (translate/scale/size) for every hero block the visual editor can move — same as logo/title. */
     const HERO_LAYOUT_IDS = new Set([
@@ -835,6 +875,16 @@ export async function POST(request: Request) {
 
     for (const node of payload.nodes) {
       if (!HERO_LAYOUT_IDS.has(node.id)) continue
+      // Debug hero-title entry
+      if (node.id === "hero-title") {
+        log("[HERO-TITLE-GRADIENT][entry-check]", {
+          explicitPosition: node.explicitPosition,
+          explicitSize: node.explicitSize,
+          explicitStyle: node.explicitStyle,
+          nodeStyleKeys: Object.keys(node.style || {}),
+          styleGradient: { gradientEnabled: node.style?.gradientEnabled, gradientStart: node.style?.gradientStart, gradientEnd: node.style?.gradientEnd }
+        })
+      }
       const scaleVal = (node.style as { scale?: number })?.scale
       const hasScale = node.explicitStyle && typeof scaleVal === "number"
       if (!node.explicitPosition && !node.explicitSize && !hasScale && !node.explicitStyle) continue
@@ -850,7 +900,26 @@ export async function POST(request: Request) {
         s.height = roundLayoutPx(node.geometry.height)
       }
       if (hasScale) s.scale = Math.round(scaleVal * 1000) / 1000
-      
+
+      // Log hero-scroll-indicator layout capture
+      if (node.id === "hero-scroll-indicator" && (node.explicitPosition || node.explicitSize || hasScale)) {
+        log("[HERO-SCROLL][payload-layout]", { x: s.x, y: s.y, width: s.width, height: s.height, scale: s.scale })
+      }
+
+      // Log hero-title full state for gradient capture decision
+      if (node.id === "hero-title") {
+        const willSkip = !node.explicitPosition && !node.explicitSize && !hasScale && !node.explicitStyle
+        log("[HERO-TITLE-GRADIENT][payload-full]", {
+          explicitPosition: node.explicitPosition,
+          explicitSize: node.explicitSize,
+          hasScale: hasScale,
+          explicitStyle: node.explicitStyle,
+          willSkip: willSkip,
+          fullNodeStyle: node.style,
+          gradient: { gradientEnabled: node.style?.gradientEnabled, gradientStart: node.style?.gradientStart, gradientEnd: node.style?.gradientEnd }
+        })
+      }
+
       if (node.explicitStyle) {
         const st = node.style as Record<string, unknown>
         // Image/background effects
@@ -874,13 +943,46 @@ export async function POST(request: Request) {
           if (st.gradientEnabled === true) s.gradientEnabled = true
           if (typeof st.gradientStart === "string") s.gradientStart = st.gradientStart
           if (typeof st.gradientEnd === "string") s.gradientEnd = st.gradientEnd
+
+          // Debug gradient capture for both hero-title and hero-subtitle
+          if (node.id === "hero-title" || node.id === "hero-subtitle") {
+            log(`[HERO-GRADIENT][capture-${node.id}]`, {
+              hasEnabled: st.gradientEnabled === true,
+              enabledValue: st.gradientEnabled,
+              hasStart: typeof st.gradientStart === "string",
+              startValue: typeof st.gradientStart === "string" ? st.gradientStart : null,
+              hasEnd: typeof st.gradientEnd === "string",
+              endValue: typeof st.gradientEnd === "string" ? st.gradientEnd : null,
+              capturedInS: {
+                gradientEnabled: s.gradientEnabled,
+                gradientStart: s.gradientStart,
+                gradientEnd: s.gradientEnd
+              }
+            })
+          }
         }
         // Navigation card opacity
         if (node.id === "navigation-inner") {
           if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
         }
       }
-      
+
+      if (node.id === "hero-title" || node.id === "hero-subtitle") {
+        const titleStyle = elementStylesInPayload[node.id]
+        // Always log hero-title state for debugging
+        if (node.id === "hero-title") {
+          log("[HERO-TITLE-GRADIENT][payload-state]", {
+            explicitStyle: node.explicitStyle,
+            nodeStyleGradient: { gradientEnabled: node.style?.gradientEnabled, gradientStart: node.style?.gradientStart, gradientEnd: node.style?.gradientEnd },
+            elementStylesGradient: titleStyle ? { gradientEnabled: titleStyle.gradientEnabled, gradientStart: titleStyle.gradientStart, gradientEnd: titleStyle.gradientEnd } : null,
+            willCapture: !!(titleStyle && (titleStyle.gradientEnabled || titleStyle.gradientStart || titleStyle.gradientEnd))
+          })
+        }
+        if (titleStyle && (titleStyle.gradientEnabled || titleStyle.gradientStart || titleStyle.gradientEnd)) {
+          log("[HERO-GRADIENT][payload]", { id: node.id, ...titleStyle })
+        }
+      }
+
       log("hero layout captured", { id: node.id, x: s.x, y: s.y, w: s.width, h: s.height, scale: s.scale })
       if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
     }
@@ -1274,16 +1376,24 @@ export async function POST(request: Request) {
     // Process Hero element style overrides (position, size, typography)
     if (Object.keys(payload.heroElementStyles || {}).length > 0 || Object.keys(elementStylesInPayload).length > 0) {
       const elementStyles = payload.heroElementStyles || {}
-      
-      log("element styles received", { 
+
+      log("element styles received", {
         targetCount: Object.keys(elementStyles).length,
         targets: Object.keys(elementStyles)
       })
-      
+
+      // Legacy node IDs to filter out
+      const LEGACY_HERO_NODES = new Set(["hero-title-main", "hero-title-accent"])
+
       // Merge element styles into patch
       const heroElementStyles: Record<string, unknown> = { ...elementStylesInPayload, ...elementStyles }
       for (const [targetId, styles] of Object.entries(elementStyles)) {
         if (typeof styles === 'object' && styles !== null) {
+          // Skip legacy nodes even if they appear in payload
+          if (LEGACY_HERO_NODES.has(targetId)) {
+            log("[HERO-LEGACY-FILTER][incoming-payload]", { filtered: targetId })
+            continue
+          }
           heroElementStyles[targetId] = styles
           persistedFields.push(`elementStyle:${targetId}`)
           persistedNodes.push(targetId)
@@ -1292,10 +1402,19 @@ export async function POST(request: Request) {
 
       if (Object.keys(heroElementStyles).length > 0) {
         const priorRaw = existingHero?.elementStyles
-        const prior =
+        let prior =
           priorRaw && typeof priorRaw === "object" && !Array.isArray(priorRaw)
             ? { ...priorRaw }
             : {}
+
+        // Purge legacy nodes from prior before merging
+        for (const legacyNodeId of LEGACY_HERO_NODES) {
+          if (legacyNodeId in prior) {
+            log("[HERO-LEGACY-PURGE]", { purged: legacyNodeId, wasInPrior: true })
+            delete prior[legacyNodeId]
+          }
+        }
+
         const merged: Record<string, unknown> = { ...prior }
         for (const [targetId, incoming] of Object.entries(heroElementStyles)) {
           if (typeof incoming === "object" && incoming !== null) {
@@ -1318,10 +1437,14 @@ export async function POST(request: Request) {
           }
         }
 
+        // Verify no legacy nodes in final merged
+        const finalNodeIds = Object.keys(merged)
+        const legacyInMerged = finalNodeIds.filter(id => id.includes("hero-title-main") || id.includes("hero-title-accent"))
         log("element styles patch", {
-          styleCount: Object.keys(merged).length,
-          mergedTargets: Object.keys(merged),
-          persistedNodeCount: Object.keys(merged).length
+          styleCount: finalNodeIds.length,
+          mergedTargets: finalNodeIds,
+          persistedNodeCount: finalNodeIds.length,
+          legacyDetected: legacyInMerged.length > 0 ? legacyInMerged : "none"
         })
       }
     }
@@ -1359,6 +1482,23 @@ export async function POST(request: Request) {
           read: Object.keys(verified?.elementStyles || {}).length,
           nodeIds: Object.keys(verified?.elementStyles || {})
         }
+      })
+
+      // Hero gradient trace for debugging
+      const heroTitleStyle = verified?.elementStyles?.["hero-title"] as Record<string, unknown> | undefined
+      const heroSubtitleStyle = verified?.elementStyles?.["hero-subtitle"] as Record<string, unknown> | undefined
+      if (heroTitleStyle || heroSubtitleStyle) {
+        log("[HERO-GRADIENT][sanity-readback]", {
+          "hero-title": heroTitleStyle ? { gradientEnabled: heroTitleStyle.gradientEnabled, gradientStart: heroTitleStyle.gradientStart, gradientEnd: heroTitleStyle.gradientEnd } : "(not found)",
+          "hero-subtitle": heroSubtitleStyle ? { gradientEnabled: heroSubtitleStyle.gradientEnabled, gradientStart: heroSubtitleStyle.gradientStart, gradientEnd: heroSubtitleStyle.gradientEnd } : "(not found)"
+        })
+      }
+
+      // Hero scroll indicator readback
+      const heroScrollStyle = verified?.elementStyles?.["hero-scroll-indicator"] as Record<string, unknown> | undefined
+      log("[HERO-SCROLL][sanity-readback]", {
+        scrollLabel: verified?.scrollLabel || "(not found)",
+        layout: heroScrollStyle ? { x: heroScrollStyle.x, y: heroScrollStyle.y, width: heroScrollStyle.width, height: heroScrollStyle.height } : "(not found)"
       })
 
       // Validation: check critical fields
