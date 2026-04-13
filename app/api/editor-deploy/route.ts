@@ -829,6 +829,7 @@ export async function POST(request: Request) {
     const HERO_LAYOUT_IDS = new Set([
       "hero-section",
       "hero-bg-image",
+      "hero-title",
       "hero-title-main",
       "hero-title-accent",
       "hero-subtitle",
