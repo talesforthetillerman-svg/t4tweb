@@ -561,7 +561,7 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
   const cs = getComputedStyle(el)
   const explicitContent = hydrated?.explicitContent ?? (el.dataset.editorExplicitContent === "true")
   const explicitStyle = hydrated?.explicitStyle ?? (el.dataset.editorExplicitStyle === "true")
-  const explicitPosition = hydrated?.explicitPosition ?? (el.dataset.editorExplicitPosition === "true")
+  let explicitPosition = hydrated?.explicitPosition ?? (el.dataset.editorExplicitPosition === "true")
   const explicitSize = hydrated?.explicitSize ?? (el.dataset.editorExplicitSize === "true")
   const geometryX = parseDatasetNumber(el.dataset.editorGeometryX)
   const geometryY = parseDatasetNumber(el.dataset.editorGeometryY)
@@ -570,6 +570,18 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
   const hydratedGeometry = hydrated?.geometry || null
   const hydratedStyle = hydrated?.style || null
   const hydratedContent = hydrated?.content || null
+
+  // HERO NODES FIX: If hero node has persisted geometry but explicitPosition=false,
+  // force explicitPosition=true so applyNodeToDom applies the transform
+  const HERO_NODE_IDS_TO_FIX = new Set(["hero-scroll-indicator", "hero-logo", "hero-bg-image"])
+  if (HERO_NODE_IDS_TO_FIX.has(entry.id) && !explicitPosition && hydratedGeometry && (hydratedGeometry.x !== 0 || hydratedGeometry.y !== 0)) {
+    explicitPosition = true
+    console.log(`[HERO-SCROLL-FIX][explicitPosition-override]`, {
+      nodeId: entry.id,
+      reason: "has persisted geometry but explicitPosition was false",
+      geometry: hydratedGeometry
+    })
+  }
 
   return {
     id: entry.id,
@@ -2484,6 +2496,11 @@ export function VisualEditorOverlay() {
                           method: "POST",
                           body: formData
                         })
+                        console.log(`[HERO-LOGO][upload-response]`, {
+                          status: uploadRes.status,
+                          ok: uploadRes.ok,
+                          statusText: uploadRes.statusText
+                        })
                         if (uploadRes.ok) {
                           const data = await uploadRes.json() as { url?: string }
                           if (data.url) {
@@ -2497,10 +2514,17 @@ export function VisualEditorOverlay() {
                               patch: { src: data.url, mediaKind: "image" },
                             })
                             return
+                          } else {
+                            console.error(`[HERO-LOGO][upload-success-but-no-url]`, { data })
                           }
                         } else {
-                          const error = await uploadRes.json() as { error?: string }
-                          console.error(`[HERO-LOGO][upload-failed]`, { error: error.error })
+                          const text = await uploadRes.text()
+                          try {
+                            const error = JSON.parse(text) as { error?: string }
+                            console.error(`[HERO-LOGO][upload-failed]`, { status: uploadRes.status, error: error.error })
+                          } catch {
+                            console.error(`[HERO-LOGO][upload-failed]`, { status: uploadRes.status, text: text.substring(0, 200) })
+                          }
                         }
                       } catch (err) {
                         console.error(`[HERO-LOGO][upload-exception]`, {

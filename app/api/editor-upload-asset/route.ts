@@ -10,11 +10,21 @@ import { NextRequest, NextResponse } from "next/server"
 export async function POST(request: NextRequest) {
   try {
     const startTime = Date.now()
+    console.log("[editor-upload-asset] POST request started")
     const formData = await request.formData()
     const file = formData.get("file") as File
     const nodeId = formData.get("nodeId") as string
 
+    console.log("[editor-upload-asset] FormData parsed", {
+      hasFile: !!file,
+      filename: file?.name,
+      size: file?.size,
+      type: file?.type,
+      nodeId
+    })
+
     if (!file) {
+      console.error("[editor-upload-asset] Missing file in formData")
       return NextResponse.json({ error: "Missing file" }, { status: 400 })
     }
 
@@ -22,7 +32,15 @@ export async function POST(request: NextRequest) {
     const dataset = process.env.SANITY_DATASET || "production"
     const token = process.env.SANITY_API_WRITE_TOKEN || process.env.SANITY_API_TOKEN
 
+    console.log("[editor-upload-asset] Config check", {
+      hasProjectId: !!projectId,
+      hasDataset: !!dataset,
+      hasToken: !!token,
+      projectId: projectId?.substring(0, 20)
+    })
+
     if (!projectId || !token) {
+      console.error("[editor-upload-asset] Missing Sanity config", { projectId: !!projectId, token: !!token })
       return NextResponse.json({ error: "Missing Sanity config" }, { status: 500 })
     }
 
