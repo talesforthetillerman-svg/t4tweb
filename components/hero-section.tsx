@@ -242,21 +242,18 @@ export function HeroSection({ data }: { data: HeroData }) {
         </motion.div>
       </div>
 
-      <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/50 via-black/30 to-black/70" />
-      <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_50%_40%,#000000DD_0%,transparent_65%)]" />
-      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
-      <div className="absolute inset-0 z-[1] bg-gradient-to-r from-transparent via-[#FF8C21]/05 to-transparent animate-hero-shine" />
-      <div className="absolute inset-0 z-[1] hero-gradient-subtle opacity-30" />
+      <div className="absolute inset-0 z-[1] bg-black/33" />
+      <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/10 via-transparent to-black/58" />
+      <div className="absolute inset-0 z-[1] bg-[radial-gradient(circle_at_50%_62%,#00000088_12%,transparent_82%)]" />
 
       <div className="relative z-10 flex min-h-screen min-h-[100dvh] w-full flex-col justify-center px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center pb-16 pt-20 text-center sm:pb-20 sm:pt-24">
+        <div className="flex flex-col items-center pb-6 pt-8 text-center sm:pb-8 sm:pt-12">
           <h1
             ref={heroTitleRef}
             data-editor-node-id="hero-title"
             data-editor-node-type="text"
             data-editor-node-label="Hero Title"
-            className="max-w-[920px] text-4xl font-semibold leading-[1.15] tracking-[-0.02em] text-white hero-title-balance hero-text-shadow sm:text-5xl md:text-6xl lg:text-[4.2rem] mb-10"
+            className="max-w-[880px] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.9rem] mb-6"
             style={getElementLayoutStyle(data.elementStyles, "hero-title")}
           >
             {mainTitleText}
@@ -266,7 +263,7 @@ export function HeroSection({ data }: { data: HeroData }) {
             data-editor-node-id="hero-logo"
             data-editor-node-type="image"
             data-editor-node-label="Hero Logo"
-            className="relative mt-4 mb-8"
+            className="relative mt-2 mb-4"
             style={{
               ...{
                 width: "clamp(7rem, 24vw, 10rem)",
@@ -282,8 +279,8 @@ export function HeroSection({ data }: { data: HeroData }) {
               alt="Tales for the Tillerman logo"
               fill
               priority
-              className="object-contain hero-logo-glow"
-              sizes="(min-width: 768px) 240px, 160px"
+              className="object-contain drop-shadow-2xl"
+              sizes="(min-width: 768px) 213px, 141px"
             />
           </div>
           <p
@@ -291,7 +288,7 @@ export function HeroSection({ data }: { data: HeroData }) {
             data-editor-node-id="hero-subtitle"
             data-editor-node-type="text"
             data-editor-node-label="Subtítulo"
-            className="mt-2 px-4 text-xs font-semibold uppercase tracking-[0.35em] bg-gradient-to-r from-[#FFB15A] via-[#FF8C21] to-[#FF6C00] bg-clip-text text-transparent drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)] sm:text-sm sm:tracking-[0.4em]"
+            className="mt-1 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] bg-gradient-to-r from-[#FFB15A] via-[#FF8C21] to-[#FF6C00] bg-clip-text text-transparent sm:text-xs sm:tracking-[0.3em]"
             style={getElementLayoutStyle(data.elementStyles, "hero-subtitle")}
           >
             {content.subtitle}

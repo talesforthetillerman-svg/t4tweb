@@ -1037,21 +1037,4 @@ body[data-editor-mode="true"] [data-editor-node-id]:hover {
   pointer-events: auto !important;
 }
 
-/* Hero section enhancements */
-@layer utilities {
-  .hero-title-balance {
-    text-wrap: balance;
-  }
-  
-  .hero-text-shadow {
-    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  }
-  
-  .hero-logo-glow {
-    filter: drop-shadow(0 8px 32px rgba(0, 0, 0, 0.6));
-  }
-  
-  .hero-gradient-subtle {
-    background: linear-gradient(135deg, rgba(255, 140, 33, 0.1) 0%, rgba(255, 108, 0, 0.05) 100%);
-  }
-}
+
