@@ -1391,7 +1391,6 @@ export function VisualEditorOverlay() {
   )
   const isSimpleEditableCard =
     selectedNode?.type === "card" &&
-    !isHeroScrollIndicatorCard &&
     !isFooterSocialGroup &&
     !hasNestedEditableChildren &&
     !hasStructuredCardFields
