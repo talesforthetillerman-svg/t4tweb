@@ -894,7 +894,7 @@ export async function POST(request: Request) {
       if (!isNavLayoutId(node.id)) continue
       const scaleVal = (node.style as { scale?: number })?.scale
       const hasScale = node.explicitStyle && typeof scaleVal === "number"
-      if (!node.explicitPosition && !node.explicitSize && !hasScale) continue
+      if (!node.explicitPosition && !node.explicitSize && !hasScale && !node.explicitStyle) continue
 
       navElementStylesInPayload[node.id] = { ...(navElementStylesInPayload[node.id] || {}) }
       const s = navElementStylesInPayload[node.id] as Record<string, unknown>
@@ -907,6 +907,37 @@ export async function POST(request: Request) {
         s.height = roundLayoutPx(node.geometry.height)
       }
       if (hasScale) s.scale = Math.round(scaleVal * 1000) / 1000
+
+      if (node.explicitStyle) {
+        const st = node.style as Record<string, unknown>
+        // Text styles for nav-brand-name
+        if (node.id === "nav-brand-name") {
+          if (typeof st.color === "string") s.color = st.color
+          if (typeof st.fontSize === "string") s.fontSize = st.fontSize
+          if (typeof st.fontWeight === "string" || typeof st.fontWeight === "number") s.fontWeight = st.fontWeight
+          if (st.bold === true) s.bold = true
+          if (st.italic === true) s.italic = true
+          if (st.underline === true) s.underline = true
+          if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
+          // Gradient properties
+          if (st.gradientEnabled === true) s.gradientEnabled = true
+          if (typeof st.gradientStart === "string") s.gradientStart = st.gradientStart
+          if (typeof st.gradientEnd === "string") s.gradientEnd = st.gradientEnd
+        }
+        // Image filter effects for nav-logo
+        if (node.id === "nav-logo") {
+          if (typeof st.contrast === "number") s.contrast = Math.round(st.contrast * 100) / 100
+          if (typeof st.saturation === "number") s.saturation = Math.round(st.saturation * 100) / 100
+          if (typeof st.brightness === "number") s.brightness = Math.round(st.brightness * 100) / 100
+          if (st.negative === true) s.negative = true
+          if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
+        }
+        // Card opacity for navigation-inner
+        if (node.id === "navigation-inner") {
+          if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
+        }
+      }
+
       log("nav layout captured", { id: node.id, x: s.x, y: s.y, w: s.width, h: s.height, scale: s.scale })
       if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
     }
