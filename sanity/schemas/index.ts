@@ -9,7 +9,6 @@ import latestRelease from './latestRelease'
 import navigation from './navigation'
 import introBanner from './introBanner'
 import homeEditorState from './homeEditorState'
-import { bandMembersSettings } from './bandMembersSettings'
 
 export const schemas = [
   siteSettings,
@@ -23,5 +22,4 @@ export const schemas = [
   navigation,
   introBanner,
   homeEditorState,
-  bandMembersSettings,
 ]

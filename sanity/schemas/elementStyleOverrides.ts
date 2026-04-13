@@ -1,9 +1,7 @@
-import { defineField } from 'sanity'
-
 /**
  * Generic elementStyles field config for storing visual editor layout + typography + image filters.
  * Stored as a JSON object where keys are node IDs (can contain hyphens) and values are style objects.
- * Uses Sanity's 'json' type to allow arbitrary key-value structure without field schema.
+ * Returns an object config with minimal fields to satisfy Sanity's schema validation.
  *
  * Usage: defineField(elementStylesFieldConfig())
  */
@@ -11,8 +9,9 @@ export function elementStylesFieldConfig(title: string = 'Visual editor layout o
   return {
     name: 'elementStyles',
     title,
-    type: 'json',
-    description: 'Position, size, and style saved from /editor deploy. Keys match on-page node IDs (e.g., hero-section, hero-logo).',
+    type: 'object',
+    description: 'Stores arbitrary JSON object with node ID keys (can contain hyphens like hero-section, nav-logo). Set from visual editor deploy.',
+    fields: [],
     options: { collapsible: true, collapsed: true },
-  }
+  } as any
 }

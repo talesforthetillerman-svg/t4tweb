@@ -1,3 +1,5 @@
+import { defineType } from 'sanity'
+
 /**
  * Band Members Section Settings
  *
@@ -7,7 +9,7 @@
  * This document is read by bandMembersLoader and applied to BandMembersSection.
  */
 
-export const bandMembersSettings = {
+export const bandMembersSettings = defineType({
   name: 'bandMembersSettings',
   title: 'Band Members Section Settings',
   type: 'document',
@@ -17,6 +19,7 @@ export const bandMembersSettings = {
       title: 'Element Styles',
       type: 'json',
       description: 'Styling and layout overrides for band section elements (position, size, colors, typography)',
+      hidden: true,
     },
   ],
   preview: {
@@ -27,4 +30,4 @@ export const bandMembersSettings = {
       }
     },
   },
-}
+})

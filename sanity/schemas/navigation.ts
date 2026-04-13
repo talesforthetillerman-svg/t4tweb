@@ -24,7 +24,7 @@ export default defineType({
     }),
     defineField({ name: 'ctaLabel', title: 'CTA Label', type: 'string' }),
     defineField({ name: 'ctaHref', title: 'CTA Link', type: 'string' }),
-    defineField(elementStylesFieldConfig()),
+    // elementStylesFieldConfig() — managed via editor API, not Studio UI
     defineField({
       name: 'updatedAt',
       title: 'Last updated (visual editor)',

@@ -24,7 +24,7 @@ export default defineType({
     defineField({ name: 'bookHref', title: 'Primary button link', type: 'string' }),
     defineField({ name: 'pressLabel', title: 'Secondary button label', type: 'string' }),
     defineField({ name: 'pressHref', title: 'Secondary button link', type: 'string' }),
-    defineField(elementStylesFieldConfig()),
+    // elementStylesFieldConfig() — managed via editor API, not Studio UI
     defineField({
       name: 'updatedAt',
       title: 'Last updated (visual editor)',

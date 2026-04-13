@@ -76,7 +76,7 @@ export default defineType({
         },
       ],
     }),
-    defineField(elementStylesFieldConfig()),
+    // elementStylesFieldConfig() — managed via editor API, not Studio UI
     defineField({
       name: 'updatedAt',
       title: 'Last updated (visual editor)',
