@@ -18,6 +18,7 @@ import { loadLiveConcerts } from "@/lib/live-concerts-loader"
 import { RibbonsBlock } from "@/components/ribbons-block"
 import { HomeEditorOverridesProvider } from "@/components/home-editor-overrides-provider"
 import { loadHomeEditorState } from "@/lib/sanity/home-editor-state-loader"
+import { EditorAwareHomePageWrapper } from "@/components/editor-aware-home-page-wrapper"
 
 export const dynamic = "force-dynamic"
 
@@ -35,7 +36,7 @@ export default async function HomePage({ perspective = "published", isEditorRout
     ? await loadHomeEditorState(perspective)
     : []
 
-  return (
+  const mainContent = (
     <main className="relative overflow-x-clip bg-black">
       <HomeEditorOverridesProvider nodes={homeEditorNodes}>
         <RibbonsBlock />
@@ -87,4 +88,7 @@ export default async function HomePage({ perspective = "published", isEditorRout
       </HomeEditorOverridesProvider>
     </main>
   )
+
+  // In /editor, prevent fallback visual by not rendering until editor state is ready
+  return <EditorAwareHomePageWrapper isEditorRoute={isEditorRoute}>{mainContent}</EditorAwareHomePageWrapper>
 }
