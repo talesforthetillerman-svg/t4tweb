@@ -1064,8 +1064,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
                 patch: command.patch,
                 priorSrc: n.content.src?.substring(0, 100),
                 newSrc: content.src?.substring(0, 100),
-                explicitContent: updated.explicitContent,
-                willBeDirty: getNodeSignature(n) !== getNodeSignature(updated)
+                explicitContent: updated.explicitContent
               })
             }
             // Log hero-scroll-indicator edits
@@ -1075,10 +1074,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
                 patch: command.patch,
                 priorContent: n.content,
                 newContent: content,
-                explicitContent: updated.explicitContent,
-                priorSignature: getNodeSignature(n),
-                newSignature: getNodeSignature(updated),
-                willBeDirty: getNodeSignature(n) !== getNodeSignature(updated)
+                explicitContent: updated.explicitContent
               })
             }
             // Log hero-title gradient edits
