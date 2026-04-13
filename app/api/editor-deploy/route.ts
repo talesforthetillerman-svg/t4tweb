@@ -99,10 +99,12 @@ const TARGET_SECTION = "hero"
 const SANITY_DOC_TYPE = "heroSection"
 const SANITY_DOC_NAV = "navigation"
 const SANITY_DOC_INTRO = "introBanner"
+const SANITY_DOC_BAND_MEMBERS = "bandMembersSettings"
 const SANITY_DOC_HOME_EDITOR_STATE = "homeEditorState"
 const HOME_EDITOR_STATE_DOCUMENT_ID = "homeEditorState-singleton"
 const REVALIDATED_PATH = "/"
 const INTRO_DOCUMENT_ID = "introBanner"
+const BAND_MEMBERS_DOCUMENT_ID = "bandMembersSettings"
 const SHOULD_REVALIDATE_PATH = process.env.EDITOR_DEPLOY_REVALIDATE_LOCAL_PATH !== "false"
 const PUBLIC_REVALIDATE_URL = process.env.EDITOR_DEPLOY_PUBLIC_REVALIDATE_URL || ""
 const PUBLIC_REVALIDATE_SECRET = process.env.EDITOR_DEPLOY_PUBLIC_REVALIDATE_SECRET || ""
@@ -114,6 +116,20 @@ const INTRO_LAYOUT_IDS = new Set([
   "intro-banner-text",
   "intro-book-button",
   "intro-press-button",
+])
+
+const BAND_MEMBERS_LAYOUT_IDS = new Set([
+  "band-members-section",
+  "band-members-bg",
+  "band-members-header",
+  "band-members-header-eyebrow",
+  "band-members-header-title",
+  "band-members-header-description",
+  "member-item-0",
+  "member-item-1",
+  "member-item-2",
+  "member-item-3",
+  "member-item-4",
 ])
 
 /**
@@ -1127,6 +1143,78 @@ export async function POST(request: Request) {
     if (introContentResult.skipped.length > 0) {
       skippedFields.push(...introContentResult.skipped)
       if (!skippedNodes.includes("intro-banner-gif")) skippedNodes.push("intro-banner-gif")
+    }
+
+    // ========== Band Members Settings Materialization ==========
+    // Materialize layout and styling changes from homeEditorState to bandMembersSettings document.
+    // This allows changes made in the visual editor to appear on the public site.
+    let bandMembersElementStyles: Record<string, Record<string, unknown>> = {}
+    let hasBandMembersLayout = false
+
+    for (const node of payload.nodes) {
+      if (!BAND_MEMBERS_LAYOUT_IDS.has(node.id)) continue
+
+      // Only process if there are explicit position, size, or style changes
+      if (!node.explicitPosition && !node.explicitSize && !node.explicitStyle) continue
+
+      hasBandMembersLayout = true
+
+      // Collect styling/layout for this node
+      bandMembersElementStyles[node.id] = {
+        ...(node.geometry ? { geometry: node.geometry } : {}),
+        ...(node.style ? node.style : {}),
+      }
+    }
+
+    let bandMembersDocumentId: string | null = null
+    if (hasBandMembersLayout) {
+      const existingBandSettings = await writeClient.fetch<{
+        _id: string
+        elementStyles?: Record<string, Record<string, unknown>>
+      } | null>(
+        `*[_type == $bandType][0]{ _id, elementStyles }`,
+        { bandType: SANITY_DOC_BAND_MEMBERS }
+      )
+
+      if (existingBandSettings?._id) {
+        // Merge with existing styles
+        const priorStyles = existingBandSettings.elementStyles || {}
+        const mergedBandStyles: Record<string, Record<string, unknown>> = { ...priorStyles }
+        for (const [nodeId, styles] of Object.entries(bandMembersElementStyles)) {
+          mergedBandStyles[nodeId] = { ...(mergedBandStyles[nodeId] || {}), ...styles }
+        }
+
+        const bandPatch = { elementStyles: mergedBandStyles }
+        await writeClient.patch(toPublishedDocumentId(existingBandSettings._id)).set(bandPatch).commit()
+
+        bandMembersDocumentId = existingBandSettings._id
+        log("band-members patch committed", { docId: bandMembersDocumentId })
+        steps.push({
+          step: "saving",
+          ok: true,
+          message: `Band Members settings layout updated: ${bandMembersDocumentId}`,
+        })
+      } else {
+        // Create new band members settings document
+        const bandCreatePayload: Record<string, unknown> & { _type: string } = {
+          _type: SANITY_DOC_BAND_MEMBERS,
+          elementStyles: bandMembersElementStyles,
+        }
+        const bandResponse = await writeClient.create(bandCreatePayload)
+        bandMembersDocumentId = bandResponse._id
+        log("band-members settings created", { docId: bandMembersDocumentId })
+        steps.push({
+          step: "saving",
+          ok: true,
+          message: `Band Members settings document created: ${bandMembersDocumentId}`,
+        })
+      }
+
+      // Track persisted fields and nodes
+      persistedFields.push("bandMembersSettings.elementStyles")
+      for (const nodeId of Object.keys(bandMembersElementStyles)) {
+        if (!persistedNodes.includes(nodeId)) persistedNodes.push(nodeId)
+      }
     }
 
     let homeEditorStateDocumentId: string | null = null

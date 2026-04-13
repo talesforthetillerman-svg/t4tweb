@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, CSSProperties } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
@@ -11,9 +11,10 @@ import type { BandMemberData } from "@/lib/sanity/band-members-loader"
 
 interface BandMembersSectionProps {
   initialMembers: BandMemberData[]
+  elementStyles?: Record<string, Record<string, unknown>>
 }
 
-export function BandMembersSection({ initialMembers }: BandMembersSectionProps) {
+export function BandMembersSection({ initialMembers, elementStyles = {} }: BandMembersSectionProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const [activeIndex, setActiveIndex] = useState<number>(0)
   const [modalOpen, setModalOpen] = useState(false)
@@ -68,14 +69,16 @@ export function BandMembersSection({ initialMembers }: BandMembersSectionProps) 
       data-editor-node-type="section"
       data-editor-node-label="Sección Miembros de la Banda"
       className="relative isolate min-h-screen w-full overflow-hidden bg-black"
+      style={elementStyles["band-members-section"] as CSSProperties}
     >
       {/* Fondo full width */}
-      <div 
+      <div
         data-editor-node-id="band-members-bg"
         data-editor-node-type="background"
         data-editor-media-kind="image"
         data-editor-node-label="Imagen de fondo banda"
         className="absolute inset-0 z-0"
+        style={elementStyles["band-members-bg"] as CSSProperties}
       >
         <Image
           src={resolvedBandMembersBackgroundSrc}

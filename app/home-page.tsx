@@ -66,7 +66,7 @@ export default async function HomePage({ perspective = "published", isEditorRout
         <SectionDivider editorId="section-divider-press-band" />
 
         <SceneSection id="band">
-          <BandMembersSection initialMembers={bandMembersData} />
+          <BandMembersSection initialMembers={bandMembersData.members} elementStyles={bandMembersData.elementStyles} />
         </SceneSection>
 
         <SectionDivider editorId="section-divider-band-live" />
