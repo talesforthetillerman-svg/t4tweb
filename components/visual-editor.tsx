@@ -703,38 +703,27 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     const timestamp = Date.now()
     console.log(`[BOOT] Node scan starting at ${timestamp}`, { isEditing, isHydrated })
 
+    // CRITICAL: Always scan DOM fresh, never restore from sessionStorage
+    // sessionStorage is session-relative persistence only, not cross-session
+    // Cross-session data comes from Sanity, not from browser storage
     refreshRegistry()
     const nextNodes = new Map<string, EditorNode>()
 
-    // Try to restore from sessionStorage (current editing session)
-    let restoredFromSession = false
-    if (typeof window !== "undefined" && typeof window.sessionStorage !== "undefined") {
-      try {
-        const saved = window.sessionStorage.getItem("__VISUAL_EDITOR_SESSION_STATE__")
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed)) {
-            restoredFromSession = true
-            parsed.forEach(([id, node]) => {
-              nextNodes.set(id, node)
-            })
-          }
-        }
-      } catch (e) {
-        // Silently fail and fall back to DOM extraction
-      }
-    }
+    // Always use fresh DOM scan - no sessionStorage restore
+    console.log('[BOOT] Scanning DOM for all [data-editor-node-id] elements...')
+    const registry = scanRegistry()
+    const nodeIds = Array.from(registry.keys())
+    console.log(`[BOOT] scanRegistry() found ${registry.size} nodes:`, nodeIds)
 
-    // If session restore failed, build from DOM
-    if (!restoredFromSession) {
-      const registry = scanRegistry()
-      console.log(`[BOOT] scanRegistry() found ${registry.size} nodes:`, Array.from(registry.keys()))
-      registry.forEach((entry, id) => {
-        nextNodes.set(id, buildNodeFromEntry(entry))
-      })
-    } else {
-      console.log(`[BOOT] Restored ${nextNodes.size} nodes from sessionStorage`)
-    }
+    // Categorize found nodes for debugging
+    const heroNodes = nodeIds.filter(id => id.startsWith('hero-'))
+    const navNodes = nodeIds.filter(id => id.startsWith('nav-'))
+    const otherNodes = nodeIds.filter(id => !id.startsWith('hero-') && !id.startsWith('nav-'))
+    console.log('[BOOT] Categories:', { heroNodes: heroNodes.length, navNodes: navNodes.length, other: otherNodes.length })
+
+    registry.forEach((entry, id) => {
+      nextNodes.set(id, buildNodeFromEntry(entry))
+    })
 
     // Keep persisted nodes that intentionally have no direct DOM editable target
     // (band member split fields edited from the custom panel).
@@ -762,16 +751,33 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isEditing) {
       setEditorBootComplete(false)
-      // Clear stale session state to prevent staleness on next boot
+      // Clear session state when exiting editor
+      // This prevents old session data from contaminating next session
       try {
         if (typeof window !== "undefined" && typeof window.sessionStorage !== "undefined") {
           window.sessionStorage.removeItem("__VISUAL_EDITOR_SESSION_STATE__")
         }
       } catch (e) {
-        // Ignore errors - sessionStorage might be unavailable
+        // Ignore errors
       }
     }
   }, [isEditing])
+
+  // Boot timeout: if editorBootComplete not set within 30 seconds, something is wrong
+  useEffect(() => {
+    if (!isEditing || !isHydrated || editorBootComplete) return
+
+    const timeout = setTimeout(() => {
+      console.error('[BOOT] Timeout: Editor boot did not complete within 30 seconds')
+      console.error('[BOOT] This indicates scanRegistry() failed or nodes could not be loaded')
+      // Reset nodesBuiltRef to allow retry on refresh
+      nodesBuiltRef.current = false
+      // Force completion to prevent infinite loader
+      setEditorBootComplete(true)
+    }, 30000)
+
+    return () => clearTimeout(timeout)
+  }, [isEditing, isHydrated, editorBootComplete])
 
   // Save nodes to sessionStorage whenever they change (for session persistence on refresh)
   useEffect(() => {

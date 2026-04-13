@@ -6,31 +6,15 @@ import { useVisualEditor } from "@/components/visual-editor"
 import { useMemo } from "react"
 
 export function HeroSectionWrapper({ data, isEditorRoute = false }: { data: HeroData; isEditorRoute?: boolean }) {
-  const { isEditing, nodes } = useVisualEditor()
+  // CRITICAL CHANGE: Do NOT merge visual-editor nodes into Sanity data
+  //
+  // Why: Merging causes old sessionStorage nodes to overwrite fresh Sanity data
+  // When user returns to /editor, nodes Map contains old data, and we'd merge that old text
+  // into the fresh Sanity-provided data, making old content appear
+  //
+  // Solution: Render from Sanity data ONLY
+  // visual-editor overlays handle live edits, not text substitution
+  // Text edits go through panel → deploy → Sanity → next load shows it
 
-  // When in editor (either via isEditing context or isEditorRoute prop), merge visual-editor node data over loader data
-  // isEditorRoute is used during SSR when context doesn't exist yet
-  const effectiveData: HeroData = useMemo(() => {
-    const shouldMerge = (isEditing || isEditorRoute) && nodes.size
-    if (!shouldMerge) return data
-
-    const heroTitle = nodes.get("hero-title")
-    const heroSubtitle = nodes.get("hero-subtitle")
-
-    const merged: HeroData = { ...data }
-
-    if (heroTitle?.content?.text) {
-      merged.title = heroTitle.content.text as string
-    }
-    if (heroTitle?.content?.accentText) {
-      merged.titleHighlight = heroTitle.content.accentText as string
-    }
-    if (heroSubtitle?.content?.text) {
-      merged.subtitle = heroSubtitle.content.text as string
-    }
-
-    return merged
-  }, [isEditing, isEditorRoute, nodes, data])
-
-  return <HeroSection data={effectiveData} />
+  return <HeroSection data={data} />
 }
