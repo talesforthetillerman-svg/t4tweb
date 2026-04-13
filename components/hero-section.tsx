@@ -5,10 +5,19 @@ import { motion, useScroll, useTransform } from "framer-motion"
 import Image from "next/image"
 import { useVisualEditor } from "@/components/visual-editor"
 import { useHomeEditorImageSrc } from "@/components/home-editor-overrides-provider"
+import { getElementLayoutStyle } from "@/lib/hero-layout-styles"
 import type { HeroData } from "@/lib/sanity/hero-loader"
 
 
 export function HeroSection({ data }: { data: HeroData }) {
+  // Log elementStyles received
+  if (typeof window !== "undefined") {
+    console.log("[HERO-TRACE] HeroSection received:", {
+      elementStyles: Object.keys(data.elementStyles || {}),
+      "hero-logo": data.elementStyles?.["hero-logo"],
+      "hero-bg-image": data.elementStyles?.["hero-bg-image"],
+    })
+  }
   const sectionRef = useRef<HTMLElement>(null)
   const [isDebugMode, setIsDebugMode] = useState(false)
 
@@ -191,6 +200,7 @@ export function HeroSection({ data }: { data: HeroData }) {
             data-editor-media-kind="image"
             data-editor-node-label="Hero Background"
             className="absolute inset-0"
+            style={getElementLayoutStyle(data.elementStyles, "hero-bg-image")}
           >
             <Image
               src={resolvedHeroBgSrc}
@@ -220,16 +230,19 @@ export function HeroSection({ data }: { data: HeroData }) {
             data-editor-node-type="group"
             data-editor-node-label="Hero Title"
             className="max-w-[880px] text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.9rem] mb-6"
+            style={getElementLayoutStyle(data.elementStyles, "hero-title")}
           >
             <span
-              data-editor-internal-id="hero-title-main"
+              data-editor-node-id="hero-title-main"
               className="mr-[0.25em]"
+              style={getElementLayoutStyle(data.elementStyles, "hero-title-main")}
             >
               {mainTitleText}
             </span>
             <span
-              data-editor-internal-id="hero-title-accent"
+              data-editor-node-id="hero-title-accent"
               className="bg-gradient-to-r from-[#FFB15A] via-[#FF8C21] to-[#FF6C00] bg-clip-text text-transparent"
+              style={getElementLayoutStyle(data.elementStyles, "hero-title-accent")}
             >
               {accentTitleText}
             </span>
@@ -241,8 +254,11 @@ export function HeroSection({ data }: { data: HeroData }) {
             data-editor-node-label="Hero Logo"
             className="relative mt-2 mb-4"
             style={{
-              width: "clamp(6rem, 22vw, 8.8125rem)",
-              height: "clamp(6rem, 22vw, 8.8125rem)",
+              ...{
+                width: "clamp(6rem, 22vw, 8.8125rem)",
+                height: "clamp(6rem, 22vw, 8.8125rem)",
+              },
+              ...getElementLayoutStyle(data.elementStyles, "hero-logo"),
             }}
           >
             <Image
@@ -260,6 +276,7 @@ export function HeroSection({ data }: { data: HeroData }) {
             data-editor-node-type="text"
             data-editor-node-label="Subtítulo"
             className="mt-1 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] bg-gradient-to-r from-[#FFB15A] via-[#FF8C21] to-[#FF6C00] bg-clip-text text-transparent sm:text-xs sm:tracking-[0.3em]"
+            style={getElementLayoutStyle(data.elementStyles, "hero-subtitle")}
           >
             {content.subtitle}
           </p>
@@ -292,13 +309,14 @@ export function HeroSection({ data }: { data: HeroData }) {
         </div>
       </div>
 
-      <div 
+      <div
         ref={heroScrollRef}
         data-editor-node-id="hero-scroll-indicator"
         data-editor-node-type="card"
         data-editor-node-label="Scroll Indicator"
         data-editor-grouped="true"
         className="absolute bottom-12 left-1/2 z-30 -translate-x-1/2 hidden sm:flex flex-col items-center gap-1 text-white/60"
+        style={getElementLayoutStyle(data.elementStyles, "hero-scroll-indicator")}
       >
         <span className="text-lg uppercase tracking-[0.42em]">{scrollLabelText}</span>
         <svg className="h-9 w-9" fill="none" stroke="currentColor" strokeWidth={2.7} viewBox="0 0 24 24">
