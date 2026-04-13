@@ -1,22 +1,15 @@
-Venue,City,Country,Date,Time,Status,Genre,Capacity,Price
-Auster Club,Berlin,Germany,2026-03-15,21:00,Upcoming,Funk Soul,500,15
-Rockpalast,Cologne,Germany,2026-02-28,20:30,Upcoming,World Music,800,18
-Jazz Cafe,London,UK,2026-02-14,20:00,Upcoming,Funk Soul,250,22
-Paradiso,Amsterdam,Netherlands,2026-01-25,21:30,Upcoming,Reggae,1500,25
-Cassiopeia,Berlin,Germany,2026-01-10,22:00,Upcoming,World Music,400,12
-Privatclub,Berlin,Germany,2025-12-20,21:00,Completed,Funk Soul,300,14
-Lido,Berlin,Germany,2025-11-30,20:30,Completed,World Music,800,16
-Bi Nuu,Berlin,Germany,2025-11-15,21:00,Completed,Reggae,350,12
-Maschinenhaus,Berlin,Germany,2025-10-25,20:00,Completed,Funk Soul,600,15
-SO36,Berlin,Germany,2025-10-10,22:00,Completed,World Music,500,18
-Festsaal Kreuzberg,Berlin,Germany,2025-09-20,20:30,Completed,Funk Soul,800,20
-Kantine am Berghain,Berlin,Germany,2025-09-05,21:00,Completed,Reggae,400,25
-Badehaus,Berlin,Germany,2025-08-15,20:00,Completed,World Music,300,12
-Columbia Theater,Berlin,Germany,2025-07-28,20:30,Completed,Funk Soul,1500,22
-Gretchen,Berlin,Germany,2025-07-10,21:00,Completed,World Music,450,15
-Yaam,Berlin,Germany,2025-06-21,19:00,Completed,Reggae,1000,Free
-Urban Spree,Berlin,Germany,2025-05-17,20:00,Completed,Funk Soul,400,14
-Schokoladen,Berlin,Germany,2025-04-12,21:00,Completed,World Music,150,10
-Holzmarkt,Berlin,Germany,2025-03-15,19:30,Completed,Reggae,600,Free
-Rote Sonne,Munich,Germany,2025-02-28,20:30,Completed,Funk Soul,300,12
-Musik und Frieden,Berlin,Germany,2025-01-25,21:00,Completed,World Music,350,14
+Venue,City,Country,Date,Time,Status,Genre,Capacity,Price,LocationUrl
+Mauerpark,Berlin,Germany,2026-04-30,22:00,Upcoming,World Music,500,Free,https://maps.google.com/?q=Mauerpark+Berlin
+Zuckerzauber,Berlin,Germany,2026-05-08,20:00,Upcoming,Funk Soul,300,12,https://maps.google.com/?q=Zuckerzauber+Berlin
+Werk 9,Berlin,Germany,2024-11-30,20:00,Completed,World Music,200,12,https://maps.google.com/?q=Werk+9+Berlin
+ART Stalker,Berlin,Germany,2024-12-13,20:00,Completed,World Music,150,10,https://maps.google.com/?q=ART+Stalker+Berlin
+Horns Erben,Leipzig,Germany,2025-01-19,20:00,Completed,Funk Soul,200,12,https://maps.google.com/?q=Horns+Erben+Leipzig
+KAOS,Berlin,Germany,2025-03-22,20:00,Completed,World Music,250,12,https://maps.google.com/?q=KAOS+Berlin
+Zuckerzauber,Berlin,Germany,2025-05-23,20:00,Completed,Funk Soul,300,15,https://maps.google.com/?q=Zuckerzauber+Berlin
+Kulturelle Landapie,Wendland,Germany,2025-06-06,16:00,Completed,World Music,1000,Free,https://maps.google.com/?q=Kulturelle+Landapie+Wendland
+Sommersonnenwende Festival,Grasleben,Germany,2025-06-21,16:00,Completed,Funk Soul,600,15,https://maps.google.com/?q=Sommersonnenwende+Festival+Grasleben
+Mauerpark,Berlin,Germany,2025-07-13,16:00,Completed,World Music,500,Free,https://maps.google.com/?q=Mauerpark+Berlin
+Privatclub,Berlin,Germany,2025-07-20,20:00,Completed,Funk Soul,300,15,https://maps.google.com/?q=Privatclub+Berlin
+Uebel & Gefährlich,Hamburg,Germany,2025-07-27,20:00,Completed,World Music,500,15,https://maps.google.com/?q=Uebel+%26+Gef%C3%A4hrlich+Hamburg
+Schnabeltierfestival,Münster,Germany,2025-08-22,16:00,Completed,Funk Soul,350,15,https://maps.google.com/?q=Schnabeltierfestival+M%C3%BCnster
+Waltweiser Festival,Münster,Germany,2025-08-23,16:00,Completed,World Music,400,15,https://maps.google.com/?q=Waltweiser+Festival+M%C3%BCnster

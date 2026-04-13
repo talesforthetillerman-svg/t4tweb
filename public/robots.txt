@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /private/
+Disallow: /.next/
+
+Sitemap: https://talesforthetillerman.com/sitemap.xml
+
+# Specific bot rules
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
