@@ -990,16 +990,47 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
             let isContentEdit = !!n.explicitContent
             let isStyleEdit = !!n.explicitStyle
             Object.entries(command.patch).forEach(([k, v]) => {
-              if (["text", "textSegments", "titleSegments", "href", "src", "alt", "videoUrl", "gradientEnabled", "gradientStart", "gradientEnd", "accentText", "accentGradientEnabled", "accentGradientStart", "accentGradientEnd"].includes(k)) {
+              // Gradient properties are STYLE, not content
+              if (["gradientEnabled", "gradientStart", "gradientEnd", "accentGradientEnabled", "accentGradientStart", "accentGradientEnd"].includes(k)) {
+                isStyleEdit = true;
+                (style as Record<string, unknown>)[k] = v
+              }
+              // Content properties
+              else if (["text", "textSegments", "titleSegments", "href", "src", "alt", "videoUrl", "accentText"].includes(k)) {
                 isContentEdit = true;
                 (content as Record<string, unknown>)[k] = v
               }
+              // Other style properties
               else {
                 isStyleEdit = true;
                 (style as Record<string, unknown>)[k] = v
               }
             })
-            return { ...n, content, style, explicitContent: isContentEdit, explicitStyle: isStyleEdit }
+            const updated = { ...n, content, style, explicitContent: isContentEdit, explicitStyle: isStyleEdit }
+            // Log hero-scroll-indicator edits
+            if (command.nodeId === "hero-scroll-indicator") {
+              console.log("[HERO-SCROLL][update-card]", {
+                nodeId: command.nodeId,
+                patch: command.patch,
+                priorContent: n.content,
+                newContent: content,
+                explicitContent: updated.explicitContent,
+                priorSignature: getNodeSignature(n),
+                newSignature: getNodeSignature(updated),
+                willBeDirty: getNodeSignature(n) !== getNodeSignature(updated)
+              })
+            }
+            // Log hero-title gradient edits
+            if (command.nodeId === "hero-title" && (command.patch.gradientEnabled !== undefined || command.patch.gradientStart !== undefined || command.patch.gradientEnd !== undefined)) {
+              console.log("[HERO-TITLE-GRADIENT][editor-state]", {
+                gradientEnabled: updated.style.gradientEnabled,
+                gradientStart: updated.style.gradientStart,
+                gradientEnd: updated.style.gradientEnd,
+                explicitStyle: updated.explicitStyle,
+                patch: command.patch
+              })
+            }
+            return updated
           })
           break
         }
@@ -1394,6 +1425,15 @@ export function VisualEditorOverlay() {
       const current = getNodeSignature(node)
       if (baseline === undefined || baseline !== current) {
         dirtyNodeIdsRef.current.add(id)
+        if (id === "hero-scroll-indicator") {
+          console.log("[HERO-SCROLL][marked-dirty]", {
+            nodeId: id,
+            hasBaseline: baseline !== undefined,
+            baselineLength: baseline?.length,
+            currentLength: current.length,
+            changed: baseline !== current
+          })
+        }
       }
     })
   }, [isEditing, nodes, getNodeSignature])
@@ -1426,11 +1466,24 @@ export function VisualEditorOverlay() {
         selectedEntry.element.querySelector("[data-concert-field]")
       )
   )
-  const isSimpleEditableCard =
+  let isSimpleEditableCard =
     selectedNode?.type === "card" &&
     !isFooterSocialGroup &&
     !hasNestedEditableChildren &&
     !hasStructuredCardFields
+
+  // Force hero-scroll-indicator to be simple editable for scrollLabel text field
+  if (selectedNode?.id === "hero-scroll-indicator") {
+    isSimpleEditableCard = true
+    console.log("[HERO-SCROLL][panel-conditions]", {
+      nodeId: "hero-scroll-indicator",
+      type: selectedNode.type,
+      isSimpleEditableCard: true,
+      reason: "force enabled for scrollLabel text editing",
+      contentText: selectedNode.content?.text,
+      explicitContent: selectedNode.explicitContent
+    })
+  }
   const footerSocialLinkItems = useMemo(() => {
     if (!isFooterSocialGroup || !selectedEntry?.element) return [] as Array<{ id: string; name: string; href: string }>
     return Array.from(selectedEntry.element.querySelectorAll<HTMLElement>("[data-link-item='true'][data-editor-node-id]"))
@@ -1498,6 +1551,12 @@ export function VisualEditorOverlay() {
     setDeployStatus("connecting")
     try {
       const changedNodeIds = Array.from(dirtyNodeIdsRef.current)
+      console.log("[DEPLOY][dirty-nodes]", {
+        totalDirty: changedNodeIds.length,
+        nodeIds: changedNodeIds,
+        hasHeroScroll: changedNodeIds.includes("hero-scroll-indicator"),
+        dirtySet: Array.from(dirtyNodeIdsRef.current)
+      })
       const nonPersistableNodes = Array.from(nodes.values())
         .filter((node) => (node.type === "image" || node.type === "background") && !isPersistableImageSrc(node.content.src))
         .map((node) => node.id)
@@ -2242,21 +2301,27 @@ export function VisualEditorOverlay() {
                     <input
                       type="checkbox"
                       id="gradient-enabled"
-                      checked={selectedNode.content.gradientEnabled || false}
-                      onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientEnabled: e.target.checked } })}
+                      checked={selectedNode.style.gradientEnabled || false}
+                      onChange={(e) => {
+                        console.log("[TEXT-GRADIENT-UI][toggle]", { nodeId: selectedNode.id, newValue: e.target.checked })
+                        dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientEnabled: e.target.checked } })
+                      }}
                       className="h-4 w-4"
                     />
                     <span className="text-[10px]">Enable gradient</span>
                   </div>
-                  {selectedNode.content.gradientEnabled && (
+                  {selectedNode.style.gradientEnabled && (
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-[10px]">Start</label>
                         <input
                           type="color"
                           className="h-8 w-full rounded border p-1"
-                          value={selectedNode.content.gradientStart || "#FFB15A"}
-                          onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientStart: e.target.value } })}
+                          value={selectedNode.style.gradientStart || "#FFB15A"}
+                          onChange={(e) => {
+                            console.log("[TEXT-GRADIENT-UI][start-change]", { nodeId: selectedNode.id, newValue: e.target.value })
+                            dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientStart: e.target.value } })
+                          }}
                         />
                       </div>
                       <div>
@@ -2264,8 +2329,11 @@ export function VisualEditorOverlay() {
                         <input
                           type="color"
                           className="h-8 w-full rounded border p-1"
-                          value={selectedNode.content.gradientEnd || "#FF6C00"}
-                          onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientEnd: e.target.value } })}
+                          value={selectedNode.style.gradientEnd || "#FF6C00"}
+                          onChange={(e) => {
+                            console.log("[TEXT-GRADIENT-UI][end-change]", { nodeId: selectedNode.id, newValue: e.target.value })
+                            dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { gradientEnd: e.target.value } })
+                          }}
                         />
                       </div>
                     </div>
