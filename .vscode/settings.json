@@ -1,0 +1,7 @@
+{
+    "tabby.endpoint": "http://localhost:8888",
+    "tabby.config.telemetry": false,
+    "tabby.settings.advanced": {
+        
+    }
+}

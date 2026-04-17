@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Hero Runtime</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-left: 4px solid #333; }
+    .error { border-left-color: #ff6b6b; background: #fff0f0; }
+    .success { border-left-color: #6bff6b; background: #f0fff0; }
+  </style>
+</head>
+<body>
+  <h1>Test Hero Runtime Measurements</h1>
+  
+  <div>
+    <button onclick="testPublic()">Test Pública (/)</button>
+    <button onclick="testEditor()">Test Editor (/editor)</button>
+  </div>
+  
+  <div id="results"></div>
+  
+  <script>
+    async function testPublic() {
+      await testPage('http://localhost:3000', 'PÚBLICA')
+    }
+    
+    async function testEditor() {
+      await testPage('http://localhost:3000/editor', 'EDITOR')
+    }
+    
+    async function testPage(url, label) {
+      const results = document.getElementById('results')
+      results.innerHTML += `<div class="log">Testing ${label} (${url})...</div>`
+      
+      try {
+        // Usar iframe para cargar la página y capturar console.log
+        const iframe = document.createElement('iframe')
+        iframe.style.display = 'none'
+        document.body.appendChild(iframe)
+        
+        const logs = []
+        const originalConsoleLog = console.log
+        
+        // Interceptar console.log del iframe
+        iframe.contentWindow.console.log = function(...args) {
+          const msg = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+          ).join(' ')
+          
+          if (msg.includes('[HERO-RUNTIME-DEBUG]')) {
+            logs.push(msg)
+          }
+          
+          originalConsoleLog.apply(console, args)
+        }
+        
+        // Cargar página
+        iframe.src = url
+        
+        // Esperar a que cargue
+        await new Promise(resolve => {
+          iframe.onload = resolve
+          setTimeout(resolve, 3000)
+        })
+        
+        // Esperar más para que se ejecute el efecto
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        document.body.removeChild(iframe)
+        
+        if (logs.length > 0) {
+          results.innerHTML += `<div class="success">${label}: ${logs.length} logs encontrados</div>`
+          logs.forEach(log => {
+            try {
+              const jsonStr = log.replace('[HERO-RUNTIME-DEBUG] ', '')
+              const data = JSON.parse(jsonStr)
+              results.innerHTML += `<div class="log"><pre>${JSON.stringify(data, null, 2)}</pre></div>`
+            } catch (e) {
+              results.innerHTML += `<div class="log">${log}</div>`
+            }
+          })
+        } else {
+          results.innerHTML += `<div class="error">${label}: No se encontraron logs</div>`
+        }
+        
+      } catch (error) {
+        results.innerHTML += `<div class="error">${label} ERROR: ${error.message}</div>`
+      }
+    }
+  </script>
+</body>
+</html>

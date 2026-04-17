@@ -11,13 +11,8 @@ interface ContentSectionProps {
 }
 
 /**
- * ContentSection: Componente reutilizable para secciones de puro contenido
- * (sin imagen de fondo)
- * 
- * IMPORTANTE: Este componente está pensado para usarse DENTRO de SceneSection
- * Es decir, el contenido que aparece encima de la imagen.
- * 
- * Si necesitas una sección independiente, usa SceneSection.
+ * ContentSection: full-viewport content block with scroll animation.
+ * If used inside SceneSection, do not pass the same `id` as the parent (duplicate ids).
  */
 export function ContentSection({
   id,
