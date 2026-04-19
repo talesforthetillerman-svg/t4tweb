@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
@@ -9,14 +9,14 @@ import { useVisualEditor } from "@/components/visual-editor"
 import { getElementLayoutStyle } from "@/lib/hero-layout-styles"
 import type { LiveConcert, LiveSectionData } from "@/lib/live-concerts-loader"
 
-type Concert = LiveConcert
-
 interface LiveSectionProps {
   data: LiveSectionData
 }
 
 function formatDate(dateStr: string): string {
+  if (!dateStr) return "Date TBA"
   const date = new Date(dateStr)
+  if (Number.isNaN(date.getTime())) return dateStr
   return date.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -24,11 +24,38 @@ function formatDate(dateStr: string): string {
   })
 }
 
+function formatPrice(price: string): string {
+  const value = price.trim()
+  if (!value) return "Price TBA"
+  if (/^free$/i.test(value)) return "Free"
+  if (/^[€$£]/.test(value)) return value
+  return value
+}
+
+function safeConcertsDataset(concerts: LiveConcert[]): string {
+  try {
+    return JSON.stringify(concerts)
+  } catch {
+    return "[]"
+  }
+}
+
 export function LiveSection({ data }: LiveSectionProps) {
   const sectionRef = useRef<HTMLElement>(null)
-  const concerts = data.concerts
+  const [concerts, setConcerts] = useState<LiveConcert[]>(data.concerts)
+  const [activeConcert, setActiveConcert] = useState<LiveConcert | null>(null)
   const { opacity, y } = useScrollAnimation(sectionRef)
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
+
+  useEffect(() => {
+    if (!isEditing) return
+    const onConcertsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ concerts?: LiveConcert[] }>).detail
+      if (Array.isArray(detail?.concerts)) setConcerts(detail.concerts)
+    }
+    window.addEventListener("live-concerts-updated", onConcertsUpdated)
+    return () => window.removeEventListener("live-concerts-updated", onConcertsUpdated)
+  }, [isEditing])
 
   useEffect(() => {
     if (!isEditing) return
@@ -49,9 +76,6 @@ export function LiveSection({ data }: LiveSectionProps) {
     }
   }, [isEditing, registerEditable, unregisterEditable])
 
-  const upcomingConcerts = concerts.filter(c => c.status === "Upcoming")
-  const historyConcerts = concerts.filter(c => c.status === "Completed")
-
   const platforms = [
     { name: "Spotify", href: "https://open.spotify.com/artist/0FHjK3O0k8HQMrJsF7KQwF", icon: SpotifyIcon, color: "hover:bg-[#1DB954]", category: "streaming" },
     { name: "Apple Music", href: "https://music.apple.com/us/artist/tales-for-the-tillerman/1819840222", icon: AppleMusicIcon, color: "hover:bg-[#FA243C]", category: "streaming" },
@@ -67,25 +91,20 @@ export function LiveSection({ data }: LiveSectionProps) {
     { name: "Facebook", href: "https://www.facebook.com/profile.php?id=61575566232586", icon: FacebookIcon, color: "hover:bg-[#1877F2]", category: "social" },
   ]
 
+  const sortedConcerts = useMemo(
+    () => [...concerts].sort((a, b) => new Date(a.date || "9999-12-31").getTime() - new Date(b.date || "9999-12-31").getTime()),
+    [concerts]
+  )
+  const upcomingConcerts = sortedConcerts.filter(c => c.status !== "Completed")
+  const historyConcerts = sortedConcerts.filter(c => c.status === "Completed")
+
   const resolveConcertDateText = (cardId: string, fallbackDate: string): string => {
     return formatDate(fallbackDate)
   }
 
-  const resolveConcertVenueText = (cardId: string, fallback: string): string => {
-    return fallback
-  }
-
-  const resolveConcertCityText = (cardId: string, fallbackCity: string): string => {
-    return fallbackCity
-  }
-
-  const resolveConcertCountryText = (cardId: string, fallbackCountry: string): string => {
-    return fallbackCountry
-  }
-
   const resolveConcertSimpleField = (
     cardId: string,
-    suffix: "genre" | "price" | "time",
+    suffix: "style" | "price" | "time" | "locationName",
     fallback: string
   ): string => {
     return fallback
@@ -230,6 +249,16 @@ export function LiveSection({ data }: LiveSectionProps) {
               </div>
             </motion.div>
 
+            <div
+              data-editor-node-id="live-section-concerts-container"
+              data-editor-node-type="card"
+              data-editor-node-label="Live Concerts Container"
+              data-editor-grouped="true"
+              data-editor-explicit-content="true"
+              data-live-concerts={safeConcertsDataset(concerts)}
+              className="relative"
+              style={getElementLayoutStyle(data.elementStyles, "live-section-concerts-container")}
+            >
             {/* ── UPCOMING SHOWS ── */}
             <motion.div
               initial={isEditing ? false : { opacity: 0, y: 20 }}
@@ -249,10 +278,6 @@ export function LiveSection({ data }: LiveSectionProps) {
 
               {upcomingConcerts.length > 0 && (
                 <div
-                  data-editor-node-id="live-upcoming-list"
-                  data-editor-node-type="card"
-                  data-editor-node-label="Live Upcoming List"
-                  data-editor-grouped="true"
                   className="space-y-3"
                   style={getElementLayoutStyle(data.elementStyles, "live-upcoming-list")}
                   
@@ -261,7 +286,7 @@ export function LiveSection({ data }: LiveSectionProps) {
                     (() => {
                       const cardId = `live-upcoming-event-${concert._editorId}`
                       const rawPrice = resolveConcertSimpleField(cardId, "price", concert.price)
-                      const priceLabel = rawPrice === "Free" ? "Free" : rawPrice.startsWith("€") ? rawPrice : `€${rawPrice}`
+                      const priceLabel = formatPrice(rawPrice)
                       return (
                     <motion.div
                       key={`upcoming-${concert._editorId}`}
@@ -274,8 +299,18 @@ export function LiveSection({ data }: LiveSectionProps) {
                       data-editor-node-label={`Upcoming Event ${index + 1}`}
                       data-editor-grouped="true"
                       data-concert-card="true"
+                      data-concert-id={concert._editorId}
                       className="min-h-[80px] p-5 bg-secondary/50 rounded-xl border border-border hover:border-primary/30 transition-all duration-300 group shadow-lg hover:shadow-xl flex items-center"
                       style={getElementLayoutStyle(data.elementStyles, cardId)}
+                      role={isEditing ? undefined : "button"}
+                      tabIndex={isEditing ? undefined : 0}
+                      onClick={isEditing ? undefined : () => setActiveConcert(concert)}
+                      onKeyDown={isEditing ? undefined : (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault()
+                          setActiveConcert(concert)
+                        }
+                      }}
                       
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
@@ -290,42 +325,33 @@ export function LiveSection({ data }: LiveSectionProps) {
                         </div>
                         <div className="flex-1">
                           <div
-                            data-editor-node-id={`${cardId}-venue`}
-                            data-editor-node-type="text"
-                            data-editor-node-label={`Upcoming Event ${index + 1} Venue`}
-                            data-concert-field="venue"
-                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-venue`)}
-                            className="font-serif text-lg text-foreground group-hover:text-primary transition-colors">
-                            {resolveConcertVenueText(cardId, concert.venue)}
+                          data-editor-node-id={`${cardId}-locationName`}
+                          data-editor-node-type="text"
+                          data-editor-node-label={`Upcoming Event ${index + 1} Venue`}
+                          data-concert-field="locationName"
+                          style={getElementLayoutStyle(data.elementStyles, `${cardId}-locationName`)}
+                          className="font-serif text-lg text-foreground group-hover:text-primary transition-colors">
+                            {resolveConcertSimpleField(cardId, "locationName", concert.locationName)}
                           </div>
                           <div
-                            data-editor-node-id={`${cardId}-city`}
+                            data-editor-node-id={`${cardId}-locationLink`}
                             data-editor-node-type="text"
-                            data-editor-node-label={`Upcoming Event ${index + 1} Location`}
-                            data-concert-field="city"
-                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-city`)}
+                            data-editor-node-label={`Upcoming Event ${index + 1} Maps Link`}
+                            data-concert-field="locationLink"
+                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-locationLink`)}
                             className="text-muted-foreground text-sm">
-                            {resolveConcertCityText(cardId, concert.city)}
-                            {resolveConcertCityText(cardId, concert.city) && resolveConcertCountryText(cardId, concert.country) ? " · " : ""}
-                            <span
-                              data-editor-node-id={`${cardId}-country`}
-                              data-editor-node-type="text"
-                              data-editor-node-label={`Upcoming Event ${index + 1} Country`}
-                              data-concert-field="country"
-                              style={getElementLayoutStyle(data.elementStyles, `${cardId}-country`)}>
-                              {resolveConcertCountryText(cardId, concert.country)}
-                            </span>
+                            {concert.locationLink || "Maps link TBA"}
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground sm:ml-auto">
                           <span
-                            data-editor-node-id={`${cardId}-genre`}
+                            data-editor-node-id={`${cardId}-style`}
                             data-editor-node-type="text"
-                            data-editor-node-label={`Upcoming Event ${index + 1} Genre`}
-                            data-concert-field="genre"
-                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-genre`)}
+                            data-editor-node-label={`Upcoming Event ${index + 1} Style`}
+                            data-concert-field="style"
+                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-style`)}
                             className="px-3 py-1 bg-primary/10 rounded-full text-primary text-xs">
-                            {resolveConcertSimpleField(cardId, "genre", concert.genre)}
+                            {resolveConcertSimpleField(cardId, "style", concert.style)}
                           </span>
                           <span
                             data-editor-node-id={`${cardId}-price`}
@@ -395,10 +421,6 @@ export function LiveSection({ data }: LiveSectionProps) {
 
               {historyConcerts.length > 0 && (
                 <div
-                  data-editor-node-id="live-history-list"
-                  data-editor-node-type="card"
-                  data-editor-node-label="Live History List"
-                  data-editor-grouped="true"
                   className="space-y-3"
                   style={getElementLayoutStyle(data.elementStyles, "live-history-list")}
                   
@@ -407,7 +429,7 @@ export function LiveSection({ data }: LiveSectionProps) {
                     (() => {
                       const cardId = `live-history-event-${concert._editorId}`
                       const rawPrice = resolveConcertSimpleField(cardId, "price", concert.price)
-                      const priceLabel = rawPrice === "Free" ? "Free" : rawPrice.startsWith("€") ? rawPrice : `€${rawPrice}`
+                      const priceLabel = formatPrice(rawPrice)
                       return (
                     <motion.div
                       key={`history-${concert._editorId}`}
@@ -420,8 +442,18 @@ export function LiveSection({ data }: LiveSectionProps) {
                       data-editor-node-label={`History Event ${index + 1}`}
                       data-editor-grouped="true"
                       data-concert-card="true"
+                      data-concert-id={concert._editorId}
                       className="min-h-[80px] p-5 bg-secondary/30 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300 group shadow-lg hover:shadow-xl flex items-center"
                       style={getElementLayoutStyle(data.elementStyles, cardId)}
+                      role={isEditing ? undefined : "button"}
+                      tabIndex={isEditing ? undefined : 0}
+                      onClick={isEditing ? undefined : () => setActiveConcert(concert)}
+                      onKeyDown={isEditing ? undefined : (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault()
+                          setActiveConcert(concert)
+                        }
+                      }}
                       
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 w-full">
@@ -436,42 +468,33 @@ export function LiveSection({ data }: LiveSectionProps) {
                         </div>
                         <div className="flex-1">
                           <div
-                            data-editor-node-id={`${cardId}-venue`}
-                            data-editor-node-type="text"
-                            data-editor-node-label={`History Event ${index + 1} Venue`}
-                            data-concert-field="venue"
-                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-venue`)}
-                            className="font-serif text-lg text-muted-foreground group-hover:text-foreground transition-colors">
-                            {resolveConcertVenueText(cardId, concert.venue)}
+                          data-editor-node-id={`${cardId}-locationName`}
+                          data-editor-node-type="text"
+                          data-editor-node-label={`History Event ${index + 1} Venue`}
+                          data-concert-field="locationName"
+                          style={getElementLayoutStyle(data.elementStyles, `${cardId}-locationName`)}
+                          className="font-serif text-lg text-muted-foreground group-hover:text-foreground transition-colors">
+                            {resolveConcertSimpleField(cardId, "locationName", concert.locationName)}
                           </div>
                           <div
-                            data-editor-node-id={`${cardId}-city`}
+                            data-editor-node-id={`${cardId}-locationLink`}
                             data-editor-node-type="text"
-                            data-editor-node-label={`History Event ${index + 1} Location`}
-                            data-concert-field="city"
-                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-city`)}
+                            data-editor-node-label={`History Event ${index + 1} Maps Link`}
+                            data-concert-field="locationLink"
+                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-locationLink`)}
                             className="text-muted-foreground/70 text-sm">
-                            {resolveConcertCityText(cardId, concert.city)}
-                            {resolveConcertCityText(cardId, concert.city) && resolveConcertCountryText(cardId, concert.country) ? " · " : ""}
-                            <span
-                              data-editor-node-id={`${cardId}-country`}
-                              data-editor-node-type="text"
-                              data-editor-node-label={`History Event ${index + 1} Country`}
-                              data-concert-field="country"
-                              style={getElementLayoutStyle(data.elementStyles, `${cardId}-country`)}>
-                              {resolveConcertCountryText(cardId, concert.country)}
-                            </span>
+                            {concert.locationLink || "Maps link TBA"}
                           </div>
                         </div>
                         <div className="ml-0 flex shrink-0 flex-wrap items-center gap-2 text-sm text-muted-foreground/70 sm:ml-auto sm:justify-end sm:gap-4">
                           <span
-                            data-editor-node-id={`${cardId}-genre`}
+                            data-editor-node-id={`${cardId}-style`}
                             data-editor-node-type="text"
-                            data-editor-node-label={`History Event ${index + 1} Genre`}
-                            data-concert-field="genre"
-                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-genre`)}
+                            data-editor-node-label={`History Event ${index + 1} Style`}
+                            data-concert-field="style"
+                            style={getElementLayoutStyle(data.elementStyles, `${cardId}-style`)}
                             className="px-3 py-1 bg-secondary/50 rounded-full text-xs">
-                            {resolveConcertSimpleField(cardId, "genre", concert.genre)}
+                            {resolveConcertSimpleField(cardId, "style", concert.style)}
                           </span>
                           <span
                             data-editor-node-id={`${cardId}-price`}
@@ -520,12 +543,69 @@ export function LiveSection({ data }: LiveSectionProps) {
                 </div>
               )}
             </motion.div>
+            </div>
 
           </div>
         </div>
       </div>
 
       <div className="section-photo-fade-bottom" />
+      {activeConcert && !isEditing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4" onClick={() => setActiveConcert(null)}>
+          <div
+            className="w-full max-w-md rounded-2xl border border-border bg-background p-6 text-foreground shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${activeConcert.locationName || "Concert"} details`}
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Live date</p>
+                <h3 className="mt-2 font-serif text-2xl">{activeConcert.locationName || "Location TBA"}</h3>
+              </div>
+              <button
+                type="button"
+                className="rounded-full border border-border px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+                onClick={() => setActiveConcert(null)}
+                aria-label="Close concert details"
+              >
+                Close
+              </button>
+            </div>
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Date</dt>
+                <dd className="text-right font-medium">{formatDate(activeConcert.date)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Time</dt>
+                <dd className="text-right font-medium">{activeConcert.time || "Time TBA"}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Style</dt>
+                <dd className="text-right font-medium">{activeConcert.style || "World Music"}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Price</dt>
+                <dd className="text-right font-medium">{formatPrice(activeConcert.price)}</dd>
+              </div>
+            </dl>
+            {activeConcert.locationLink ? (
+              <a
+                href={activeConcert.locationLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Open in Google Maps
+              </a>
+            ) : (
+              <p className="mt-6 rounded-lg border border-border px-4 py-3 text-center text-sm text-muted-foreground">Google Maps link TBA</p>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   )
 }

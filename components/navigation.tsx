@@ -189,13 +189,13 @@ export function Navigation({ data }: { data: NavigationData }) {
 
 
   const navLinkClass =
-    "inline-flex items-center rounded-lg px-3 py-2 text-[0.8125rem] font-medium tracking-wide !text-white/65 transition-colors duration-200 hover:!text-white lg:px-3.5 lg:text-[0.875rem]"
+    "inline-flex items-center rounded-lg px-3 py-2 text-[0.8125rem] font-medium tracking-wide text-white/65 transition-colors duration-200 hover:text-white lg:px-3.5 lg:text-[0.875rem]"
 
   const primaryCtaClass =
-    "inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] px-5 py-2.5 text-[0.875rem] font-semibold !text-white shadow-lg shadow-[#FF8C21]/20 transition-all duration-200 hover:shadow-xl hover:shadow-[#FF8C21]/30 lg:px-6 lg:py-3 lg:text-[0.9375rem]"
+    "inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#FF8C21] via-[#FF7C00] to-[#FF6C00] px-5 py-2.5 text-[0.875rem] font-semibold text-white shadow-lg shadow-[#FF8C21]/20 transition-all duration-200 hover:shadow-xl hover:shadow-[#FF8C21]/30 lg:px-6 lg:py-3 lg:text-[0.9375rem]"
 
   const mobileLinkClass =
-    "block w-full border-b border-white/10 py-3.5 text-left text-[0.9375rem] font-medium !text-white/80 transition-colors hover:!text-white"
+    "block w-full border-b border-white/10 py-3.5 text-left text-[0.9375rem] font-medium text-white/80 transition-colors hover:text-white"
 
   const navClassName = isScrolled
     ? "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 backdrop-blur-2xl border-b border-white/10 shadow-xl shadow-black/25"
@@ -208,6 +208,7 @@ export function Navigation({ data }: { data: NavigationData }) {
       data-editor-node-type="section"
       data-editor-node-label="Navigation"
       className={navClassName}
+      style={getNavbarBoxPatternStyle(data.elementStyles, "navigation")}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center md:h-[5.5rem]">

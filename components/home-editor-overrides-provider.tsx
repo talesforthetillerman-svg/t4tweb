@@ -17,11 +17,38 @@ const DOC_DRIVEN_IMAGE_NODE_IDS = new Set<string>([
   "hero-logo",
   "nav-logo",
   "intro-banner-gif",
+  "about-bg-image",
+  "press-kit-bg",
 ])
 
 const HERO_DOC_DRIVEN_IMAGE_NODE_IDS = new Set<string>([
   "hero-bg-image",
   "hero-logo",
+])
+
+const ABOUT_DOC_DRIVEN_NODE_IDS = new Set<string>([
+  "about-section",
+  "about-bg-image",
+  "about-header-eyebrow",
+  "about-header-title",
+  "about-text-card",
+  "about-text-1",
+  "about-text-2",
+  "about-tags",
+  "about-copy-button",
+])
+
+const PRESS_KIT_DOC_DRIVEN_NODE_IDS = new Set<string>([
+  "press-kit-section",
+  "press-kit-bg",
+  "press-kit-main-card",
+  "press-kit-folder-icon",
+  "press-kit-title",
+  "press-kit-description",
+  "press-kit-download-button",
+  "press-kit-resource-0",
+  "press-kit-resource-1",
+  "press-kit-manager",
 ])
 
 function isValidPersistedSrc(value: unknown): value is string {
@@ -35,8 +62,7 @@ function isValidPersistedSrc(value: unknown): value is string {
 export function HomeEditorOverridesProvider({ nodes, children }: { nodes: HomeEditorNodeOverride[]; children: ReactNode }) {
   const traceNodeId = getTraceNodeId()
 
-  // Normalize nodes - simple and robust
-  const normalizedNodes: HomeEditorNodeOverride[] = Array.isArray(nodes) ? nodes : [];
+  const normalizedNodes = useMemo<HomeEditorNodeOverride[]>(() => Array.isArray(nodes) ? nodes : [], [nodes])
 
   // Diagnostic log for array check
   if (typeof window !== "undefined") {
@@ -81,10 +107,14 @@ export function HomeEditorOverridesProvider({ nodes, children }: { nodes: HomeEd
       }
 
       const nodeOverridesMap: Record<string, typeof normalizedNodes[0]> = {}
-      const skippedDocDrivenHeroImages: string[] = []
+      const skippedDocDrivenNodes: string[] = []
       normalizedNodes.forEach((node) => {
-        if (HERO_DOC_DRIVEN_IMAGE_NODE_IDS.has(node.nodeId)) {
-          skippedDocDrivenHeroImages.push(node.nodeId)
+        if (
+          HERO_DOC_DRIVEN_IMAGE_NODE_IDS.has(node.nodeId) ||
+          ABOUT_DOC_DRIVEN_NODE_IDS.has(node.nodeId) ||
+          PRESS_KIT_DOC_DRIVEN_NODE_IDS.has(node.nodeId)
+        ) {
+          skippedDocDrivenNodes.push(node.nodeId)
           return
         }
         nodeOverridesMap[node.nodeId] = node;
@@ -93,7 +123,7 @@ export function HomeEditorOverridesProvider({ nodes, children }: { nodes: HomeEd
       console.log("[EDITOR-REHYDRATE][provider-normalized-count]", {
         count: Object.keys(nodeOverridesMap).length,
         nodeIds: Object.keys(nodeOverridesMap),
-        skippedDocDrivenHeroImages,
+        skippedDocDrivenNodes,
       });
     } catch (err) {
       console.error("[EDITOR-REHYDRATE][provider-invalid-input]", { error: "window write failed", message: err instanceof Error ? err.message : String(err) });
@@ -108,7 +138,10 @@ export function HomeEditorOverridesProvider({ nodes, children }: { nodes: HomeEd
         traceNodeId,
         foundInNodes: !!tracedNode,
         mappedSrc: srcByNodeId.get(traceNodeId) || null,
-        docDrivenBlocked: DOC_DRIVEN_IMAGE_NODE_IDS.has(traceNodeId),
+        docDrivenBlocked:
+          DOC_DRIVEN_IMAGE_NODE_IDS.has(traceNodeId) ||
+          ABOUT_DOC_DRIVEN_NODE_IDS.has(traceNodeId) ||
+          PRESS_KIT_DOC_DRIVEN_NODE_IDS.has(traceNodeId),
         node: tracedNode || null,
       })
     }

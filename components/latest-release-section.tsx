@@ -1,17 +1,41 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect } from "react"
+import type { CSSProperties } from "react"
 import Image from "next/image"
-import { motion } from "framer-motion"
 import { CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
 import { useVisualEditor } from "@/components/visual-editor"
 import { getElementLayoutStyle } from "@/lib/hero-layout-styles"
-import type { LatestReleaseData } from "@/lib/sanity/latest-release-loader"
+import type { LatestReleaseData, LatestReleaseVideoSource } from "@/lib/sanity/latest-release-loader"
+
+function getYouTubePreviewSrc(youtubeId: string): string {
+  return `https://i.ytimg.com/vi/${encodeURIComponent(youtubeId)}/hqdefault.jpg`
+}
+
+function getYouTubeEmbedSrc(source: LatestReleaseVideoSource): string {
+  const youtubeId = encodeURIComponent(source.youtubeId)
+  return `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3`
+}
+
+function getLatestReleaseBoxStyle(
+  elementStyles: LatestReleaseData["elementStyles"],
+  nodeId: string
+): CSSProperties {
+  const style = { ...getElementLayoutStyle(elementStyles, nodeId) }
+  const persistedStyle = elementStyles[nodeId]
+
+  delete style.opacity
+
+  if (typeof persistedStyle?.backgroundColor === "string" && persistedStyle.backgroundColor.trim()) {
+    style.backgroundColor = persistedStyle.backgroundColor
+    style.backgroundImage = "none"
+  }
+
+  return style
+}
 
 export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
-  const [isIosMobile, setIsIosMobile] = useState(false)
-  const [isAndroidMobile, setIsAndroidMobile] = useState(false)
 
   const sectionRef = useRef<HTMLElement>(null)
   const bgRef = useRef<HTMLDivElement>(null)
@@ -27,20 +51,15 @@ export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
   const releaseShowsLabel = data.showsCtaLabel
   const releaseWatchHref = data.releaseCtaHref
   const releaseShowsHref = data.showsCtaHref
-  const youtubeId = data.youtubeId
-  const youtubeEmbedSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1`
-  const youtubePosterSrc = `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`
+  const orderedVideoSources = [...data.videoSources]
+    .sort((a, b) => a.order - b.order)
+    .slice(0, 3)
+  const videoSources = orderedVideoSources.filter((source) => source.enabled)
+  const effectiveVideoSources = videoSources.length > 0 ? videoSources : orderedVideoSources
+  const activeVideoSource = effectiveVideoSources[0]
+  const posterSource = activeVideoSource || orderedVideoSources[0]
+  const youtubePosterSrc = posterSource ? getYouTubePreviewSrc(posterSource.youtubeId) : ""
   const renderStaticCard = isEditing
-
-  useEffect(() => {
-    const userAgent = navigator.userAgent || ""
-    const hasCoarsePointer = window.matchMedia("(pointer: coarse)").matches
-    const ios = /iPhone|iPad|iPod/i.test(userAgent) || ((navigator.platform === "MacIntel" || navigator.platform === "MacPPC") && navigator.maxTouchPoints > 1)
-    const android = /Android/i.test(userAgent)
-
-    setIsIosMobile(ios && hasCoarsePointer)
-    setIsAndroidMobile(android && hasCoarsePointer)
-  }, [])
 
   useEffect(() => {
     if (!isEditing) return
@@ -162,18 +181,20 @@ export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
       data-editor-node-type="section"
       data-editor-node-label="Release Section"
       className="relative overflow-hidden bg-black"
-      style={getElementLayoutStyle(data.elementStyles, "latest-release-section")}
+      style={getLatestReleaseBoxStyle(data.elementStyles, "latest-release-section")}
     >
       <div 
         ref={bgRef}
         data-editor-node-id="latest-release-bg"
         data-editor-node-type="background"
         data-editor-media-kind="video"
+        data-editor-video-url={data.videoSources[0]?.url || ""}
+        data-editor-video-sources={JSON.stringify(data.videoSources)}
         data-editor-node-label="Fondo Video YouTube"
         className="absolute left-0 top-0 z-0 h-full w-full"
         style={getElementLayoutStyle(data.elementStyles, "latest-release-bg")}
       >
-        {isIosMobile ? (
+        {youtubePosterSrc ? (
           <Image
             src={youtubePosterSrc}
             alt=""
@@ -181,22 +202,25 @@ export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
             fill
             unoptimized
             sizes="100vw"
-            className="object-cover"
+            className="z-0 object-cover"
           />
-        ) : (
+        ) : null}
+        {!isEditing && activeVideoSource ? (
           <iframe
-            src={youtubeEmbedSrc}
+            key={activeVideoSource.youtubeId}
+            src={getYouTubeEmbedSrc(activeVideoSource)}
             title=""
             aria-hidden="true"
-            className={`pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 ${
-              isAndroidMobile
-                ? "h-[165%] w-[185%] -translate-y-1/2"
-                : "h-[125%] w-[125%] -translate-y-[40%]"
-            }`}
-            allow="autoplay; encrypted-media"
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-[125%] w-[125%] -translate-x-1/2 -translate-y-[40%]"
+            allow="autoplay; encrypted-media; picture-in-picture"
             allowFullScreen={false}
           />
-        )}
+        ) : null}
+        {isEditing ? (
+          <div className="absolute bottom-4 left-1/2 z-10 w-[min(90vw,520px)] -translate-x-1/2 rounded-lg border border-white/20 bg-black/60 px-4 py-3 text-center text-xs font-semibold text-white shadow-lg backdrop-blur-sm">
+            Don&apos;t worry — enabled video sources will play on the public page.
+          </div>
+        ) : null}
         <div className="section-photo-fade-top" />
         <div className="section-photo-fade-bottom" />
       </div>
@@ -210,7 +234,7 @@ export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
               data-editor-node-type="card"
               data-editor-node-label="Release Card"
               className="mx-auto flex w-full max-w-4xl flex-col items-center rounded-xl border border-primary/28 bg-black/24 p-4 text-center shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-6 md:p-8"
-              style={getElementLayoutStyle(data.elementStyles, "latest-release-card")}
+              style={getLatestReleaseBoxStyle(data.elementStyles, "latest-release-card")}
 
             >
               <h2 
@@ -246,8 +270,8 @@ export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
                   data-editor-node-id="latest-release-watch-button"
                   data-editor-node-type="button"
                   data-editor-node-label="Watch Video Button"
-                  className={`min-h-[46px] w-full rounded-xl px-5 py-2.5 text-center text-sm font-semibold shadow-md sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
-                  style={getElementLayoutStyle(data.elementStyles, "latest-release-watch-button")}
+                  className={`inline-flex min-h-[46px] w-full items-center justify-center overflow-hidden rounded-xl px-5 py-2.5 text-center text-sm font-semibold leading-tight shadow-md sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
+                  style={getLatestReleaseBoxStyle(data.elementStyles, "latest-release-watch-button")}
 
                 >
                   {releaseWatchLabel}
@@ -260,8 +284,8 @@ export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
                   data-editor-node-id="latest-release-shows-button"
                   data-editor-node-type="button"
                   data-editor-node-label="See Shows Button"
-                  className="min-h-[46px] w-full rounded-xl border border-primary/35 px-5 py-2.5 text-center text-sm font-semibold text-primary transition-colors hover:bg-primary/10 sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base"
-                  style={getElementLayoutStyle(data.elementStyles, "latest-release-shows-button")}
+                  className="inline-flex min-h-[46px] w-full items-center justify-center overflow-hidden rounded-xl border border-primary/35 px-5 py-2.5 text-center text-sm font-semibold leading-tight text-primary transition-colors hover:bg-primary/10 sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base"
+                  style={getLatestReleaseBoxStyle(data.elementStyles, "latest-release-shows-button")}
 
                 >
                   {releaseShowsLabel}
@@ -269,17 +293,13 @@ export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
               </div>
             </div>
           ) : (
-          <motion.div
+          <div
             ref={cardRef}
             data-editor-node-id="latest-release-card"
             data-editor-node-type="card"
             data-editor-node-label="Release Card"
-            initial={isEditing ? false : { opacity: 0, y: 10 }}
-            whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
-            viewport={isEditing ? undefined : { once: true, amount: 0.25 }}
-            transition={isEditing ? undefined : { duration: 0.45 }}
-            className="flex w-full max-w-4xl flex-col items-center rounded-2xl border border-primary/28 bg-black/24 p-6 text-center shadow-md backdrop-blur-sm md:p-8"
-            style={getElementLayoutStyle(data.elementStyles, "latest-release-card")}
+            className="mx-auto flex w-full max-w-4xl flex-col items-center rounded-2xl border border-primary/28 bg-black/24 p-6 text-center shadow-md backdrop-blur-sm md:p-8"
+            style={getLatestReleaseBoxStyle(data.elementStyles, "latest-release-card")}
           >
             <h2 
               ref={titleRef}
@@ -314,8 +334,8 @@ export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
                 data-editor-node-id="latest-release-watch-button"
                 data-editor-node-type="button"
                 data-editor-node-label="Watch Video Button"
-                className={`min-h-[46px] w-full rounded-xl px-5 py-2.5 text-center text-sm font-semibold shadow-md sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
-                style={getElementLayoutStyle(data.elementStyles, "latest-release-watch-button")}
+                className={`inline-flex min-h-[46px] w-full items-center justify-center overflow-hidden rounded-xl px-5 py-2.5 text-center text-sm font-semibold leading-tight shadow-md sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base ${CAMPAIGN_PRIMARY_CTA_CLASS}`}
+                style={getLatestReleaseBoxStyle(data.elementStyles, "latest-release-watch-button")}
 
               >
                 {releaseWatchLabel}
@@ -328,14 +348,14 @@ export function LatestReleaseSection({ data }: { data: LatestReleaseData }) {
                 data-editor-node-id="latest-release-shows-button"
                 data-editor-node-type="button"
                 data-editor-node-label="See Shows Button"
-                className="min-h-[46px] w-full rounded-xl border border-primary/35 px-5 py-2.5 text-center text-sm font-semibold text-primary transition-colors hover:bg-primary/10 sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base"
-                style={getElementLayoutStyle(data.elementStyles, "latest-release-shows-button")}
+                className="inline-flex min-h-[46px] w-full items-center justify-center overflow-hidden rounded-xl border border-primary/35 px-5 py-2.5 text-center text-sm font-semibold leading-tight text-primary transition-colors hover:bg-primary/10 sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3 sm:text-base"
+                style={getLatestReleaseBoxStyle(data.elementStyles, "latest-release-shows-button")}
 
               >
                 {releaseShowsLabel}
               </a>
             </div>
-          </motion.div>
+          </div>
           )}
         </div>
       </div>

@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache"
 import { NextResponse } from "next/server"
 import { createClient } from "next-sanity"
 import { roundLayoutPx } from "@/lib/hero-layout-styles"
+import { ABOUT_FALLBACK } from "@/lib/sanity/about-loader"
 import { DEFAULT_NAV_LINKS } from "@/lib/sanity/navigation-loader"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 
@@ -36,10 +37,29 @@ interface DeployNodePayload {
   }
   content: {
     text?: string
+    title?: string
+    description?: string
     href?: string
+    fileName?: string
+    download?: boolean
+    assets?: Array<{ label?: string; url?: string; fileName?: string }>
     src?: string
     alt?: string
+    role?: string
+    email?: string
     videoUrl?: string
+    videoSources?: Array<{ type?: string; url?: string; youtubeId?: string; enabled?: boolean; order?: number }>
+    backgroundVideoSources?: Array<{ type?: string; url?: string; youtubeId?: string }>
+    concerts?: Array<{
+      _editorId?: number
+      date?: string
+      time?: string
+      locationName?: string
+      locationLink?: string
+      style?: string
+      price?: string
+      status?: string
+    }>
     mediaKind?: "image" | "video"
     gradientEnabled?: boolean
     gradientStart?: string
@@ -58,6 +78,9 @@ interface DeployNodePayload {
     time?: string
     capacity?: string
     locationUrl?: string
+    locationName?: string
+    locationLink?: string
+    style?: string
     extraNodeType?: "text" | "button" | "card" | "overlay"
     parentSection?: string
     label?: string
@@ -107,6 +130,8 @@ const SANITY_DOC_TYPE = "heroSection"
 const SANITY_DOC_NAV = "navigation"
 const SANITY_DOC_INTRO = "introBanner"
 const SANITY_DOC_LATEST_RELEASE = "latestRelease"
+const SANITY_DOC_ABOUT = "aboutSection"
+const SANITY_DOC_PRESS_KIT = "pressKitSection"
 const SANITY_DOC_LIVE_SECTION = "liveSection"
 const SANITY_DOC_CONCERT = "concert"
 const SANITY_DOC_BAND_MEMBERS = "bandMembersSettings"
@@ -117,6 +142,8 @@ const HOME_EDITOR_STATE_DOCUMENT_ID = "homeEditorState-singleton"
 const REVALIDATED_PATH = "/"
 const INTRO_DOCUMENT_ID = "introBanner"
 const LATEST_RELEASE_DOCUMENT_ID = "latestRelease"
+const ABOUT_DOCUMENT_ID = "aboutSection"
+const PRESS_KIT_DOCUMENT_ID = "pressKitSection"
 const LIVE_SECTION_DOCUMENT_ID = "liveSection"
 const BAND_MEMBERS_DOCUMENT_ID = "bandMembersSettings"
 const CONTACT_DOCUMENT_ID = "contactSection"
@@ -137,7 +164,6 @@ const INTRO_LAYOUT_IDS = new Set([
 const BAND_MEMBERS_LAYOUT_IDS = new Set([
   "band-members-section",
   "band-members-bg",
-  "band-members-header",
   "band-members-header-eyebrow",
   "band-members-header-title",
   "band-members-header-description",
@@ -149,6 +175,8 @@ const BAND_MEMBERS_LAYOUT_IDS = new Set([
 ])
 
 const BAND_MEMBER_SUBNODE_FIELDS = new Set(["name", "role", "number", "image"])
+const OBSOLETE_EDITOR_NODE_IDS = new Set(["band-members-header"])
+const BAND_MEMBER_CARD_NODE_ID = /^member-item-\d+$/
 
 const CONTACT_NODE_IDS = new Set([
   "contact-section",
@@ -201,7 +229,7 @@ function isNavLayoutId(id: string): boolean {
 
 const NAVBAR_TEXT_NODE_IDS = new Set(["nav-brand-name"])
 const NAVBAR_BUTTON_NODE_IDS = new Set(["nav-book-button", "nav-mobile-book-button"])
-const NAVBAR_CONTAINER_NODE_IDS = new Set(["navigation-inner"])
+const NAVBAR_CONTAINER_NODE_IDS = new Set(["navigation", "navigation-inner"])
 const NAVBAR_IMAGE_NODE_IDS = new Set(["nav-logo"])
 
 function isNavbarLinkButtonNodeId(nodeId: string): boolean {
@@ -298,6 +326,11 @@ const INTRO_NODE_IDS = new Set([
   "intro-press-button",
 ])
 
+const INTRO_TEXT_NODE_IDS = new Set(["intro-banner-text"])
+const INTRO_BUTTON_NODE_IDS = new Set(["intro-book-button", "intro-press-button"])
+const INTRO_IMAGE_NODE_IDS = new Set(["intro-banner-gif"])
+const INTRO_BOX_NODE_IDS = new Set(["intro-section", ...INTRO_BUTTON_NODE_IDS])
+
 const RELEASE_NODE_IDS = new Set([
   "latest-release-section",
   "latest-release-bg",
@@ -306,6 +339,59 @@ const RELEASE_NODE_IDS = new Set([
   "latest-release-subtitle",
   "latest-release-watch-button",
   "latest-release-shows-button",
+])
+
+const RELEASE_TEXT_NODE_IDS = new Set(["latest-release-title", "latest-release-subtitle"])
+const RELEASE_BUTTON_NODE_IDS = new Set(["latest-release-watch-button", "latest-release-shows-button"])
+const RELEASE_MEDIA_NODE_IDS = new Set(["latest-release-bg"])
+const RELEASE_BOX_NODE_IDS = new Set(["latest-release-section", "latest-release-card", ...RELEASE_BUTTON_NODE_IDS])
+
+const ABOUT_NODE_IDS = new Set([
+  "about-section",
+  "about-bg-image",
+  "about-header-eyebrow",
+  "about-header-title",
+  "about-text-card",
+  "about-text-1",
+  "about-text-2",
+  "about-tags",
+  "about-copy-button",
+])
+
+const ABOUT_TEXT_NODE_IDS = new Set([
+  "about-header-eyebrow",
+  "about-header-title",
+  "about-text-1",
+  "about-text-2",
+  "about-tags",
+])
+const ABOUT_BUTTON_NODE_IDS = new Set(["about-copy-button"])
+const ABOUT_IMAGE_NODE_IDS = new Set(["about-bg-image"])
+const ABOUT_BOX_NODE_IDS = new Set(["about-section", "about-text-card", ...ABOUT_BUTTON_NODE_IDS])
+
+const PRESS_KIT_NODE_IDS = new Set([
+  "press-kit-section",
+  "press-kit-bg",
+  "press-kit-main-card",
+  "press-kit-folder-icon",
+  "press-kit-title",
+  "press-kit-description",
+  "press-kit-download-button",
+  "press-kit-resource-0",
+  "press-kit-resource-1",
+  "press-kit-manager",
+])
+const PRESS_KIT_TEXT_NODE_IDS = new Set(["press-kit-title", "press-kit-description"])
+const PRESS_KIT_BUTTON_NODE_IDS = new Set(["press-kit-download-button"])
+const PRESS_KIT_IMAGE_NODE_IDS = new Set(["press-kit-bg"])
+const PRESS_KIT_BOX_NODE_IDS = new Set([
+  "press-kit-section",
+  "press-kit-main-card",
+  "press-kit-folder-icon",
+  "press-kit-download-button",
+  "press-kit-resource-0",
+  "press-kit-resource-1",
+  "press-kit-manager",
 ])
 
 const LIVE_STATIC_NODE_IDS = new Set([
@@ -319,6 +405,7 @@ const LIVE_STATIC_NODE_IDS = new Set([
   "live-social-platforms-group",
   "live-social-platforms-title",
   "live-upcoming-title",
+  "live-section-concerts-container",
   "live-upcoming-list",
   "live-upcoming-empty",
   "live-upcoming-empty-text",
@@ -378,6 +465,63 @@ function buildSanityImageFieldFromSrc(
   }
 }
 
+function parseSanityFileRefFromUrl(src: string, projectId: string, dataset: string): string | null {
+  try {
+    const url = new URL(src)
+    if (url.hostname !== "cdn.sanity.io") return null
+    const parts = url.pathname.split("/").filter(Boolean)
+    if (parts.length < 4) return null
+    if (parts[0] !== "files") return null
+    if (parts[1] !== projectId) return null
+    if (parts[2] !== dataset) return null
+    const fileName = parts.slice(3).join("/")
+    const extIndex = fileName.lastIndexOf(".")
+    if (extIndex <= 0) return null
+    const idPart = fileName.slice(0, extIndex).replace(/\//g, "-")
+    const extPart = fileName.slice(extIndex + 1)
+    if (!idPart || !extPart) return null
+    return `file-${idPart}-${extPart}`
+  } catch {
+    return null
+  }
+}
+
+function buildSanityFileFieldFromSrc(
+  src: string,
+  projectId: string,
+  dataset: string
+): { _type: "file"; asset: { _type: "reference"; _ref: string } } | null {
+  const ref = parseSanityFileRefFromUrl(src, projectId, dataset)
+  if (!ref) return null
+  return {
+    _type: "file",
+    asset: {
+      _type: "reference",
+      _ref: ref,
+    },
+  }
+}
+
+function resolveSanityFilePatch(
+  nodeId: string,
+  src: string,
+  projectId: string,
+  dataset: string
+): {
+  fileField: { _type: "file"; asset: { _type: "reference"; _ref: string } } | null
+  skippedReason: string | null
+} {
+  if (!src) return { fileField: null, skippedReason: `${nodeId}:missing-content-href` }
+  const trimmed = src.trim()
+  if (trimmed.startsWith("blob:") || trimmed.startsWith("data:") || trimmed.startsWith("javascript:")) {
+    return { fileField: null, skippedReason: `${nodeId}:href(blob/data url)` }
+  }
+  const fileField = buildSanityFileFieldFromSrc(trimmed, projectId, dataset)
+  if (fileField) return { fileField, skippedReason: null }
+  if (trimmed.includes("localhost") || trimmed.startsWith("/")) return { fileField: null, skippedReason: `${nodeId}:href(local-or-site-path)` }
+  return { fileField: null, skippedReason: `${nodeId}:href(non-sanity-cdn url)` }
+}
+
 function resolveSanityImagePatch(
   nodeId: string,
   src: string,
@@ -401,8 +545,11 @@ function resolveSanityImagePatch(
 }
 
 function shouldVerifyInHomeEditorState(node: DeployNodePayload): boolean {
+  if (OBSOLETE_EDITOR_NODE_IDS.has(node.id)) return false
   if (node.id === "intro-banner-gif") return false
   if (RELEASE_NODE_IDS.has(node.id)) return false
+  if (ABOUT_NODE_IDS.has(node.id)) return false
+  if (PRESS_KIT_NODE_IDS.has(node.id)) return false
   if (isLiveNodeId(node.id)) return false
   if (isBandMembersNodeId(node.id)) return false
   if (CONTACT_NODE_IDS.has(node.id)) return false
@@ -417,7 +564,7 @@ function shouldVerifyInHomeEditorState(node: DeployNodePayload): boolean {
 
 function toChangedNodeIds(payload: DeployRequestPayload): string[] {
   if (Array.isArray(payload.changedNodeIds) && payload.changedNodeIds.length > 0) {
-    return Array.from(new Set(payload.changedNodeIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)))
+    return Array.from(new Set(payload.changedNodeIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0 && !OBSOLETE_EDITOR_NODE_IDS.has(id))))
   }
   return []
 }
@@ -457,6 +604,32 @@ function valuesMatch(expected: unknown, actual: unknown): boolean {
   return expected === actual
 }
 
+function addTextAlignReadback(
+  writeStyleKeys: Set<string>,
+  nodeStyle: DeployNodePayload["style"],
+  storedStyle: Record<string, unknown>,
+  expected: Record<string, unknown>,
+  readBack: Record<string, unknown>
+): void {
+  if (!writeStyleKeys.has("textAlign")) return
+  if (nodeStyle.textAlign !== "left" && nodeStyle.textAlign !== "center" && nodeStyle.textAlign !== "right") return
+  expected.textAlign = nodeStyle.textAlign
+  readBack.textAlign = storedStyle.textAlign
+}
+
+function cleanAboutTextForPersistence(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback
+  const text = value.trim()
+  if (!text || /\b(?:missing|placeholder|test|testing|lorem|ipsum|dummy|sample|routing check|full-path validation)\b/i.test(text)) return fallback
+  if (
+    text.includes("world music, funk, soul, and reggae") ||
+    text.includes("five musicians into one fluid, dynamic live act")
+  ) {
+    return fallback
+  }
+  return text
+}
+
 function compareMaps(
   expected: Record<string, unknown>,
   actual: Record<string, unknown>
@@ -486,6 +659,9 @@ function buildNavigationContentPatch(
   const baseLinks = Array.isArray(existing.links) && existing.links.length > 0
     ? existing.links.map((l) => ({ label: l.label || "", href: l.href || "" }))
     : DEFAULT_NAV_LINKS.map((l) => ({ ...l }))
+  if (!baseLinks.some((link) => link.href === "#latest-release" || link.label.toLowerCase() === "release")) {
+    baseLinks.push({ label: "Release", href: "#latest-release" })
+  }
   let linksDirty = false
 
   for (const node of nodes) {
@@ -544,8 +720,10 @@ function parseYouTubeId(value: string): string {
     }
     const queryId = url.searchParams.get("v")
     if (queryId) return queryId
-    const embedMatch = /\/embed\/([^/?#]+)/.exec(url.pathname)
-    if (embedMatch?.[1]) return embedMatch[1]
+    const pathParts = url.pathname.split("/").filter(Boolean)
+    if ((pathParts[0] === "embed" || pathParts[0] === "shorts" || pathParts[0] === "live") && pathParts[1]) {
+      return pathParts[1]
+    }
     const thumbnailMatch = /\/vi\/([^/?#]+)/.exec(url.pathname)
     if (thumbnailMatch?.[1]) return thumbnailMatch[1]
   } catch {
@@ -554,11 +732,48 @@ function parseYouTubeId(value: string): string {
   return ""
 }
 
+function normalizeLatestReleaseVideoSources(value: unknown): Array<{ type: "youtube"; url: string; youtubeId: string; enabled: boolean; order: number }> {
+  const rawSources = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? [{ type: "youtube", url: value }]
+      : []
+
+  const sources = rawSources
+    .map((source, index) => {
+      if (!source || typeof source !== "object" || Array.isArray(source)) return null
+      const entry = source as Record<string, unknown>
+      const originalUrl = typeof entry.url === "string"
+        ? entry.url.trim()
+        : typeof entry.originalUrl === "string"
+          ? entry.originalUrl.trim()
+          : ""
+      const youtubeId = parseYouTubeId(originalUrl) || (typeof entry.youtubeId === "string" ? entry.youtubeId.trim() : "")
+      if (!originalUrl || !youtubeId) return null
+      const order = typeof entry.order === "number" && Number.isFinite(entry.order) ? entry.order : index + 1
+      return {
+        type: "youtube" as const,
+        url: originalUrl,
+        youtubeId,
+        enabled: typeof entry.enabled === "boolean" ? entry.enabled : true,
+        order,
+      }
+    })
+    .filter((source): source is { type: "youtube"; url: string; youtubeId: string; enabled: boolean; order: number } => source !== null)
+    .sort((a, b) => a.order - b.order)
+    .map((source, index) => ({ ...source, order: index + 1 }))
+    .slice(0, 3)
+
+  return sources
+}
+
 /** Map visual-editor `node.style` (color, fontSize, fontWeight) into Sanity elementStyles shape. */
 function mergeDeployVisualStyleIntoTarget(target: Record<string, unknown>, node: DeployNodePayload): void {
   if (!node.explicitStyle) return
   const st = node.style as Record<string, unknown>
   if (typeof st.color === "string" && st.color) target.color = st.color
+  if (typeof st.fontFamily === "string" && st.fontFamily.trim()) target.fontFamily = st.fontFamily
+  if (st.textAlign === "left" || st.textAlign === "center" || st.textAlign === "right") target.textAlign = st.textAlign
   const fs = parsePxNumber(st.fontSize as string | undefined)
   if (typeof fs === "number") target.fontSize = fs
   const fw = st.fontWeight
@@ -838,8 +1053,18 @@ function buildLatestReleaseContentPatch(
           : typeof node.content.src === "string"
             ? node.content.src
             : ""
-      const youtubeId = parseYouTubeId(videoSource)
-      if (youtubeId) patch.youtubeId = youtubeId
+      const backgroundVideoSources = normalizeLatestReleaseVideoSources(
+        Array.isArray(node.content.videoSources) && node.content.videoSources.length > 0
+          ? node.content.videoSources
+          : Array.isArray(node.content.backgroundVideoSources) && node.content.backgroundVideoSources.length > 0
+            ? node.content.backgroundVideoSources
+          : videoSource
+      )
+      if (backgroundVideoSources.length > 0) {
+        patch.videoSources = backgroundVideoSources
+        patch.backgroundVideoSources = null
+        patch.youtubeId = null
+      }
     }
     if (node.id === "latest-release-watch-button" || node.id === "latest-release-shows-button") {
       const index = node.id === "latest-release-watch-button" ? 0 : 1
@@ -860,8 +1085,157 @@ function buildLatestReleaseContentPatch(
   return patch
 }
 
+function buildAboutContentPatch(
+  nodes: DeployNodePayload[],
+  existing: {
+    bioParagraphs?: string[]
+  },
+  projectId: string,
+  dataset: string
+): { patch: Record<string, unknown>; skipped: string[] } {
+  const patch: Record<string, unknown> = {}
+  const skipped: string[] = []
+  const bioParagraphs = Array.isArray(existing.bioParagraphs) && existing.bioParagraphs.length > 0
+    ? existing.bioParagraphs.slice()
+    : ["", ""]
+  while (bioParagraphs.length < 2) bioParagraphs.push("")
+  let bioParagraphsDirty = false
+  for (const node of nodes) {
+    if (!node.explicitContent) continue
+    const rawText = typeof node.content.text === "string" ? node.content.text : ""
+
+    if (node.id === "about-header-eyebrow") patch.eyebrow = cleanAboutTextForPersistence(rawText, ABOUT_FALLBACK.eyebrow)
+    if (node.id === "about-header-title") patch.title = cleanAboutTextForPersistence(rawText, ABOUT_FALLBACK.title)
+    if (node.id === "about-text-1") {
+      bioParagraphs[0] = cleanAboutTextForPersistence(rawText, ABOUT_FALLBACK.bioParagraphs[0])
+      bioParagraphsDirty = true
+    }
+    if (node.id === "about-text-2") {
+      bioParagraphs[1] = cleanAboutTextForPersistence(rawText, ABOUT_FALLBACK.bioParagraphs[1])
+      bioParagraphsDirty = true
+    }
+    if (node.id === "about-tags") patch.bioTagline = cleanAboutTextForPersistence(rawText, ABOUT_FALLBACK.bioTagline)
+    if (node.id === "about-copy-button") patch.copyButtonLabel = cleanAboutTextForPersistence(rawText, ABOUT_FALLBACK.copyButtonLabel)
+    if (node.id === "about-bg-image") {
+      const src = typeof node.content.src === "string" ? node.content.src.trim() : ""
+      const { imageField, skippedReason } = resolveSanityImagePatch("about-bg-image", src, projectId, dataset)
+      if (skippedReason) {
+        skipped.push(skippedReason)
+      } else if (imageField) {
+        patch.backgroundImage = imageField
+      }
+    }
+  }
+
+  if (bioParagraphsDirty) patch.bioParagraphs = bioParagraphs
+  return { patch, skipped }
+}
+
+function buildPressKitContentPatch(
+  nodes: DeployNodePayload[],
+  existing: {
+    resources?: Array<{
+      title?: string
+      description?: string
+      href?: string
+      download?: boolean
+      file?: { asset?: { _ref?: string; _id?: string } }
+      assets?: Array<{ label?: string; image?: { asset?: { _ref?: string; _id?: string } } }>
+    }>
+  },
+  projectId: string,
+  dataset: string
+): { patch: Record<string, unknown>; skipped: string[] } {
+  const patch: Record<string, unknown> = {}
+  const skipped: string[] = []
+  const resources = Array.isArray(existing.resources) && existing.resources.length > 0
+    ? existing.resources.slice(0, 2).map((resource) => ({ ...resource }))
+    : [
+      { title: "Band Logo", description: "High-resolution logo files", download: true },
+      { title: "Press Photos", description: "Official high-res band photography", download: true },
+    ]
+  while (resources.length < 2) {
+    resources.push({ title: "", description: "", href: "", download: true })
+  }
+  let resourcesDirty = false
+
+  for (const node of nodes) {
+    if (!node.explicitContent) continue
+    if (node.id === "press-kit-title") {
+      const title = typeof node.content.text === "string" ? node.content.text.trim() : ""
+      if (title) patch.title = title
+    }
+    if (node.id === "press-kit-description") {
+      const description = typeof node.content.text === "string" ? node.content.text.trim() : ""
+      if (description) patch.description = description
+    }
+    if (node.id === "press-kit-download-button") {
+      const label = typeof node.content.text === "string" ? node.content.text.trim() : ""
+      if (label) patch.downloadButtonLabel = label
+      const href = typeof node.content.href === "string" ? node.content.href.trim() : ""
+      if (href) {
+        const { fileField, skippedReason } = resolveSanityFilePatch("press-kit-download-button", href, projectId, dataset)
+        if (skippedReason) skipped.push(skippedReason)
+        if (fileField) patch.pressKitPdf = fileField
+      }
+    }
+    const resourceMatch = /^press-kit-resource-(0|1)$/.exec(node.id)
+    if (resourceMatch) {
+      const index = Number(resourceMatch[1])
+      const resource = { ...(resources[index] || {}) }
+      if (typeof node.content.title === "string") resource.title = node.content.title.trim()
+      if (typeof node.content.description === "string") resource.description = node.content.description.trim()
+      resource.download = true
+      if (Array.isArray(node.content.assets)) {
+        const assets = node.content.assets
+          .map((asset, assetIndex) => {
+            const url = typeof asset.url === "string" ? asset.url.trim() : ""
+            if (!url) return null
+            const imageField = buildSanityImageFieldFromSrc(url, projectId, dataset)
+            if (!imageField) {
+              if (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("javascript:")) {
+                skipped.push(`${node.id}:assets[${assetIndex}](blob/data url)`)
+              }
+              return null
+            }
+            return {
+              label: typeof asset.label === "string" && asset.label.trim() ? asset.label.trim() : `Asset ${assetIndex + 1}`,
+              image: imageField,
+            }
+          })
+          .filter((asset): asset is { label: string; image: { _type: "image"; asset: { _type: "reference"; _ref: string } } } => asset !== null)
+        if (assets.length > 0 || node.content.assets.length === 0) {
+          resource.assets = assets
+          delete resource.href
+          delete resource.file
+        }
+      }
+      resources[index] = resource
+      resourcesDirty = true
+    }
+    if (node.id === "press-kit-manager") {
+      const managerTitle = typeof node.content.title === "string" ? node.content.title.trim() : ""
+      const managerName = typeof node.content.text === "string" ? node.content.text.trim() : ""
+      const managerRole = typeof node.content.role === "string" ? node.content.role.trim() : ""
+      const managerEmail = typeof node.content.email === "string" ? node.content.email.trim() : ""
+      if (managerTitle) patch.managerTitle = managerTitle
+      if (managerName) patch.managerName = managerName
+      if (managerRole) patch.managerRole = managerRole
+      if (managerEmail) patch.managerEmail = managerEmail
+      const src = typeof node.content.src === "string" ? node.content.src.trim() : ""
+      if (src) {
+        const { imageField, skippedReason } = resolveSanityImagePatch("press-kit-manager", src, projectId, dataset)
+        if (imageField) patch.managerPhoto = imageField
+        if (skippedReason && (src.startsWith("blob:") || src.startsWith("data:") || src.startsWith("javascript:"))) skipped.push(skippedReason)
+      }
+    }
+  }
+  if (resourcesDirty) patch.resources = resources
+  return { patch, skipped }
+}
+
 function parseLiveConcertNodeId(nodeId: string): { listType: "upcoming" | "history"; editorId: number; field: string | null } | null {
-  const match = /^live-(upcoming|history)-event-(\d+)(?:-(date|venue|city|country|genre|price|time|status|capacity|locationUrl))?$/.exec(nodeId)
+  const match = /^live-(upcoming|history)-event-(\d+)(?:-(date|time|locationName|locationLink|style|price|status|venue|city|country|genre|capacity|locationUrl))?$/.exec(nodeId)
   if (!match) return null
   const editorId = Number(match[2])
   if (!Number.isFinite(editorId)) return null
@@ -872,15 +1246,47 @@ function parseLiveConcertNodeId(nodeId: string): { listType: "upcoming" | "histo
   }
 }
 
-function normalizeConcertPriceForSanity(value: string): number | undefined {
-  const trimmed = value.trim()
-  if (!trimmed || /^free$/i.test(trimmed)) return undefined
-  const numeric = Number(trimmed.replace(/[^\d.,-]/g, "").replace(",", "."))
-  return Number.isFinite(numeric) ? numeric : undefined
+function normalizeLiveConcertForSanity(concert: {
+  _editorId?: number
+  date?: string
+  time?: string
+  locationName?: string
+  locationLink?: string
+  style?: string
+  price?: string
+  status?: string
+}, fallbackEditorId: number): Record<string, unknown> {
+  const editorId = typeof concert._editorId === "number" ? concert._editorId : fallbackEditorId
+  const locationName = typeof concert.locationName === "string" ? concert.locationName.trim() : ""
+  const locationLink = typeof concert.locationLink === "string" ? concert.locationLink.trim() : ""
+  const style = typeof concert.style === "string" && concert.style.trim() ? concert.style.trim() : "World Music"
+  const priceText = typeof concert.price === "string" ? concert.price.trim() : ""
+  return {
+    editorId,
+    date: typeof concert.date === "string" ? concert.date.trim() : "",
+    time: typeof concert.time === "string" ? concert.time.trim() : "",
+    locationName,
+    locationLink,
+    style,
+    priceText,
+    status: typeof concert.status === "string" && concert.status.trim() ? concert.status.trim() : "Upcoming",
+    venue: locationName,
+    genre: style,
+    ticketUrl: locationLink,
+    updatedAt: new Date().toISOString(),
+  }
 }
 
 function collectLiveConcertPatches(nodes: DeployNodePayload[]): Map<number, Record<string, unknown>> {
   const patches = new Map<number, Record<string, unknown>>()
+  const containerNode = nodes.find((node) => node.id === "live-section-concerts-container" && node.explicitContent && Array.isArray(node.content.concerts))
+  if (containerNode?.content.concerts) {
+    containerNode.content.concerts.forEach((concert, index) => {
+      const patch = normalizeLiveConcertForSanity(concert, index)
+      const editorId = patch.editorId
+      if (typeof editorId === "number") patches.set(editorId, patch)
+    })
+  }
   for (const node of nodes) {
     if (!node.explicitContent) continue
     const parsed = parseLiveConcertNodeId(node.id)
@@ -894,10 +1300,16 @@ function collectLiveConcertPatches(nodes: DeployNodePayload[]): Map<number, Reco
       const text = typeof node.content.text === "string" ? node.content.text.trim() : ""
       const href = typeof node.content.href === "string" ? node.content.href.trim() : ""
       if (parsed.field === "price") {
-        const price = normalizeConcertPriceForSanity(text)
-        if (price !== undefined) patch.price = price
-      } else if (parsed.field === "locationUrl") {
-        if (href || text) patch.ticketUrl = href || text
+        patch.priceText = text.replace(/^€/, "")
+      } else if (parsed.field === "locationUrl" || parsed.field === "locationLink") {
+        patch.locationLink = href || text
+        patch.ticketUrl = href || text
+      } else if (parsed.field === "venue" || parsed.field === "locationName") {
+        patch.locationName = text
+        patch.venue = text
+      } else if (parsed.field === "genre" || parsed.field === "style") {
+        patch.style = text || "World Music"
+        patch.genre = text || "World Music"
       } else if (text) {
         patch[parsed.field === "country" ? "country" : parsed.field] = text
       }
@@ -1097,9 +1509,9 @@ export async function POST(request: Request) {
     if (payload.nodes.length === 0) {
       return NextResponse.json({ routeVersion: ROUTE_VERSION, message: "Invalid deploy payload: nodes array is empty.", publishedDocumentId: "resolved-at-deploy", publishedDocumentType: SANITY_DOC_TYPE, targetSection: TARGET_SECTION, heroTitleMode: "unknown", revalidatedPath: REVALIDATED_PATH, persistedNodes: [], skippedNodes: [], failedNodes: ["payload.nodes"], diagnostics, envDiagnostics }, { status: 400 })
     }
-    const changedNodeIds = toChangedNodeIds(payload)
-    const changedNodeSet = new Set(changedNodeIds)
     const payloadNodeById = new Map(payload.nodes.map((node) => [node.id, node]))
+    const changedNodeIds = toChangedNodeIds(payload).filter((nodeId) => payloadNodeById.has(nodeId))
+    const changedNodeSet = new Set(changedNodeIds)
 
     if (!projectId) {
       return NextResponse.json(
@@ -1163,7 +1575,7 @@ export async function POST(request: Request) {
       perspective: "published",
     })
 
-    const [existingHero, existingNavigation, existingIntro, existingLatestRelease, existingLiveSection, existingContact, existingFooter] = await Promise.all([
+    const [existingHero, existingNavigation, existingIntro, existingLatestRelease, existingAbout, existingPressKit, existingLiveSection, existingContact, existingFooter] = await Promise.all([
       writeClient.fetch<{
         _id: string
         title?: string
@@ -1198,11 +1610,50 @@ export async function POST(request: Request) {
         title?: string
         subtitle?: string
         youtubeId?: string
+        videoSources?: Array<{ type?: string; url?: string; youtubeId?: string; enabled?: boolean; order?: number }>
+        backgroundVideoSources?: Array<{ type?: string; url?: string; youtubeId?: string; enabled?: boolean; order?: number }>
         ctaButtons?: Array<{ label?: string; href?: string }>
         elementStyles?: Record<string, Record<string, unknown>>
       } | null>(
-        `*[_type == $releaseType][0]{ _id, title, subtitle, youtubeId, ctaButtons[]{ label, href }, elementStyles }`,
+        `*[_type == $releaseType][0]{ _id, title, subtitle, youtubeId, videoSources[]{ type, url, youtubeId, enabled, order }, backgroundVideoSources[]{ type, url, youtubeId }, ctaButtons[]{ label, href }, elementStyles }`,
         { releaseType: SANITY_DOC_LATEST_RELEASE }
+      ),
+      writeClient.fetch<{
+        _id: string
+        eyebrow?: string
+        title?: string
+        bioParagraphs?: string[]
+        bioTagline?: string
+        copyButtonLabel?: string
+        backgroundImage?: { asset?: { _ref?: string; _id?: string } }
+        elementStyles?: Record<string, Record<string, unknown>>
+      } | null>(
+        `*[_type == $aboutType][0]{ _id, eyebrow, title, bioParagraphs, bioTagline, copyButtonLabel, backgroundImage{asset->{_id}}, elementStyles }`,
+        { aboutType: SANITY_DOC_ABOUT }
+      ),
+      writeClient.fetch<{
+        _id: string
+        title?: string
+        description?: string
+        downloadButtonLabel?: string
+        pressKitPdf?: { asset?: { _ref?: string; _id?: string } }
+        resources?: Array<{
+          title?: string
+          description?: string
+          href?: string
+          download?: boolean
+          file?: { asset?: { _ref?: string; _id?: string } }
+          assets?: Array<{ label?: string; image?: { asset?: { _ref?: string; _id?: string } } }>
+        }>
+        managerTitle?: string
+        managerName?: string
+        managerRole?: string
+        managerEmail?: string
+        managerPhoto?: { asset?: { _ref?: string; _id?: string } }
+        elementStyles?: Record<string, Record<string, unknown>>
+      } | null>(
+        `*[_type == $pressType][0]{ _id, title, description, downloadButtonLabel, pressKitPdf{asset->{_id}}, resources[]{ title, description, href, download, file{asset->{_id}}, assets[]{ label, image{asset->{_id}} } }, managerTitle, managerName, managerRole, managerEmail, managerPhoto{asset->{_id}}, elementStyles }`,
+        { pressType: SANITY_DOC_PRESS_KIT }
       ),
       writeClient.fetch<{
         _id: string
@@ -1240,7 +1691,7 @@ export async function POST(request: Request) {
         { footerType: SANITY_DOC_FOOTER }
       ),
     ])
-    log("document fetch", { hero: !!existingHero?._id, navigation: !!existingNavigation?._id, intro: !!existingIntro?._id, latestRelease: !!existingLatestRelease?._id, live: !!existingLiveSection?._id, contact: !!existingContact?._id, footer: !!existingFooter?._id })
+    log("document fetch", { hero: !!existingHero?._id, navigation: !!existingNavigation?._id, intro: !!existingIntro?._id, latestRelease: !!existingLatestRelease?._id, about: !!existingAbout?._id, pressKit: !!existingPressKit?._id, live: !!existingLiveSection?._id, contact: !!existingContact?._id, footer: !!existingFooter?._id })
     // Determine mode: "segmented" if hero-title node exists and is editable, else "legacy"
     const heroTitleMode: "legacy" | "segmented" = heroTitleNode?.explicitContent ? "segmented" : "legacy"
 
@@ -1281,6 +1732,8 @@ export async function POST(request: Request) {
     const navElementStylesInPayload: Record<string, Record<string, unknown>> = {}
     const introElementStylesInPayload: Record<string, Record<string, unknown>> = {}
     const releaseElementStylesInPayload: Record<string, Record<string, unknown>> = {}
+    const aboutElementStylesInPayload: Record<string, Record<string, unknown>> = {}
+    const pressKitElementStylesInPayload: Record<string, Record<string, unknown>> = {}
     const liveElementStylesInPayload: Record<string, Record<string, unknown>> = {}
     const failedNodes: string[] = []
     const heroPatch: Record<string, unknown> = {}
@@ -1452,6 +1905,8 @@ export async function POST(request: Request) {
         // Navbar text pattern: content lives in navigation fields; visual text styles live in elementStyles.
         if (NAVBAR_TEXT_NODE_IDS.has(node.id)) {
           if (typeof st.color === "string") s.color = st.color
+          if (typeof st.fontFamily === "string") s.fontFamily = st.fontFamily
+          if (st.textAlign === "left" || st.textAlign === "center" || st.textAlign === "right") s.textAlign = st.textAlign
           if (typeof st.fontSize === "string") s.fontSize = st.fontSize
           if (typeof st.fontWeight === "string" || typeof st.fontWeight === "number") s.fontWeight = st.fontWeight
           mergeDeployTextEffectsIntoTarget(s, st)
@@ -1498,7 +1953,24 @@ export async function POST(request: Request) {
         s.height = roundLayoutPx(node.geometry.height)
       }
       if (hasScale) s.scale = Math.round(scaleVal * 1000) / 1000
-      if (node.explicitStyle) mergeDeployVisualStyleIntoTarget(s, node)
+      if (node.explicitStyle) {
+        const st = node.style as Record<string, unknown>
+        mergeDeployVisualStyleIntoTarget(s, node)
+        if (INTRO_TEXT_NODE_IDS.has(node.id) || INTRO_BUTTON_NODE_IDS.has(node.id)) {
+          mergeDeployTextEffectsIntoTarget(s, st)
+          if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
+        }
+        if (INTRO_IMAGE_NODE_IDS.has(node.id)) {
+          if (typeof st.contrast === "number") s.contrast = Math.round(st.contrast * 100) / 100
+          if (typeof st.saturation === "number") s.saturation = Math.round(st.saturation * 100) / 100
+          if (typeof st.brightness === "number") s.brightness = Math.round(st.brightness * 100) / 100
+          if (typeof st.negative === "boolean") s.negative = st.negative
+          if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
+        }
+        if (INTRO_BOX_NODE_IDS.has(node.id) && typeof st.backgroundColor === "string") {
+          s.backgroundColor = st.backgroundColor
+        }
+      }
       log("intro layout captured", { id: node.id, x: s.x, y: s.y, w: s.width, h: s.height, scale: s.scale })
       if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
     }
@@ -1524,13 +1996,100 @@ export async function POST(request: Request) {
       if (node.explicitStyle) {
         mergeDeployVisualStyleIntoTarget(s, node)
         const st = node.style as Record<string, unknown>
-        if (node.id === "latest-release-bg") {
+        if (RELEASE_TEXT_NODE_IDS.has(node.id) || RELEASE_BUTTON_NODE_IDS.has(node.id)) {
+          mergeDeployTextEffectsIntoTarget(s, st)
+          if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
+        }
+        if (RELEASE_MEDIA_NODE_IDS.has(node.id)) {
           if (typeof st.contrast === "number") s.contrast = Math.round(st.contrast * 100) / 100
           if (typeof st.saturation === "number") s.saturation = Math.round(st.saturation * 100) / 100
           if (typeof st.brightness === "number") s.brightness = Math.round(st.brightness * 100) / 100
-          if (st.negative === true) s.negative = true
+          if (typeof st.negative === "boolean") s.negative = st.negative
+          if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
         }
-        if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
+        if (RELEASE_BOX_NODE_IDS.has(node.id) && typeof st.backgroundColor === "string") {
+          s.backgroundColor = st.backgroundColor
+        }
+      }
+      if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
+    }
+
+    for (const node of payload.nodes) {
+      if (!ABOUT_NODE_IDS.has(node.id)) continue
+      const scaleVal = (node.style as { scale?: number })?.scale
+      const hasScale = node.explicitStyle && typeof scaleVal === "number"
+      const hasLayout = node.explicitPosition || node.explicitSize || hasScale
+      if (!hasLayout && !node.explicitStyle) continue
+
+      aboutElementStylesInPayload[node.id] = { ...(aboutElementStylesInPayload[node.id] || {}) }
+      const s = aboutElementStylesInPayload[node.id] as Record<string, unknown>
+      if (node.explicitPosition) {
+        s.x = roundLayoutPx(node.geometry.x)
+        s.y = roundLayoutPx(node.geometry.y)
+      }
+      if (node.explicitSize) {
+        s.width = roundLayoutPx(node.geometry.width)
+        s.height = roundLayoutPx(node.geometry.height)
+      }
+      if (hasScale) s.scale = Math.round(scaleVal * 1000) / 1000
+      if (node.explicitStyle) {
+        mergeDeployVisualStyleIntoTarget(s, node)
+        const st = node.style as Record<string, unknown>
+        if (ABOUT_TEXT_NODE_IDS.has(node.id) || ABOUT_BUTTON_NODE_IDS.has(node.id)) {
+          mergeDeployTextEffectsIntoTarget(s, st)
+          if (ABOUT_TEXT_NODE_IDS.has(node.id) && typeof st.opacity === "number") {
+            s.opacity = Math.round(st.opacity * 100) / 100
+          }
+        }
+        if (ABOUT_IMAGE_NODE_IDS.has(node.id)) {
+          if (typeof st.contrast === "number") s.contrast = Math.round(st.contrast * 100) / 100
+          if (typeof st.saturation === "number") s.saturation = Math.round(st.saturation * 100) / 100
+          if (typeof st.brightness === "number") s.brightness = Math.round(st.brightness * 100) / 100
+          if (typeof st.negative === "boolean") s.negative = st.negative
+          if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
+        }
+        if (ABOUT_BOX_NODE_IDS.has(node.id) && typeof st.backgroundColor === "string") {
+          s.backgroundColor = st.backgroundColor
+        }
+      }
+      if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
+    }
+
+    for (const node of payload.nodes) {
+      if (!PRESS_KIT_NODE_IDS.has(node.id)) continue
+      const scaleVal = (node.style as { scale?: number })?.scale
+      const hasScale = node.explicitStyle && typeof scaleVal === "number"
+      const hasLayout = node.explicitPosition || node.explicitSize || hasScale
+      if (!hasLayout && !node.explicitStyle) continue
+
+      pressKitElementStylesInPayload[node.id] = { ...(pressKitElementStylesInPayload[node.id] || {}) }
+      const s = pressKitElementStylesInPayload[node.id] as Record<string, unknown>
+      if (node.explicitPosition) {
+        s.x = roundLayoutPx(node.geometry.x)
+        s.y = roundLayoutPx(node.geometry.y)
+      }
+      if (node.explicitSize) {
+        s.width = roundLayoutPx(node.geometry.width)
+        s.height = roundLayoutPx(node.geometry.height)
+      }
+      if (hasScale) s.scale = Math.round(scaleVal * 1000) / 1000
+      if (node.explicitStyle) {
+        mergeDeployVisualStyleIntoTarget(s, node)
+        const st = node.style as Record<string, unknown>
+        if (PRESS_KIT_TEXT_NODE_IDS.has(node.id) || PRESS_KIT_BUTTON_NODE_IDS.has(node.id)) {
+          mergeDeployTextEffectsIntoTarget(s, st)
+          if (typeof st.opacity === "number" && PRESS_KIT_TEXT_NODE_IDS.has(node.id)) s.opacity = Math.round(st.opacity * 100) / 100
+        }
+        if (PRESS_KIT_IMAGE_NODE_IDS.has(node.id)) {
+          if (typeof st.contrast === "number") s.contrast = Math.round(st.contrast * 100) / 100
+          if (typeof st.saturation === "number") s.saturation = Math.round(st.saturation * 100) / 100
+          if (typeof st.brightness === "number") s.brightness = Math.round(st.brightness * 100) / 100
+          if (typeof st.negative === "boolean") s.negative = st.negative
+          if (typeof st.opacity === "number") s.opacity = Math.round(st.opacity * 100) / 100
+        }
+        if (PRESS_KIT_BOX_NODE_IDS.has(node.id) && typeof st.backgroundColor === "string") {
+          s.backgroundColor = st.backgroundColor
+        }
       }
       if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
     }
@@ -1619,6 +2178,43 @@ export async function POST(request: Request) {
         }
       }
       log("latest release element styles merged", { targets: Object.keys(mergedReleaseElementStyles) })
+    }
+
+    let mergedAboutElementStyles: Record<string, unknown> | null = null
+    if (Object.keys(aboutElementStylesInPayload).length > 0) {
+      const priorRaw = existingAbout?.elementStyles
+      const prior =
+        priorRaw && typeof priorRaw === "object" && !Array.isArray(priorRaw) ? { ...priorRaw } : {}
+      delete prior["about-photo-scrim"]
+      mergedAboutElementStyles = { ...prior }
+      for (const [targetId, incoming] of Object.entries(aboutElementStylesInPayload)) {
+        if (typeof incoming === "object" && incoming !== null) {
+          const prevTarget =
+            mergedAboutElementStyles[targetId] && typeof mergedAboutElementStyles[targetId] === "object"
+              ? (mergedAboutElementStyles[targetId] as Record<string, unknown>)
+              : {}
+          mergedAboutElementStyles[targetId] = { ...prevTarget, ...(incoming as Record<string, unknown>) }
+        }
+      }
+      log("about element styles merged", { targets: Object.keys(mergedAboutElementStyles) })
+    }
+
+    let mergedPressKitElementStyles: Record<string, unknown> | null = null
+    if (Object.keys(pressKitElementStylesInPayload).length > 0) {
+      const priorRaw = existingPressKit?.elementStyles
+      const prior =
+        priorRaw && typeof priorRaw === "object" && !Array.isArray(priorRaw) ? { ...priorRaw } : {}
+      mergedPressKitElementStyles = { ...prior }
+      for (const [targetId, incoming] of Object.entries(pressKitElementStylesInPayload)) {
+        if (typeof incoming === "object" && incoming !== null) {
+          const prevTarget =
+            mergedPressKitElementStyles[targetId] && typeof mergedPressKitElementStyles[targetId] === "object"
+              ? (mergedPressKitElementStyles[targetId] as Record<string, unknown>)
+              : {}
+          mergedPressKitElementStyles[targetId] = { ...prevTarget, ...(incoming as Record<string, unknown>) }
+        }
+      }
+      log("press kit element styles merged", { targets: Object.keys(mergedPressKitElementStyles) })
     }
 
     let mergedLiveElementStyles: Record<string, unknown> | null = null
@@ -1815,7 +2411,11 @@ export async function POST(request: Request) {
         _type: SANITY_DOC_LATEST_RELEASE,
         title: "Latest Release",
         subtitle: "Fresh groove, built for live stages and late-night playlists.",
-        youtubeId: "xofflmVqYGs",
+        videoSources: [
+          { type: "youtube", url: "https://www.youtube.com/watch?v=TfuHvz7pd24", youtubeId: "TfuHvz7pd24", enabled: true, order: 1 },
+          { type: "youtube", url: "https://www.youtube.com/watch?v=xofflmVqYGs", youtubeId: "xofflmVqYGs", enabled: true, order: 2 },
+          { type: "youtube", url: "https://www.youtube.com/watch?v=Ss4kTzVQ-Bs", youtubeId: "Ss4kTzVQ-Bs", enabled: true, order: 3 },
+        ],
         ctaButtons: [
           { label: "Stream the New Single", href: "https://open.spotify.com/intl-es/artist/0FHjK3O0k8HQMrJsF7KQwF" },
           {
@@ -1851,7 +2451,152 @@ export async function POST(request: Request) {
       }
     }
 
+    const aboutContentResult = buildAboutContentPatch(payload.nodes, { bioParagraphs: existingAbout?.bioParagraphs }, projectId, dataset)
+    const aboutContentPatch = aboutContentResult.patch
+    const hasAboutLayout =
+      mergedAboutElementStyles !== null && Object.keys(mergedAboutElementStyles).length > 0
+    const hasAboutContent = Object.keys(aboutContentPatch).length > 0
+
+    let aboutDocumentId: string | null = null
+    if (existingAbout?._id && (hasAboutLayout || hasAboutContent)) {
+      const aboutSetPayload: Record<string, unknown> = {
+        updatedAt: new Date().toISOString(),
+      }
+      if (hasAboutLayout) aboutSetPayload.elementStyles = mergedAboutElementStyles
+      Object.assign(aboutSetPayload, aboutContentPatch)
+      const aboutPatchResponse = await writeClient
+        .patch(toPublishedDocumentId(existingAbout._id))
+        .set(aboutSetPayload)
+        .commit()
+      aboutDocumentId = aboutPatchResponse._id
+      const aboutParts: string[] = []
+      if (hasAboutLayout) aboutParts.push("layout")
+      if (hasAboutContent) aboutParts.push("content")
+      steps.push({
+        step: "saving",
+        ok: true,
+        message: `About ${aboutParts.join(" + ")} saved: ${existingAbout._id}`,
+      })
+    }
+    if (!existingAbout?._id && (hasAboutLayout || hasAboutContent)) {
+      const aboutCreatePayload: Record<string, unknown> & { _id: string; _type: string } = {
+        _id: ABOUT_DOCUMENT_ID,
+        _type: SANITY_DOC_ABOUT,
+        eyebrow: ABOUT_FALLBACK.eyebrow,
+        title: ABOUT_FALLBACK.title,
+        bioParagraphs: ABOUT_FALLBACK.bioParagraphs,
+        bioTagline: ABOUT_FALLBACK.bioTagline,
+        copyButtonLabel: ABOUT_FALLBACK.copyButtonLabel,
+        updatedAt: new Date().toISOString(),
+      }
+      if (hasAboutLayout) aboutCreatePayload.elementStyles = mergedAboutElementStyles
+      Object.assign(aboutCreatePayload, aboutContentPatch)
+      const aboutCreateResponse = await writeClient.createOrReplace(aboutCreatePayload)
+      aboutDocumentId = aboutCreateResponse._id
+      steps.push({
+        step: "saving",
+        ok: true,
+        message: `About document created: ${aboutDocumentId}`,
+      })
+    }
+    if (hasAboutLayout) {
+      if (!persistedFields.includes("aboutSection.elementStyles")) persistedFields.push("aboutSection.elementStyles")
+      for (const nodeId of Object.keys(mergedAboutElementStyles || {})) {
+        if (!persistedNodes.includes(nodeId)) persistedNodes.push(nodeId)
+      }
+    }
+    if (hasAboutContent) {
+      for (const node of payload.nodes) {
+        if (!node.explicitContent || !ABOUT_NODE_IDS.has(node.id)) continue
+        if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
+      }
+      for (const k of Object.keys(aboutContentPatch)) {
+        if (!persistedFields.includes(k)) persistedFields.push(k)
+      }
+    }
+    if (aboutContentResult.skipped.length > 0) {
+      skippedFields.push(...aboutContentResult.skipped)
+      if (!skippedNodes.includes("about-bg-image")) skippedNodes.push("about-bg-image")
+    }
+
+    const pressKitContentResult = buildPressKitContentPatch(payload.nodes, existingPressKit || {}, projectId, dataset)
+    const pressKitContentPatch = pressKitContentResult.patch
+    const hasPressKitLayout =
+      mergedPressKitElementStyles !== null && Object.keys(mergedPressKitElementStyles).length > 0
+    const hasPressKitContent = Object.keys(pressKitContentPatch).length > 0
+
+    let pressKitDocumentId: string | null = null
+    if (existingPressKit?._id && (hasPressKitLayout || hasPressKitContent)) {
+      const pressKitSetPayload: Record<string, unknown> = {
+        updatedAt: new Date().toISOString(),
+      }
+      if (hasPressKitLayout) pressKitSetPayload.elementStyles = mergedPressKitElementStyles
+      Object.assign(pressKitSetPayload, pressKitContentPatch)
+      const pressKitPatchResponse = await writeClient
+        .patch(toPublishedDocumentId(existingPressKit._id))
+        .set(pressKitSetPayload)
+        .commit()
+      pressKitDocumentId = pressKitPatchResponse._id
+      const pressKitParts: string[] = []
+      if (hasPressKitLayout) pressKitParts.push("layout")
+      if (hasPressKitContent) pressKitParts.push("content")
+      steps.push({
+        step: "saving",
+        ok: true,
+        message: `Press Kit ${pressKitParts.join(" + ")} saved: ${existingPressKit._id}`,
+      })
+    }
+    if (!existingPressKit?._id && (hasPressKitLayout || hasPressKitContent)) {
+      const pressKitCreatePayload: Record<string, unknown> & { _id: string; _type: string } = {
+        _id: PRESS_KIT_DOCUMENT_ID,
+        _type: SANITY_DOC_PRESS_KIT,
+        title: "Complete Press Kit",
+        description: "Download our full press kit including high quality photos, biography, technical rider, and more.",
+        downloadButtonLabel: "Press Kit",
+        resources: [
+          { title: "Band Logo", description: "High-resolution logo files", download: true },
+          { title: "Press Photos", description: "Official high-res band photography", download: true },
+        ],
+        managerTitle: "Manager",
+        managerName: "Momo Garcia",
+        managerRole: "Band Management",
+        managerEmail: "talesforthetillerman@gmail.com",
+        updatedAt: new Date().toISOString(),
+      }
+      if (hasPressKitLayout) pressKitCreatePayload.elementStyles = mergedPressKitElementStyles
+      Object.assign(pressKitCreatePayload, pressKitContentPatch)
+      const pressKitCreateResponse = await writeClient.createOrReplace(pressKitCreatePayload)
+      pressKitDocumentId = pressKitCreateResponse._id
+      steps.push({
+        step: "saving",
+        ok: true,
+        message: `Press Kit document created: ${pressKitDocumentId}`,
+      })
+    }
+    if (hasPressKitLayout) {
+      if (!persistedFields.includes("pressKit.elementStyles")) persistedFields.push("pressKit.elementStyles")
+      for (const nodeId of Object.keys(mergedPressKitElementStyles || {})) {
+        if (!persistedNodes.includes(nodeId)) persistedNodes.push(nodeId)
+      }
+    }
+    if (hasPressKitContent) {
+      for (const node of payload.nodes) {
+        if (!node.explicitContent || !PRESS_KIT_NODE_IDS.has(node.id)) continue
+        if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
+      }
+      for (const k of Object.keys(pressKitContentPatch)) {
+        if (!persistedFields.includes(k)) persistedFields.push(k)
+      }
+    }
+    if (pressKitContentResult.skipped.length > 0) {
+      skippedFields.push(...pressKitContentResult.skipped)
+    }
+
     const liveSectionPatch: Record<string, unknown> = {}
+    const liveConcertsContainerNode = payload.nodes.find((node) => node.id === "live-section-concerts-container" && node.explicitContent && Array.isArray(node.content.concerts))
+    if (liveConcertsContainerNode) {
+      liveSectionPatch.concertsManagedByEditor = true
+    }
     const liveBgNode = payload.nodes.find((node) => node.id === "live-section-bg-image")
     if (liveBgNode?.explicitContent) {
       const src = typeof liveBgNode.content?.src === "string" ? liveBgNode.content.src.trim() : ""
@@ -1903,6 +2648,17 @@ export async function POST(request: Request) {
 
     const liveConcertPatches = collectLiveConcertPatches(payload.nodes)
     const liveConcertDocumentIds: string[] = []
+    if (liveConcertsContainerNode) {
+      const currentIds = new Set(Array.from(liveConcertPatches.keys()).map((editorId) => `concert-${editorId}`))
+      const staleConcerts = await writeClient.fetch<Array<{ _id: string }>>(`*[_type == $type]{ _id }`, { type: SANITY_DOC_CONCERT })
+      for (const staleConcert of staleConcerts) {
+        if (!currentIds.has(toPublishedDocumentId(staleConcert._id))) {
+          await writeClient.delete(toPublishedDocumentId(staleConcert._id))
+        }
+      }
+      if (!persistedNodes.includes("live-section-concerts-container")) persistedNodes.push("live-section-concerts-container")
+      if (!persistedFields.includes("concert.collection")) persistedFields.push("concert.collection")
+    }
     for (const [editorId, concertPatch] of liveConcertPatches.entries()) {
       const concertDocumentId = `concert-${editorId}`
       const concertPayload = {
@@ -1938,6 +2694,9 @@ export async function POST(request: Request) {
       if (!node.explicitPosition && !node.explicitSize && !node.explicitStyle && !hasScale) continue
       const style: Record<string, unknown> = {}
       mergeStableElementStyleFromNode(style, node)
+      if (BAND_MEMBER_CARD_NODE_ID.test(node.id) && node.explicitStyle && typeof node.style?.backgroundColor === "string") {
+        style.backgroundColor = node.style.backgroundColor
+      }
       if (Object.keys(style).length === 0) continue
       bandMembersElementStyles[node.id] = style
       hasBandMembersChanges = true
@@ -1972,6 +2731,23 @@ export async function POST(request: Request) {
 
     const bandBackgroundNode = payload.nodes.find((node) => node.id === "band-members-bg")
     const bandSettingsPatch: Record<string, unknown> = {}
+    const bandHeaderFieldByNodeId: Record<string, "headerEyebrow" | "headerTitle" | "headerDescription"> = {
+      "band-members-header-eyebrow": "headerEyebrow",
+      "band-members-header-title": "headerTitle",
+      "band-members-header-description": "headerDescription",
+    }
+    for (const node of payload.nodes) {
+      const field = bandHeaderFieldByNodeId[node.id]
+      if (!field || !node.explicitContent) continue
+      const text = typeof node.content.text === "string" ? node.content.text.trim() : ""
+      if (!text) continue
+      bandSettingsPatch[field] = text
+      if (!persistedFields.includes(`bandMembersSettings.${field}`)) {
+        persistedFields.push(`bandMembersSettings.${field}`)
+      }
+      if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
+      hasBandMembersChanges = true
+    }
     if (bandBackgroundNode?.explicitContent) {
       const src = typeof bandBackgroundNode.content?.src === "string" ? bandBackgroundNode.content.src.trim() : ""
       const { imageField, skippedReason } = resolveSanityImagePatch("band-members-bg", src, projectId, dataset)
@@ -2217,22 +2993,25 @@ export async function POST(request: Request) {
     }
 
     let homeEditorStateDocumentId: string | null = null
-    if (Array.isArray(payload.nodes) && payload.nodes.length > 0) {
+    const homeEditorStateNodes = Array.isArray(payload.nodes)
+      ? payload.nodes.filter((node) => !OBSOLETE_EDITOR_NODE_IDS.has(node.id) && !ABOUT_NODE_IDS.has(node.id) && !PRESS_KIT_NODE_IDS.has(node.id) && !isBandMembersNodeId(node.id))
+      : []
+    if (homeEditorStateNodes.length > 0) {
       const homeStateDocument = {
         _id: HOME_EDITOR_STATE_DOCUMENT_ID,
         _type: SANITY_DOC_HOME_EDITOR_STATE,
         updatedAt: new Date().toISOString(),
-        nodesJson: JSON.stringify(payload.nodes),
+        nodesJson: JSON.stringify(homeEditorStateNodes),
       }
       const homeStateResponse = await writeClient.createOrReplace(homeStateDocument)
       homeEditorStateDocumentId = homeStateResponse._id
       steps.push({
         step: "saving",
         ok: true,
-        message: `Home editor central state saved: ${HOME_EDITOR_STATE_DOCUMENT_ID} (${payload.nodes.length} nodes).`,
+        message: `Home editor central state saved: ${HOME_EDITOR_STATE_DOCUMENT_ID} (${homeEditorStateNodes.length} nodes).`,
       })
       persistedFields.push("homeEditorState.nodesJson")
-      for (const node of payload.nodes) {
+      for (const node of homeEditorStateNodes) {
         if (!persistedNodes.includes(node.id)) persistedNodes.push(node.id)
       }
     }
@@ -2425,7 +3204,7 @@ export async function POST(request: Request) {
     }
 
     // Changed-node read-back verification (persisted means verified on read, not just attempted write).
-    const [heroReadback, navReadback, introReadback, releaseReadback, liveReadback, concertReadback, bandSettingsReadback, bandMembersReadback, contactReadback, footerReadback, homeStateReadback] = await Promise.all([
+    const [heroReadback, navReadback, introReadback, releaseReadback, aboutReadback, pressKitReadback, liveReadback, concertReadback, bandSettingsReadback, bandMembersReadback, contactReadback, footerReadback, homeStateReadback] = await Promise.all([
       writeClient.fetch<{
         elementStyles?: Record<string, Record<string, unknown>>
         title?: string
@@ -2466,10 +3245,47 @@ export async function POST(request: Request) {
         title?: string
         subtitle?: string
         youtubeId?: string
+        videoSources?: Array<{ type?: string; url?: string; youtubeId?: string; enabled?: boolean; order?: number }>
+        backgroundVideoSources?: Array<{ type?: string; url?: string; youtubeId?: string; enabled?: boolean; order?: number }>
         ctaButtons?: Array<{ label?: string; href?: string }>
       } | null>(
-        `*[_type == $type][0]{ elementStyles, title, subtitle, youtubeId, ctaButtons[]{ label, href } }`,
+        `*[_type == $type][0]{ elementStyles, title, subtitle, youtubeId, videoSources[]{ type, url, youtubeId, enabled, order }, backgroundVideoSources[]{ type, url, youtubeId }, ctaButtons[]{ label, href } }`,
         { type: SANITY_DOC_LATEST_RELEASE }
+      ),
+      writeClient.fetch<{
+        elementStyles?: Record<string, Record<string, unknown>>
+        eyebrow?: string
+        title?: string
+        bioParagraphs?: string[]
+        bioTagline?: string
+        copyButtonLabel?: string
+        backgroundImage?: { asset?: { _ref?: string; _id?: string } }
+      } | null>(
+        `*[_type == $type][0]{ elementStyles, eyebrow, title, bioParagraphs, bioTagline, copyButtonLabel, backgroundImage{asset->{_id}} }`,
+        { type: SANITY_DOC_ABOUT }
+      ),
+      writeClient.fetch<{
+        elementStyles?: Record<string, Record<string, unknown>>
+        title?: string
+        description?: string
+        downloadButtonLabel?: string
+        pressKitPdf?: { asset?: { _ref?: string; _id?: string } }
+        resources?: Array<{
+          title?: string
+          description?: string
+          href?: string
+          download?: boolean
+          file?: { asset?: { _ref?: string; _id?: string } }
+          assets?: Array<{ label?: string; image?: { asset?: { _ref?: string; _id?: string } } }>
+        }>
+        managerTitle?: string
+        managerName?: string
+        managerRole?: string
+        managerEmail?: string
+        managerPhoto?: { asset?: { _ref?: string; _id?: string } }
+      } | null>(
+        `*[_type == $type][0]{ elementStyles, title, description, downloadButtonLabel, pressKitPdf{asset->{_id}}, resources[]{ title, description, href, download, file{asset->{_id}}, assets[]{ label, image{asset->{_id}} } }, managerTitle, managerName, managerRole, managerEmail, managerPhoto{asset->{_id}} }`,
+        { type: SANITY_DOC_PRESS_KIT }
       ),
       writeClient.fetch<{
         elementStyles?: Record<string, Record<string, unknown>>
@@ -2480,6 +3296,10 @@ export async function POST(request: Request) {
       ),
       writeClient.fetch<Array<{
         editorId?: number
+        locationName?: string
+        locationLink?: string
+        style?: string
+        priceText?: string
         venue?: string
         city?: string
         country?: string
@@ -2491,14 +3311,17 @@ export async function POST(request: Request) {
         price?: number
         ticketUrl?: string
       }>>(
-        `*[_type == $type]{ editorId, venue, city, country, date, time, status, genre, capacity, price, ticketUrl }`,
+        `*[_type == $type]{ editorId, locationName, locationLink, style, priceText, venue, city, country, date, time, status, genre, capacity, price, ticketUrl }`,
         { type: SANITY_DOC_CONCERT }
       ),
       writeClient.fetch<{
         elementStyles?: Record<string, Record<string, unknown>>
+        headerEyebrow?: string
+        headerTitle?: string
+        headerDescription?: string
         backgroundImage?: { asset?: { _ref?: string; _id?: string } }
       } | null>(
-        `*[_type == $type][0]{ elementStyles, backgroundImage{asset->{_id}} }`,
+        `*[_type == $type][0]{ elementStyles, headerEyebrow, headerTitle, headerDescription, backgroundImage{asset->{_id}} }`,
         { type: SANITY_DOC_BAND_MEMBERS }
       ),
       writeClient.fetch<Array<{
@@ -2615,6 +3438,8 @@ export async function POST(request: Request) {
       const isNavLayoutIdChanged = isNavLayoutId(nodeId)
       const isIntroLayoutIdChanged = INTRO_LAYOUT_IDS.has(nodeId)
       const isReleaseLayoutIdChanged = RELEASE_NODE_IDS.has(nodeId)
+      const isAboutNodeIdChanged = ABOUT_NODE_IDS.has(nodeId)
+      const isPressKitNodeIdChanged = PRESS_KIT_NODE_IDS.has(nodeId)
       const isLiveLayoutIdChanged = isLiveNodeId(nodeId)
       const isBandMembersLayoutIdChanged = isBandMembersNodeId(nodeId)
       const isContactNodeIdChanged = CONTACT_NODE_IDS.has(nodeId)
@@ -2660,6 +3485,11 @@ export async function POST(request: Request) {
               expected.fontSize = parsePxNumber(st.fontSize as string | undefined)
               readBack.fontSize = (heroStyle as Record<string, unknown>).fontSize
             }
+            if (writeStyleKeys.has("fontFamily")) {
+              expected.fontFamily = st.fontFamily
+              readBack.fontFamily = (heroStyle as Record<string, unknown>).fontFamily
+            }
+            addTextAlignReadback(writeStyleKeys, node.style, heroStyle as Record<string, unknown>, expected, readBack)
             if (writeStyleKeys.has("fontWeight")) {
               const fw = st.fontWeight
               const parsedFw = typeof fw === "number" ? fw : (typeof fw === "string" ? parseInt(fw, 10) : undefined)
@@ -2724,6 +3554,7 @@ export async function POST(request: Request) {
           readBack.scale = (releaseStyle as Record<string, unknown>).scale
         }
         if (node.explicitStyle) {
+          const st = node.style as Record<string, unknown>
           if (writeStyleKeys.has("color")) {
             expected.color = node.style.color
             readBack.color = (releaseStyle as Record<string, unknown>).color
@@ -2732,11 +3563,216 @@ export async function POST(request: Request) {
             expected.fontSize = parsePxNumber(node.style.fontSize)
             readBack.fontSize = (releaseStyle as Record<string, unknown>).fontSize
           }
+          if (writeStyleKeys.has("fontFamily")) {
+            expected.fontFamily = node.style.fontFamily
+            readBack.fontFamily = (releaseStyle as Record<string, unknown>).fontFamily
+          }
+          addTextAlignReadback(writeStyleKeys, node.style, releaseStyle as Record<string, unknown>, expected, readBack)
           if (writeStyleKeys.has("fontWeight")) {
             const fw = node.style.fontWeight
             const parsedFw = typeof fw === "number" ? fw : (typeof fw === "string" ? parseInt(fw, 10) : undefined)
             expected.fontWeight = Number.isNaN(parsedFw as number) ? undefined : parsedFw
             readBack.fontWeight = (releaseStyle as Record<string, unknown>).fontWeight
+          }
+          if (RELEASE_TEXT_NODE_IDS.has(nodeId) || RELEASE_BUTTON_NODE_IDS.has(nodeId)) {
+            if (writeStyleKeys.has("fontStyle")) {
+              expected.italic = st.fontStyle === "italic"
+              readBack.italic = (releaseStyle as Record<string, unknown>).italic
+            }
+            if (writeStyleKeys.has("textDecoration")) {
+              expected.underline = st.textDecoration === "underline"
+              readBack.underline = (releaseStyle as Record<string, unknown>).underline
+            }
+            if (writeStyleKeys.has("textShadowEnabled")) {
+              expected.textShadowEnabled = st.textShadowEnabled
+              readBack.textShadowEnabled = (releaseStyle as Record<string, unknown>).textShadowEnabled
+            }
+            if (writeStyleKeys.has("gradientEnabled")) {
+              expected.gradientEnabled = st.gradientEnabled
+              readBack.gradientEnabled = (releaseStyle as Record<string, unknown>).gradientEnabled
+            }
+            if (writeStyleKeys.has("gradientStart")) {
+              expected.gradientStart = st.gradientStart
+              readBack.gradientStart = (releaseStyle as Record<string, unknown>).gradientStart
+            }
+            if (writeStyleKeys.has("gradientEnd")) {
+              expected.gradientEnd = st.gradientEnd
+              readBack.gradientEnd = (releaseStyle as Record<string, unknown>).gradientEnd
+            }
+            if (writeStyleKeys.has("opacity")) {
+              expected.opacity = normalizeComparableValue(st.opacity)
+              readBack.opacity = normalizeComparableValue((releaseStyle as Record<string, unknown>).opacity)
+            }
+          }
+          if (RELEASE_MEDIA_NODE_IDS.has(nodeId)) {
+            for (const key of ["opacity", "contrast", "saturation", "brightness", "negative"]) {
+              if (writeStyleKeys.has(key)) {
+                expected[key] = normalizeComparableValue(node.style[key as keyof DeployNodePayload["style"]])
+                readBack[key] = normalizeComparableValue((releaseStyle as Record<string, unknown>)[key])
+              }
+            }
+          }
+          if (RELEASE_BOX_NODE_IDS.has(nodeId) && writeStyleKeys.has("backgroundColor")) {
+            expected.backgroundColor = node.style.backgroundColor
+            readBack.backgroundColor = (releaseStyle as Record<string, unknown>).backgroundColor
+          }
+        }
+      }
+      const addAboutLayoutReadback = () => {
+        const aboutStyle = aboutReadback?.elementStyles?.[nodeId] || {}
+        if (node.explicitPosition) {
+          expected.x = roundLayoutPx(node.geometry.x)
+          expected.y = roundLayoutPx(node.geometry.y)
+          readBack.x = (aboutStyle as Record<string, unknown>).x
+          readBack.y = (aboutStyle as Record<string, unknown>).y
+        }
+        if (node.explicitSize) {
+          expected.width = roundLayoutPx(node.geometry.width)
+          expected.height = roundLayoutPx(node.geometry.height)
+          readBack.width = (aboutStyle as Record<string, unknown>).width
+          readBack.height = (aboutStyle as Record<string, unknown>).height
+        }
+        if (expectedScale !== undefined) {
+          expected.scale = expectedScale
+          readBack.scale = (aboutStyle as Record<string, unknown>).scale
+        }
+        if (node.explicitStyle) {
+          const st = node.style as Record<string, unknown>
+          if (writeStyleKeys.has("color")) {
+            expected.color = node.style.color
+            readBack.color = (aboutStyle as Record<string, unknown>).color
+          }
+          if (writeStyleKeys.has("fontSize")) {
+            expected.fontSize = parsePxNumber(node.style.fontSize)
+            readBack.fontSize = (aboutStyle as Record<string, unknown>).fontSize
+          }
+          if (writeStyleKeys.has("fontFamily")) {
+            expected.fontFamily = node.style.fontFamily
+            readBack.fontFamily = (aboutStyle as Record<string, unknown>).fontFamily
+          }
+          if (writeStyleKeys.has("fontWeight")) {
+            const fw = node.style.fontWeight
+            const parsedFw = typeof fw === "number" ? fw : (typeof fw === "string" ? parseInt(fw, 10) : undefined)
+            expected.fontWeight = Number.isNaN(parsedFw as number) ? undefined : parsedFw
+            readBack.fontWeight = (aboutStyle as Record<string, unknown>).fontWeight
+          }
+          if (ABOUT_TEXT_NODE_IDS.has(nodeId) || ABOUT_BUTTON_NODE_IDS.has(nodeId)) {
+            addTextAlignReadback(writeStyleKeys, node.style, aboutStyle as Record<string, unknown>, expected, readBack)
+            if (writeStyleKeys.has("fontStyle")) {
+              expected.italic = st.fontStyle === "italic"
+              readBack.italic = (aboutStyle as Record<string, unknown>).italic
+            }
+            if (writeStyleKeys.has("textDecoration")) {
+              expected.underline = st.textDecoration === "underline"
+              readBack.underline = (aboutStyle as Record<string, unknown>).underline
+            }
+            if (writeStyleKeys.has("textShadowEnabled")) {
+              expected.textShadowEnabled = st.textShadowEnabled
+              readBack.textShadowEnabled = (aboutStyle as Record<string, unknown>).textShadowEnabled
+            }
+            if (writeStyleKeys.has("gradientEnabled")) {
+              expected.gradientEnabled = st.gradientEnabled
+              readBack.gradientEnabled = (aboutStyle as Record<string, unknown>).gradientEnabled
+            }
+            if (writeStyleKeys.has("gradientStart")) {
+              expected.gradientStart = st.gradientStart
+              readBack.gradientStart = (aboutStyle as Record<string, unknown>).gradientStart
+            }
+            if (writeStyleKeys.has("gradientEnd")) {
+              expected.gradientEnd = st.gradientEnd
+              readBack.gradientEnd = (aboutStyle as Record<string, unknown>).gradientEnd
+            }
+          }
+          if (ABOUT_IMAGE_NODE_IDS.has(nodeId)) {
+            for (const key of ["opacity", "contrast", "saturation", "brightness", "negative"]) {
+              if (writeStyleKeys.has(key)) {
+                expected[key] = normalizeComparableValue(node.style[key as keyof DeployNodePayload["style"]])
+                readBack[key] = normalizeComparableValue((aboutStyle as Record<string, unknown>)[key])
+              }
+            }
+          }
+          if (ABOUT_BOX_NODE_IDS.has(nodeId) && writeStyleKeys.has("backgroundColor")) {
+            expected.backgroundColor = node.style.backgroundColor
+            readBack.backgroundColor = (aboutStyle as Record<string, unknown>).backgroundColor
+          }
+        }
+      }
+      const addPressKitLayoutReadback = () => {
+        const pressKitStyle = pressKitReadback?.elementStyles?.[nodeId] || {}
+        if (node.explicitPosition) {
+          expected.x = roundLayoutPx(node.geometry.x)
+          expected.y = roundLayoutPx(node.geometry.y)
+          readBack.x = (pressKitStyle as Record<string, unknown>).x
+          readBack.y = (pressKitStyle as Record<string, unknown>).y
+        }
+        if (node.explicitSize) {
+          expected.width = roundLayoutPx(node.geometry.width)
+          expected.height = roundLayoutPx(node.geometry.height)
+          readBack.width = (pressKitStyle as Record<string, unknown>).width
+          readBack.height = (pressKitStyle as Record<string, unknown>).height
+        }
+        if (expectedScale !== undefined) {
+          expected.scale = expectedScale
+          readBack.scale = (pressKitStyle as Record<string, unknown>).scale
+        }
+        if (node.explicitStyle) {
+          const st = node.style as Record<string, unknown>
+          if (writeStyleKeys.has("color")) {
+            expected.color = node.style.color
+            readBack.color = (pressKitStyle as Record<string, unknown>).color
+          }
+          if (writeStyleKeys.has("fontSize")) {
+            expected.fontSize = parsePxNumber(node.style.fontSize)
+            readBack.fontSize = (pressKitStyle as Record<string, unknown>).fontSize
+          }
+          if (writeStyleKeys.has("fontFamily")) {
+            expected.fontFamily = node.style.fontFamily
+            readBack.fontFamily = (pressKitStyle as Record<string, unknown>).fontFamily
+          }
+          if (writeStyleKeys.has("fontWeight")) {
+            const fw = node.style.fontWeight
+            const parsedFw = typeof fw === "number" ? fw : (typeof fw === "string" ? parseInt(fw, 10) : undefined)
+            expected.fontWeight = Number.isNaN(parsedFw as number) ? undefined : parsedFw
+            readBack.fontWeight = (pressKitStyle as Record<string, unknown>).fontWeight
+          }
+          if (PRESS_KIT_TEXT_NODE_IDS.has(nodeId) || PRESS_KIT_BUTTON_NODE_IDS.has(nodeId)) {
+            addTextAlignReadback(writeStyleKeys, node.style, pressKitStyle as Record<string, unknown>, expected, readBack)
+            if (writeStyleKeys.has("fontStyle")) {
+              expected.italic = st.fontStyle === "italic"
+              readBack.italic = (pressKitStyle as Record<string, unknown>).italic
+            }
+            if (writeStyleKeys.has("textDecoration")) {
+              expected.underline = st.textDecoration === "underline"
+              readBack.underline = (pressKitStyle as Record<string, unknown>).underline
+            }
+            if (writeStyleKeys.has("textShadowEnabled")) {
+              expected.textShadowEnabled = st.textShadowEnabled
+              readBack.textShadowEnabled = (pressKitStyle as Record<string, unknown>).textShadowEnabled
+            }
+            if (writeStyleKeys.has("gradientEnabled")) {
+              expected.gradientEnabled = st.gradientEnabled
+              readBack.gradientEnabled = (pressKitStyle as Record<string, unknown>).gradientEnabled
+            }
+            if (writeStyleKeys.has("gradientStart")) {
+              expected.gradientStart = st.gradientStart
+              readBack.gradientStart = (pressKitStyle as Record<string, unknown>).gradientStart
+            }
+            if (writeStyleKeys.has("gradientEnd")) {
+              expected.gradientEnd = st.gradientEnd
+              readBack.gradientEnd = (pressKitStyle as Record<string, unknown>).gradientEnd
+            }
+          }
+          if (PRESS_KIT_IMAGE_NODE_IDS.has(nodeId)) {
+            for (const key of ["opacity", "contrast", "saturation", "brightness", "negative"]) {
+              if (writeStyleKeys.has(key)) {
+                expected[key] = normalizeComparableValue(node.style[key as keyof DeployNodePayload["style"]])
+                readBack[key] = normalizeComparableValue((pressKitStyle as Record<string, unknown>)[key])
+              }
+            }
+          }
+          if (PRESS_KIT_BOX_NODE_IDS.has(nodeId) && writeStyleKeys.has("backgroundColor")) {
+            expected.backgroundColor = node.style.backgroundColor
+            readBack.backgroundColor = (pressKitStyle as Record<string, unknown>).backgroundColor
           }
         }
       }
@@ -2773,6 +3809,7 @@ export async function POST(request: Request) {
             expected.fontWeight = Number.isNaN(parsedFw as number) ? undefined : parsedFw
             readBack.fontWeight = (liveStyle as Record<string, unknown>).fontWeight
           }
+          addTextAlignReadback(writeStyleKeys, node.style, liveStyle as Record<string, unknown>, expected, readBack)
         }
       }
       const addBandMembersLayoutReadback = () => {
@@ -2808,11 +3845,16 @@ export async function POST(request: Request) {
             expected.fontWeight = Number.isNaN(parsedFw as number) ? undefined : parsedFw
             readBack.fontWeight = (bandStyle as Record<string, unknown>).fontWeight
           }
+          addTextAlignReadback(writeStyleKeys, node.style, bandStyle as Record<string, unknown>, expected, readBack)
           for (const key of ["opacity", "contrast", "saturation", "brightness", "negative"]) {
             if (writeStyleKeys.has(key)) {
               expected[key] = normalizeComparableValue(node.style[key as keyof DeployNodePayload["style"]])
               readBack[key] = normalizeComparableValue((bandStyle as Record<string, unknown>)[key])
             }
+          }
+          if (BAND_MEMBER_CARD_NODE_ID.test(nodeId) && writeStyleKeys.has("backgroundColor")) {
+            expected.backgroundColor = node.style.backgroundColor
+            readBack.backgroundColor = (bandStyle as Record<string, unknown>).backgroundColor
           }
         }
       }
@@ -2849,6 +3891,7 @@ export async function POST(request: Request) {
             expected.fontWeight = Number.isNaN(parsedFw as number) ? undefined : parsedFw
             readBack.fontWeight = (contactStyle as Record<string, unknown>).fontWeight
           }
+          addTextAlignReadback(writeStyleKeys, node.style, contactStyle as Record<string, unknown>, expected, readBack)
           for (const key of ["opacity", "contrast", "saturation", "brightness", "negative"]) {
             if (writeStyleKeys.has(key)) {
               expected[key] = normalizeComparableValue(node.style[key as keyof DeployNodePayload["style"]])
@@ -2890,6 +3933,7 @@ export async function POST(request: Request) {
             expected.fontWeight = Number.isNaN(parsedFw as number) ? undefined : parsedFw
             readBack.fontWeight = (footerStyle as Record<string, unknown>).fontWeight
           }
+          addTextAlignReadback(writeStyleKeys, node.style, footerStyle as Record<string, unknown>, expected, readBack)
           for (const key of ["opacity", "contrast", "saturation", "brightness", "negative"]) {
             if (writeStyleKeys.has(key)) {
               expected[key] = normalizeComparableValue(node.style[key as keyof DeployNodePayload["style"]])
@@ -2977,6 +4021,11 @@ export async function POST(request: Request) {
               expected.gradientEnd = st.gradientEnd
               readBack.gradientEnd = (navStyle as Record<string, unknown>).gradientEnd
             }
+            if (writeStyleKeys.has("fontFamily")) {
+              expected.fontFamily = st.fontFamily
+              readBack.fontFamily = (navStyle as Record<string, unknown>).fontFamily
+            }
+            addTextAlignReadback(writeStyleKeys, node.style, navStyle as Record<string, unknown>, expected, readBack)
           }
           if (isNavbarBoxPatternNodeId(nodeId)) {
             if (typeof st.backgroundColor === "string") {
@@ -3045,11 +4094,55 @@ export async function POST(request: Request) {
             expected.fontSize = parsePxNumber(node.style.fontSize)
             readBack.fontSize = (introStyle as Record<string, unknown>).fontSize
           }
+          if (writeStyleKeys.has("fontFamily")) {
+            expected.fontFamily = node.style.fontFamily
+            readBack.fontFamily = (introStyle as Record<string, unknown>).fontFamily
+          }
+          addTextAlignReadback(writeStyleKeys, node.style, introStyle as Record<string, unknown>, expected, readBack)
           if (writeStyleKeys.has("fontWeight")) {
             const fw = node.style.fontWeight
             const parsedFw = typeof fw === "number" ? fw : (typeof fw === "string" ? parseInt(fw, 10) : undefined)
             expected.fontWeight = Number.isNaN(parsedFw as number) ? undefined : parsedFw
             readBack.fontWeight = (introStyle as Record<string, unknown>).fontWeight
+          }
+          if (INTRO_TEXT_NODE_IDS.has(nodeId) || INTRO_BUTTON_NODE_IDS.has(nodeId)) {
+            const st = node.style as Record<string, unknown>
+            if (writeStyleKeys.has("fontStyle")) {
+              expected.italic = st.fontStyle === "italic"
+              readBack.italic = (introStyle as Record<string, unknown>).italic
+            }
+            if (writeStyleKeys.has("textDecoration")) {
+              expected.underline = st.textDecoration === "underline"
+              readBack.underline = (introStyle as Record<string, unknown>).underline
+            }
+            if (writeStyleKeys.has("textShadowEnabled")) {
+              expected.textShadowEnabled = st.textShadowEnabled
+              readBack.textShadowEnabled = (introStyle as Record<string, unknown>).textShadowEnabled
+            }
+            if (writeStyleKeys.has("gradientEnabled")) {
+              expected.gradientEnabled = st.gradientEnabled
+              readBack.gradientEnabled = (introStyle as Record<string, unknown>).gradientEnabled
+            }
+            if (writeStyleKeys.has("gradientStart")) {
+              expected.gradientStart = st.gradientStart
+              readBack.gradientStart = (introStyle as Record<string, unknown>).gradientStart
+            }
+            if (writeStyleKeys.has("gradientEnd")) {
+              expected.gradientEnd = st.gradientEnd
+              readBack.gradientEnd = (introStyle as Record<string, unknown>).gradientEnd
+            }
+          }
+          if (INTRO_IMAGE_NODE_IDS.has(nodeId)) {
+            for (const key of ["opacity", "contrast", "saturation", "brightness", "negative"]) {
+              if (writeStyleKeys.has(key)) {
+                expected[key] = normalizeComparableValue(node.style[key as keyof DeployNodePayload["style"]])
+                readBack[key] = normalizeComparableValue((introStyle as Record<string, unknown>)[key])
+              }
+            }
+          }
+          if (INTRO_BOX_NODE_IDS.has(nodeId) && writeStyleKeys.has("backgroundColor")) {
+            expected.backgroundColor = node.style.backgroundColor
+            readBack.backgroundColor = (introStyle as Record<string, unknown>).backgroundColor
           }
         }
       } else if (nodeId === "intro-banner-text" && node.explicitContent) {
@@ -3102,8 +4195,22 @@ export async function POST(request: Request) {
             : typeof node.content.src === "string"
               ? node.content.src
               : ""
-        expected.youtubeId = parseYouTubeId(source)
-        readBack.youtubeId = releaseReadback?.youtubeId
+        expected.videoSources = normalizeLatestReleaseVideoSources(
+          Array.isArray(node.content.videoSources) && node.content.videoSources.length > 0
+            ? node.content.videoSources
+            : Array.isArray(node.content.backgroundVideoSources) && node.content.backgroundVideoSources.length > 0
+              ? node.content.backgroundVideoSources
+            : source
+        )
+        readBack.videoSources = normalizeLatestReleaseVideoSources(
+          Array.isArray(releaseReadback?.videoSources) && releaseReadback.videoSources.length > 0
+            ? releaseReadback.videoSources
+            : Array.isArray(releaseReadback?.backgroundVideoSources) && releaseReadback.backgroundVideoSources.length > 0
+              ? releaseReadback.backgroundVideoSources
+            : typeof releaseReadback?.youtubeId === "string"
+              ? releaseReadback.youtubeId
+              : []
+        )
         addReleaseLayoutReadback()
       } else if ((nodeId === "latest-release-watch-button" || nodeId === "latest-release-shows-button") && node.explicitContent) {
         storageTarget = "latestRelease.fields"
@@ -3121,6 +4228,129 @@ export async function POST(request: Request) {
       } else if (isReleaseLayoutIdChanged && (node.explicitPosition || node.explicitSize || expectedScale !== undefined || node.explicitStyle)) {
         storageTarget = "latestRelease.elementStyles"
         addReleaseLayoutReadback()
+      } else if (nodeId === "about-header-eyebrow" && node.explicitContent) {
+        storageTarget = "aboutSection.fields"
+        expected.eyebrow = cleanAboutTextForPersistence(node.content.text, ABOUT_FALLBACK.eyebrow)
+        readBack.eyebrow = aboutReadback?.eyebrow
+        addAboutLayoutReadback()
+      } else if (nodeId === "about-header-title" && node.explicitContent) {
+        storageTarget = "aboutSection.fields"
+        expected.title = cleanAboutTextForPersistence(node.content.text, ABOUT_FALLBACK.title)
+        readBack.title = aboutReadback?.title
+        addAboutLayoutReadback()
+      } else if (nodeId === "about-text-1" && node.explicitContent) {
+        storageTarget = "aboutSection.fields"
+        expected["bioParagraphs[0]"] = cleanAboutTextForPersistence(node.content.text, ABOUT_FALLBACK.bioParagraphs[0])
+        readBack["bioParagraphs[0]"] = aboutReadback?.bioParagraphs?.[0]
+        addAboutLayoutReadback()
+      } else if (nodeId === "about-text-2" && node.explicitContent) {
+        storageTarget = "aboutSection.fields"
+        expected["bioParagraphs[1]"] = cleanAboutTextForPersistence(node.content.text, ABOUT_FALLBACK.bioParagraphs[1])
+        readBack["bioParagraphs[1]"] = aboutReadback?.bioParagraphs?.[1]
+        addAboutLayoutReadback()
+      } else if (nodeId === "about-tags" && node.explicitContent) {
+        storageTarget = "aboutSection.fields"
+        expected.bioTagline = cleanAboutTextForPersistence(node.content.text, ABOUT_FALLBACK.bioTagline)
+        readBack.bioTagline = aboutReadback?.bioTagline
+        addAboutLayoutReadback()
+      } else if (nodeId === "about-copy-button" && node.explicitContent) {
+        storageTarget = "aboutSection.fields"
+        expected.copyButtonLabel = cleanAboutTextForPersistence(node.content.text, ABOUT_FALLBACK.copyButtonLabel)
+        readBack.copyButtonLabel = aboutReadback?.copyButtonLabel
+        addAboutLayoutReadback()
+      } else if (nodeId === "about-bg-image" && node.explicitContent && writeContentKeys.has("src")) {
+        storageTarget = "aboutSection.fields"
+        const src = typeof node.content.src === "string" ? node.content.src.trim() : ""
+        expected.backgroundImageRef = parseSanityImageRefFromUrl(src, projectId, dataset)
+        readBack.backgroundImageRef = aboutReadback?.backgroundImage?.asset?._ref ?? aboutReadback?.backgroundImage?.asset?._id
+        addAboutLayoutReadback()
+      } else if (isAboutNodeIdChanged && (node.explicitPosition || node.explicitSize || expectedScale !== undefined || node.explicitStyle)) {
+        storageTarget = "aboutSection.elementStyles"
+        addAboutLayoutReadback()
+      } else if (nodeId === "press-kit-title" && node.explicitContent) {
+        storageTarget = "pressKitSection.fields"
+        expected.title = typeof node.content.text === "string" ? node.content.text.trim() : ""
+        readBack.title = pressKitReadback?.title
+        addPressKitLayoutReadback()
+      } else if (nodeId === "press-kit-description" && node.explicitContent) {
+        storageTarget = "pressKitSection.fields"
+        expected.description = typeof node.content.text === "string" ? node.content.text.trim() : ""
+        readBack.description = pressKitReadback?.description
+        addPressKitLayoutReadback()
+      } else if (nodeId === "press-kit-download-button" && node.explicitContent) {
+        storageTarget = "pressKitSection.fields"
+        if (writeContentKeys.has("text")) {
+          expected.downloadButtonLabel = typeof node.content.text === "string" ? node.content.text.trim() : ""
+          readBack.downloadButtonLabel = pressKitReadback?.downloadButtonLabel
+        }
+        if (writeContentKeys.has("href")) {
+          const href = typeof node.content.href === "string" ? node.content.href.trim() : ""
+          const expectedFileRef = parseSanityFileRefFromUrl(href, projectId, dataset)
+          if (expectedFileRef) {
+            expected.pressKitPdfRef = expectedFileRef
+            readBack.pressKitPdfRef = pressKitReadback?.pressKitPdf?.asset?._ref ?? pressKitReadback?.pressKitPdf?.asset?._id
+          }
+        }
+        addPressKitLayoutReadback()
+      } else if (/^press-kit-resource-(0|1)$/.test(nodeId) && node.explicitContent) {
+        storageTarget = "pressKitSection.resources"
+        const match = /^press-kit-resource-(0|1)$/.exec(nodeId)
+        const resourceIndex = match ? Number(match[1]) : -1
+        const resource = resourceIndex >= 0 ? pressKitReadback?.resources?.[resourceIndex] : undefined
+        if (writeContentKeys.has("title")) {
+          expected[`resources[${resourceIndex}].title`] = typeof node.content.title === "string" ? node.content.title.trim() : ""
+          readBack[`resources[${resourceIndex}].title`] = resource?.title
+        }
+        if (writeContentKeys.has("description")) {
+          expected[`resources[${resourceIndex}].description`] = typeof node.content.description === "string" ? node.content.description.trim() : ""
+          readBack[`resources[${resourceIndex}].description`] = resource?.description
+        }
+        if (writeContentKeys.has("assets")) {
+          const expectedAssetRefs = Array.isArray(node.content.assets)
+            ? node.content.assets
+              .map((asset) => typeof asset.url === "string" ? parseSanityImageRefFromUrl(asset.url, projectId, dataset) : null)
+              .filter((ref): ref is string => Boolean(ref))
+            : []
+          if (expectedAssetRefs.length > 0 || (Array.isArray(node.content.assets) && node.content.assets.length === 0)) {
+            expected[`resources[${resourceIndex}].assetRefs`] = expectedAssetRefs
+            readBack[`resources[${resourceIndex}].assetRefs`] = Array.isArray(resource?.assets)
+              ? resource.assets
+                .map((asset) => asset.image?.asset?._ref ?? asset.image?.asset?._id)
+                .filter(Boolean)
+              : []
+          }
+        }
+        addPressKitLayoutReadback()
+      } else if (nodeId === "press-kit-manager" && node.explicitContent) {
+        storageTarget = "pressKitSection.manager"
+        if (writeContentKeys.has("title")) {
+          expected.managerTitle = typeof node.content.title === "string" ? node.content.title.trim() : ""
+          readBack.managerTitle = pressKitReadback?.managerTitle
+        }
+        if (writeContentKeys.has("text")) {
+          expected.managerName = typeof node.content.text === "string" ? node.content.text.trim() : ""
+          readBack.managerName = pressKitReadback?.managerName
+        }
+        if (writeContentKeys.has("role")) {
+          expected.managerRole = typeof node.content.role === "string" ? node.content.role.trim() : ""
+          readBack.managerRole = pressKitReadback?.managerRole
+        }
+        if (writeContentKeys.has("email")) {
+          expected.managerEmail = typeof node.content.email === "string" ? node.content.email.trim() : ""
+          readBack.managerEmail = pressKitReadback?.managerEmail
+        }
+        if (writeContentKeys.has("src")) {
+          const src = typeof node.content.src === "string" ? node.content.src.trim() : ""
+          const expectedImageRef = parseSanityImageRefFromUrl(src, projectId, dataset)
+          if (expectedImageRef) {
+            expected.managerPhotoRef = expectedImageRef
+            readBack.managerPhotoRef = pressKitReadback?.managerPhoto?.asset?._ref ?? pressKitReadback?.managerPhoto?.asset?._id
+          }
+        }
+        addPressKitLayoutReadback()
+      } else if (isPressKitNodeIdChanged && (node.explicitPosition || node.explicitSize || expectedScale !== undefined || node.explicitStyle)) {
+        storageTarget = "pressKitSection.elementStyles"
+        addPressKitLayoutReadback()
       } else if (nodeId === "live-section-bg-image" && node.explicitContent && writeContentKeys.has("src")) {
         storageTarget = "liveSection.fields"
         const src = typeof node.content.src === "string" ? node.content.src.trim() : ""
@@ -3133,19 +4363,46 @@ export async function POST(request: Request) {
         const concert = concertReadback.find((item) => item.editorId === parsed?.editorId)
         const text = typeof node.content.text === "string" ? node.content.text.trim() : ""
         if (parsed?.field === "price") {
-          expected.price = normalizeConcertPriceForSanity(text)
-          readBack.price = concert?.price
-        } else if (parsed?.field === "locationUrl") {
-          expected.ticketUrl = typeof node.content.href === "string" ? node.content.href.trim() : text
-          readBack.ticketUrl = concert?.ticketUrl
+          expected.priceText = text.replace(/^€/, "")
+          readBack.priceText = concert?.priceText
+        } else if (parsed?.field === "locationUrl" || parsed?.field === "locationLink") {
+          expected.locationLink = typeof node.content.href === "string" ? node.content.href.trim() : text
+          readBack.locationLink = concert?.locationLink
+        } else if (parsed?.field === "venue" || parsed?.field === "locationName") {
+          expected.locationName = text
+          readBack.locationName = concert?.locationName
+        } else if (parsed?.field === "genre" || parsed?.field === "style") {
+          expected.style = text
+          readBack.style = concert?.style
         } else if (parsed?.field) {
           expected[parsed.field] = text
           readBack[parsed.field] = concert?.[parsed.field as keyof typeof concert]
         }
         addLiveLayoutReadback()
+      } else if (nodeId === "live-section-concerts-container" && node.explicitContent && Array.isArray(node.content.concerts)) {
+        storageTarget = "concert.collection"
+        expected.count = node.content.concerts.length
+        readBack.count = concertReadback.length
+        addLiveLayoutReadback()
       } else if (isLiveLayoutIdChanged && (node.explicitPosition || node.explicitSize || expectedScale !== undefined || node.explicitStyle)) {
         storageTarget = "liveSection.elementStyles"
         addLiveLayoutReadback()
+      } else if (
+        (nodeId === "band-members-header-eyebrow" ||
+          nodeId === "band-members-header-title" ||
+          nodeId === "band-members-header-description") &&
+        node.explicitContent
+      ) {
+        storageTarget = "bandMembersSettings.fields"
+        const field =
+          nodeId === "band-members-header-eyebrow"
+            ? "headerEyebrow"
+            : nodeId === "band-members-header-title"
+              ? "headerTitle"
+              : "headerDescription"
+        expected[field] = typeof node.content.text === "string" ? node.content.text.trim() : ""
+        readBack[field] = bandSettingsReadback?.[field]
+        addBandMembersLayoutReadback()
       } else if (nodeId === "band-members-bg" && node.explicitContent && writeContentKeys.has("src")) {
         storageTarget = "bandMembersSettings.fields"
         const src = typeof node.content.src === "string" ? node.content.src.trim() : ""
@@ -3368,6 +4625,8 @@ export async function POST(request: Request) {
     const navPatched = navigationDocumentId != null
     const introPatched = introDocumentId != null
     const latestReleasePatched = latestReleaseDocumentId != null
+    const aboutPatched = aboutDocumentId != null
+    const pressKitPatched = pressKitDocumentId != null
     const livePatched = liveSectionDocumentId != null || liveConcertDocumentIds.length > 0
     const bandMembersPatched = bandMembersDocumentId != null || bandMembersContentPatches.size > 0
     const contactPatched = contactDocumentId != null
@@ -3381,6 +4640,8 @@ export async function POST(request: Request) {
     if (navPatched) parts.push("Navigation")
     if (introPatched) parts.push("Intro banner")
     if (latestReleasePatched) parts.push("Latest Release")
+    if (aboutPatched) parts.push("About")
+    if (pressKitPatched) parts.push("Press Kit")
     if (livePatched) parts.push("Live")
     if (bandMembersPatched) parts.push("Band Members")
     if (contactPatched) parts.push("Contact")
@@ -3413,6 +4674,8 @@ export async function POST(request: Request) {
       navigationDocumentId: navigationDocumentId ?? undefined,
       introDocumentId: introDocumentId ?? undefined,
       latestReleaseDocumentId: latestReleaseDocumentId ?? undefined,
+      aboutDocumentId: aboutDocumentId ?? undefined,
+      pressKitDocumentId: pressKitDocumentId ?? undefined,
       liveSectionDocumentId: liveSectionDocumentId ?? undefined,
       liveConcertDocumentIds,
       homeEditorStateDocumentId: homeEditorStateDocumentId ?? undefined,

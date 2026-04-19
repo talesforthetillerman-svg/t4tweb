@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 /**
- * Upload an image to Sanity Assets and return the Sanity CDN URL
+ * Upload an asset to Sanity Assets and return the Sanity CDN URL
  * Used by /editor when user selects a file for hero-logo, hero-bg-image, nav-logo, etc.
  *
  * Request: FormData with file and metadata
@@ -44,10 +44,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing Sanity config" }, { status: 500 })
     }
 
+    const requestedAssetType = formData.get("assetType")
+    const assetType = requestedAssetType === "file" || (!file.type.startsWith("image/") && file.type !== "image/svg+xml")
+      ? "files"
+      : "images"
+
     // Upload to Sanity Assets
     const buffer = await file.arrayBuffer()
     const uploadResponse = await fetch(
-      `https://${projectId}.api.sanity.io/v1/assets/images/${dataset}`,
+      `https://${projectId}.api.sanity.io/v1/assets/${assetType}/${dataset}`,
       {
         method: "POST",
         headers: {
@@ -119,7 +124,12 @@ export async function POST(request: NextRequest) {
       elapsed,
     })
 
-    return NextResponse.json({ url: assetUrl }, { status: 200 })
+    return NextResponse.json({
+      url: assetUrl,
+      assetType: assetType === "files" ? "file" : "image",
+      assetId: uploadedAssetAny?.document?._id,
+      filename: file.name,
+    }, { status: 200 })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("[editor-upload-asset] Exception:", message, error)

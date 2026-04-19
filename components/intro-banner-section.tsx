@@ -1,9 +1,29 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, type CSSProperties } from "react"
 import { useVisualEditor } from "@/components/visual-editor"
 import { getElementLayoutStyle } from "@/lib/hero-layout-styles"
 import type { IntroBannerData } from "@/lib/sanity/intro-banner-loader"
+
+function getIntroBoxPatternStyle(elementStyles: IntroBannerData["elementStyles"], targetId: string): CSSProperties {
+  const style = { ...getElementLayoutStyle(elementStyles, targetId) }
+  delete style.opacity
+
+  const persistedStyle = elementStyles[targetId]
+  if (typeof persistedStyle?.backgroundColor === "string") {
+    style.backgroundColor = persistedStyle.backgroundColor
+    style.backgroundImage = "none"
+  }
+
+  return style
+}
+
+function getIntroGifStyle(elementStyles: IntroBannerData["elementStyles"]): CSSProperties {
+  return {
+    opacity: 0.3,
+    ...getElementLayoutStyle(elementStyles, "intro-banner-gif"),
+  }
+}
 
 export function IntroBannerSection({ data }: { data: IntroBannerData }) {
   const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
@@ -101,15 +121,15 @@ export function IntroBannerSection({ data }: { data: IntroBannerData }) {
       data-editor-node-type="section"
       data-editor-node-label="Intro Section"
       className="relative -mt-20 z-20 flex min-h-[52vh] min-h-[52dvh] flex-col items-center justify-center gap-4 px-3 pb-12 pt-8 sm:min-h-[58vh] sm:min-h-[58dvh] sm:px-4 sm:pb-16 sm:pt-28 md:-mt-24 lg:-mt-28"
-      style={getElementLayoutStyle(data.elementStyles, "intro-section")}
+      style={getIntroBoxPatternStyle(data.elementStyles, "intro-section")}
     >
       <div
         ref={bannerGifRef}
         data-editor-node-id="intro-banner-gif"
         data-editor-node-type="image"
         data-editor-node-label="Banner GIF"
-        className="absolute left-0 top-0 z-0 h-full w-full overflow-hidden opacity-30"
-        style={getElementLayoutStyle(data.elementStyles, "intro-banner-gif")}
+        className="absolute left-0 top-0 z-0 h-full w-full overflow-hidden"
+        style={getIntroGifStyle(data.elementStyles)}
       >
         <img
           src={resolvedIntroGifSrc}
@@ -136,7 +156,7 @@ export function IntroBannerSection({ data }: { data: IntroBannerData }) {
             data-editor-node-type="button"
             data-editor-node-label="Book Band Button"
             className="btn-primary w-full sm:w-auto"
-            style={getElementLayoutStyle(data.elementStyles, "intro-book-button")}
+            style={getIntroBoxPatternStyle(data.elementStyles, "intro-book-button")}
           >
             {data.bookLabel}
           </a>
@@ -148,7 +168,7 @@ export function IntroBannerSection({ data }: { data: IntroBannerData }) {
             data-editor-node-type="button"
             data-editor-node-label="Press Kit Button"
             className="btn-secondary w-full sm:w-auto"
-            style={getElementLayoutStyle(data.elementStyles, "intro-press-button")}
+            style={getIntroBoxPatternStyle(data.elementStyles, "intro-press-button")}
           >
             {data.pressLabel}
           </a>

@@ -20,6 +20,21 @@ const bandMembersSettings = defineType({
       options: { hotspot: true },
     }),
     defineField({
+      name: 'headerEyebrow',
+      title: 'Header Eyebrow',
+      type: 'string',
+    }),
+    defineField({
+      name: 'headerTitle',
+      title: 'Header Title',
+      type: 'string',
+    }),
+    defineField({
+      name: 'headerDescription',
+      title: 'Header Description',
+      type: 'text',
+    }),
+    defineField({
       name: 'updatedAt',
       title: 'Updated At',
       type: 'datetime',

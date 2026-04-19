@@ -14,6 +14,8 @@ import { loadHeroData } from "@/lib/sanity/hero-loader"
 import { loadNavigationData } from "@/lib/sanity/navigation-loader"
 import { loadIntroBannerData } from "@/lib/sanity/intro-banner-loader"
 import { loadLatestReleaseData } from "@/lib/sanity/latest-release-loader"
+import { loadAboutData } from "@/lib/sanity/about-loader"
+import { loadPressKitData } from "@/lib/sanity/press-kit-loader"
 import { loadBandMembersData } from "@/lib/sanity/band-members-loader"
 import { loadContactSectionData } from "@/lib/sanity/contact-loader"
 import { loadFooterData } from "@/lib/sanity/footer-loader"
@@ -25,11 +27,13 @@ import { loadHomeEditorState } from "@/lib/sanity/home-editor-state-loader"
 export const dynamic = "force-dynamic"
 
 export default async function HomePagePublic() {
-  const [heroData, navigationData, introBannerData, latestReleaseData, bandMembersData, liveData, contactData, footerData, homeEditorNodes] = await Promise.all([
+  const [heroData, navigationData, introBannerData, latestReleaseData, aboutData, pressKitData, bandMembersData, liveData, contactData, footerData, homeEditorNodes] = await Promise.all([
     loadHeroData("published"),
     loadNavigationData(),
     loadIntroBannerData(),
     loadLatestReleaseData("published"),
+    loadAboutData("published"),
+    loadPressKitData("published"),
     loadBandMembersData(),
     loadLiveSectionData("published"),
     loadContactSectionData("published"),
@@ -55,13 +59,13 @@ export default async function HomePagePublic() {
       <SectionDivider editorId="section-divider-release-about" />
 
       <SceneSection id="about">
-        <AboutSection />
+        <AboutSection data={aboutData} />
       </SceneSection>
 
       <SectionDivider editorId="section-divider-about-press" />
 
       <SceneSection id="press-kit">
-        <PressKitSection />
+        <PressKitSection data={pressKitData} />
       </SceneSection>
 
       <SectionDivider editorId="section-divider-press-band" />
@@ -70,6 +74,9 @@ export default async function HomePagePublic() {
         <BandMembersSection
           initialMembers={bandMembersData.members}
           backgroundImageUrl={bandMembersData.backgroundImageUrl}
+          headerEyebrow={bandMembersData.headerEyebrow}
+          headerTitle={bandMembersData.headerTitle}
+          headerDescription={bandMembersData.headerDescription}
           elementStyles={bandMembersData.elementStyles}
         />
       </SceneSection>

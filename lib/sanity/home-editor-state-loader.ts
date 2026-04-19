@@ -36,6 +36,17 @@ export async function loadHomeEditorState(perspective: "published" | "drafts" = 
     const LEGACY_NODE_IDS = new Set([
       "hero-title-main",
       "hero-title-accent",
+      "about-photo-scrim",
+      "press-kit-section",
+      "press-kit-bg",
+      "press-kit-main-card",
+      "press-kit-folder-icon",
+      "press-kit-title",
+      "press-kit-description",
+      "press-kit-download-button",
+      "press-kit-resource-0",
+      "press-kit-resource-1",
+      "press-kit-manager",
     ])
 
     return raw

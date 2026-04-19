@@ -8,6 +8,23 @@ export default defineType({
   icon: CalendarIcon,
   fields: [
     defineField({ name: 'editorId', title: 'Visual editor ID', type: 'number', readOnly: true }),
+    defineField({ name: 'locationName', title: 'Location name', type: 'string' }),
+    defineField({ name: 'locationLink', title: 'Google Maps URL', type: 'url' }),
+    defineField({
+      name: 'style',
+      title: 'Style',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'World Music', value: 'World Music' },
+          { title: 'Funk', value: 'Funk' },
+          { title: 'Soul', value: 'Soul' },
+          { title: 'Reggae', value: 'Reggae' },
+          { title: 'Global Grooves', value: 'Global Grooves' },
+        ],
+      },
+    }),
+    defineField({ name: 'priceText', title: 'Price', type: 'string' }),
     defineField({ name: 'venue', title: 'Venue', type: 'string' }),
     defineField({ name: 'city', title: 'City', type: 'string' }),
     defineField({ name: 'country', title: 'Country', type: 'string' }),
@@ -31,8 +48,8 @@ export default defineType({
   orderings: [{ title: 'Date', name: 'date', by: [{ field: 'date', direction: 'desc' }] }],
   preview: {
     select: {
-      title: 'venue',
-      subtitle: 'city',
+      title: 'locationName',
+      subtitle: 'date',
       media: 'image',
     },
     prepare(selection) {

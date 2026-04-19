@@ -9,6 +9,7 @@ export default defineType({
     defineField({ name: 'title', title: 'Title', type: 'string' }),
     defineField({ name: 'bioParagraphs', title: 'Bio Paragraphs', type: 'array', of: [{ type: 'text' }] }),
     defineField({ name: 'bioTagline', title: 'Bio Tagline', type: 'string' }),
+    defineField({ name: 'copyButtonLabel', title: 'Copy Button Label', type: 'string' }),
     defineField({ name: 'backgroundImage', title: 'Background Image', type: 'image' }),
   ],
 })

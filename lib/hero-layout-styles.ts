@@ -162,6 +162,12 @@ export function getElementLayoutStyle(
   if (includeGeometry && typeof styles.letterSpacing === "number") result.letterSpacing = `${styles.letterSpacing}px`
   if (includeGeometry && typeof styles.lineHeight === "number") result.lineHeight = styles.lineHeight
   if (typeof styles.color === "string") result.color = styles.color
+  if (typeof styles.fontFamily === "string" && styles.fontFamily.trim()) result.fontFamily = styles.fontFamily
+  if (styles.textAlign === "left" || styles.textAlign === "center" || styles.textAlign === "right") {
+    result.textAlign = styles.textAlign
+    result.justifyContent =
+      styles.textAlign === "left" ? "flex-start" : styles.textAlign === "right" ? "flex-end" : "center"
+  }
   if (includeGeometry && typeof styles.maxWidth === "number") result.maxWidth = `${styles.maxWidth}px`
 
   // Text styling
@@ -188,10 +194,13 @@ export function getElementLayoutStyle(
   if (filterParts.length > 0) result.filter = filterParts.join(" ")
 
   // Gradient text
-  if (styles.gradientEnabled === true && typeof styles.gradientStart === "string" && typeof styles.gradientEnd === "string") {
-    result.backgroundImage = `linear-gradient(to right, ${styles.gradientStart}, ${styles.gradientEnd})`
+  if (styles.gradientEnabled === true) {
+    const gradientStart = typeof styles.gradientStart === "string" && styles.gradientStart ? styles.gradientStart : "#FFB15A"
+    const gradientEnd = typeof styles.gradientEnd === "string" && styles.gradientEnd ? styles.gradientEnd : "#FF6C00"
+    result.backgroundImage = `linear-gradient(to right, ${gradientStart}, ${gradientEnd})`
     result.backgroundClip = "text"
     result.WebkitBackgroundClip = "text"
+    result.WebkitTextFillColor = "transparent"
     result.color = "transparent"
   }
 

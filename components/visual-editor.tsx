@@ -11,7 +11,18 @@ type NodeType = "section" | "background" | "card" | "text" | "button" | "image" 
 type Point = { x: number; y: number }
 
 type Size = { width: number; height: number }
-type ConcertField = "date" | "venue" | "city" | "country" | "genre" | "price" | "status" | "time" | "capacity" | "locationUrl"
+type ResizeHandle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw"
+type ConcertField = "date" | "time" | "locationName" | "locationLink" | "style" | "price" | "status" | "venue" | "city" | "country" | "genre" | "capacity" | "locationUrl"
+type LiveConcertEditorItem = {
+  _editorId: number
+  date: string
+  time: string
+  locationName: string
+  locationLink: string
+  style: string
+  price: string
+  status: string
+}
 
 interface TextSegment {
   text: string
@@ -59,6 +70,7 @@ interface EditorNode {
     gradientEnabled?: boolean
     gradientStart?: string
     gradientEnd?: string
+    textAlign?: "left" | "center" | "right"
     scale?: number
     minHeight?: string
     paddingTop?: string
@@ -66,12 +78,22 @@ interface EditorNode {
   }
   content: {
     text?: string
+    title?: string
+    description?: string
     textSegments?: TextSegment[]
     titleSegments?: TextSegment[]
     href?: string
+    fileName?: string
+    download?: boolean
+    assets?: Array<{ label: string; url: string; fileName: string }>
     src?: string
     alt?: string
+    role?: string
+    email?: string
     videoUrl?: string
+    videoSources?: Array<{ type: "youtube"; url: string; youtubeId: string; enabled: boolean; order: number }>
+    backgroundVideoSources?: Array<{ type: "youtube"; url: string; youtubeId: string }>
+    concerts?: LiveConcertEditorItem[]
     mediaKind?: "image" | "video"
     gradientEnabled?: boolean
     gradientStart?: string
@@ -257,6 +279,71 @@ function parseDatasetNumber(value: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function parseEditorYouTubeId(value: string | undefined): string {
+  const trimmed = value?.trim()
+  if (!trimmed) return ""
+  if (/^[a-zA-Z0-9_-]{6,}$/.test(trimmed) && !trimmed.includes("/")) return trimmed
+  try {
+    const url = new URL(trimmed)
+    if (url.hostname.includes("youtu.be")) return url.pathname.split("/").filter(Boolean)[0] || ""
+    const queryId = url.searchParams.get("v")
+    if (queryId) return queryId
+    const pathParts = url.pathname.split("/").filter(Boolean)
+    if ((pathParts[0] === "embed" || pathParts[0] === "shorts" || pathParts[0] === "live") && pathParts[1]) {
+      return pathParts[1]
+    }
+    const thumbnailMatch = /\/vi\/([^/?#]+)/.exec(url.pathname)
+    if (thumbnailMatch?.[1]) return thumbnailMatch[1]
+  } catch {
+    return ""
+  }
+  return ""
+}
+
+function getEditorYouTubePreviewSrc(value: string | undefined): string {
+  const youtubeId = parseEditorYouTubeId(value)
+  return youtubeId ? `https://i.ytimg.com/vi/${encodeURIComponent(youtubeId)}/hqdefault.jpg` : ""
+}
+
+function getEditorYouTubeEmbedSrc(value: string | undefined): string {
+  const youtubeId = parseEditorYouTubeId(value)
+  if (!youtubeId) return ""
+  const encodedId = encodeURIComponent(youtubeId)
+  return `https://www.youtube-nocookie.com/embed/${encodedId}?autoplay=1&mute=1&loop=1&playlist=${encodedId}&controls=0&rel=0&modestbranding=1&playsinline=1`
+}
+
+function normalizeEditorVideoSources(sources: Array<{ type?: string; url?: string; youtubeId?: string; enabled?: boolean; order?: number }>): Array<{ type: "youtube"; url: string; youtubeId: string; enabled: boolean; order: number }> {
+  return sources
+    .map((source, index) => {
+      const url = typeof source.url === "string" ? source.url.trim() : ""
+      const youtubeId = parseEditorYouTubeId(url) || (typeof source.youtubeId === "string" ? source.youtubeId.trim() : "")
+      if (!url || !youtubeId) return null
+      const order = typeof source.order === "number" && Number.isFinite(source.order) ? source.order : index + 1
+      return {
+        type: "youtube" as const,
+        url,
+        youtubeId,
+        enabled: typeof source.enabled === "boolean" ? source.enabled : true,
+        order,
+      }
+    })
+    .filter((source): source is { type: "youtube"; url: string; youtubeId: string; enabled: boolean; order: number } => source !== null)
+    .sort((a, b) => a.order - b.order)
+    .map((source, index) => ({ ...source, order: index + 1 }))
+    .slice(0, 3)
+}
+
+function parseEditorVideoSources(value: string | undefined): Array<{ type: "youtube"; url: string; youtubeId: string; enabled: boolean; order: number }> {
+  if (!value) return []
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!Array.isArray(parsed)) return []
+    return normalizeEditorVideoSources(parsed as Array<{ type?: string; url?: string; youtubeId?: string; enabled?: boolean; order?: number }>)
+  } catch {
+    return []
+  }
+}
+
 function readHydratedNodeOverride(nodeId: string): HydratedNodeOverride | null {
   if (typeof window === "undefined") return null
   const bag = (window as Window & { __HOME_EDITOR_NODE_OVERRIDES__?: Record<string, HydratedNodeOverride> }).__HOME_EDITOR_NODE_OVERRIDES__
@@ -300,6 +387,12 @@ const TEXT_TOOL_EXACT_IDS = new Set<string>([
   "about-text-2",
   "about-tags",
   "about-copy-button",
+  "band-members-header-eyebrow",
+  "band-members-header-title",
+  "band-members-header-description",
+  "press-kit-title",
+  "press-kit-description",
+  "press-kit-download-button",
   "contact-header-eyebrow",
   "contact-header-title",
   "contact-header-description",
@@ -336,6 +429,21 @@ const EXTRA_NODE_LIMITS: Record<ExtraNodeKind, number> = {
   card: 4,
   overlay: 3,
 }
+
+const TEXT_FONT_OPTIONS = [
+  { label: "Factory / Inherit", value: "inherit" },
+  { label: "Factory Sans (Hero title/subtitle)", value: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+  { label: "Factory Serif", value: "Georgia, 'Times New Roman', serif" },
+  { label: "Sans Serif", value: "sans-serif" },
+  { label: "Serif", value: "serif" },
+  { label: "Arial", value: "Arial, Helvetica, sans-serif" },
+  { label: "Verdana", value: "Verdana, Geneva, sans-serif" },
+  { label: "Trebuchet", value: "'Trebuchet MS', Helvetica, sans-serif" },
+  { label: "Impact", value: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" },
+  { label: "Monospace", value: "monospace" },
+  { label: "Courier", value: "'Courier New', Courier, monospace" },
+  { label: "Cursive", value: "cursive" },
+]
 
 function isExtraNodeId(nodeId: string): boolean {
   return nodeId.startsWith(EXTRA_NODE_PREFIX)
@@ -384,6 +492,45 @@ function isNavbarOrHeroTextPatternNodeId(nodeId: string): boolean {
   return HERO_TEXT_PATTERN_NODE_IDS.has(nodeId) || isNavbarTextPatternNodeId(nodeId)
 }
 
+function supportsTextShadowTool(nodeId: string): boolean {
+  return (
+    isNavbarOrHeroTextPatternNodeId(nodeId) ||
+    nodeId === "intro-banner-text" ||
+    nodeId === "intro-book-button" ||
+    nodeId === "intro-press-button" ||
+    nodeId === "latest-release-title" ||
+    nodeId === "latest-release-subtitle" ||
+    nodeId === "latest-release-watch-button" ||
+    nodeId === "latest-release-shows-button" ||
+    nodeId === "about-header-eyebrow" ||
+    nodeId === "about-header-title" ||
+    nodeId === "about-text-1" ||
+    nodeId === "about-text-2" ||
+    nodeId === "about-tags" ||
+    nodeId === "about-copy-button" ||
+    nodeId === "band-members-header-eyebrow" ||
+    nodeId === "band-members-header-title" ||
+    nodeId === "band-members-header-description" ||
+    /^member-item-\d+-(?:name|role|number)$/.test(nodeId) ||
+    nodeId === "press-kit-title" ||
+    nodeId === "press-kit-description" ||
+    nodeId === "press-kit-download-button" ||
+    isExtraNodeId(nodeId)
+  )
+}
+
+function hasUsableAboutCopyButtonGeometry(geometry: Partial<NodeGeometry> | null | undefined): boolean {
+  const width = geometry?.width
+  const height = geometry?.height
+  const x = geometry?.x
+  const y = geometry?.y
+  if (typeof width === "number" && width < 48) return false
+  if (typeof height === "number" && height < 24) return false
+  if (typeof x === "number" && Math.abs(x) > 900) return false
+  if (typeof y === "number" && Math.abs(y) > 480) return false
+  return true
+}
+
 const HERO_IMAGE_FILTER_DEFAULTS = {
   contrast: 100,
   saturation: 100,
@@ -416,6 +563,31 @@ function isUsableHeroTextGeometry(geometry: Partial<NodeGeometry> | null | undef
   )
 }
 
+function getSelectionOverlayTheme(entry: RuntimeEntry): { borderClass: string; handleClass: string } {
+  if (entry.id === "about-text-card") {
+    return {
+      borderClass: "border-[#38bdf8] shadow-[0_0_0_1px_rgba(56,189,248,0.35),0_0_12px_rgba(56,189,248,0.2)]",
+      handleClass: "bg-[#38bdf8]",
+    }
+  }
+  if (entry.type === "section") {
+    return {
+      borderClass: "border-[#22c55e] shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_12px_rgba(34,197,94,0.2)]",
+      handleClass: "bg-[#22c55e]",
+    }
+  }
+  if (entry.type === "background" || entry.type === "image") {
+    return {
+      borderClass: "border-[#FF8C21] shadow-[0_0_0_1px_rgba(255,140,33,0.3),0_0_12px_rgba(255,140,33,0.15)]",
+      handleClass: "bg-[#FF8C21]",
+    }
+  }
+  return {
+    borderClass: "border-[#FF8C21] shadow-[0_0_0_1px_rgba(255,140,33,0.3),0_0_12px_rgba(255,140,33,0.15)]",
+    handleClass: "bg-[#FF8C21]",
+  }
+}
+
 const NAVBAR_BUTTON_TEXT_TOOL_IDS = new Set<string>([
   "nav-book-button",
   "nav-mobile-book-button",
@@ -435,8 +607,9 @@ function hasRealTextToolingWriter(node: EditorNode | null): boolean {
   if (isExtraNodeId(node.id)) return true
   if (isNavbarTextOrButtonPatternNode(node)) return true
   if (TEXT_TOOL_EXACT_IDS.has(node.id)) return true
-  if (/^live-(?:upcoming|history)-event-\d+-(?:date|venue|city|country|genre|price|time|status|capacity|locationUrl)$/.test(node.id)) return true
+  if (/^live-(?:upcoming|history)-event-\d+-(?:date|time|locationName|locationLink|style|price|status|venue|city|country|genre|capacity|locationUrl)$/.test(node.id)) return true
   if (/^live-(?:upcoming|history|stream|social)-/.test(node.id)) return true
+  if (/^member-item-\d+-(?:name|role|number)$/.test(node.id)) return true
   return false
 }
 
@@ -444,6 +617,38 @@ function getConcertFieldFromNodeContent(node: EditorNode | null, field: ConcertF
   if (!node) return ""
   const value = node.content[field as keyof EditorNode["content"]]
   return typeof value === "string" ? value : ""
+}
+
+function parseLiveConcertsDataset(value: string | undefined): LiveConcertEditorItem[] {
+  if (!value) return []
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((item, index) => {
+        if (!item || typeof item !== "object") return null
+        const record = item as Record<string, unknown>
+        const editorId = typeof record._editorId === "number" ? record._editorId : index
+        return {
+          _editorId: editorId,
+          date: typeof record.date === "string" ? record.date : "",
+          time: typeof record.time === "string" ? record.time : "",
+          locationName: typeof record.locationName === "string" ? record.locationName : typeof record.venue === "string" ? record.venue : "",
+          locationLink: typeof record.locationLink === "string" ? record.locationLink : typeof record.locationUrl === "string" ? record.locationUrl : "",
+          style: typeof record.style === "string" ? record.style : typeof record.genre === "string" ? record.genre : "World Music",
+          price: typeof record.price === "string" ? record.price : typeof record.price === "number" ? String(record.price) : "",
+          status: typeof record.status === "string" ? record.status : "Upcoming",
+        }
+      })
+      .filter((item): item is LiveConcertEditorItem => Boolean(item))
+  } catch {
+    return []
+  }
+}
+
+function emitLiveConcertsUpdated(concerts: LiveConcertEditorItem[]): void {
+  if (typeof window === "undefined") return
+  window.dispatchEvent(new CustomEvent("live-concerts-updated", { detail: { concerts } }))
 }
 
 function rgbToHex(rgb: string): string {
@@ -500,6 +705,13 @@ function readColorOpacity(input: string | undefined): number {
   return parsed?.a ?? 1
 }
 
+function readColorHex(input: string | undefined, fallback: string): string {
+  const parsed = input ? parseCssColor(input) : null
+  if (!parsed) return fallback
+  const toHex = (value: number) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")
+  return `#${toHex(parsed.r)}${toHex(parsed.g)}${toHex(parsed.b)}`
+}
+
 function buildBoxOpacityPatch(nodeId: string, opacity: number): Partial<EditorNode["style"]> {
   if (typeof document === "undefined") return { backgroundColor: `rgba(0,0,0,${opacity})` }
   const el = document.querySelector<HTMLElement>(`[data-editor-node-id="${nodeId}"]`)
@@ -516,6 +728,18 @@ function isPersistableImageSrc(value: string | undefined): boolean {
   if (!src) return false
   if (src.startsWith("blob:") || src.startsWith("data:") || src.startsWith("javascript:")) return false
   return src.startsWith("http://") || src.startsWith("https://") || src.startsWith("/")
+}
+
+function isElementTreeVisible(el: HTMLElement): boolean {
+  let current: HTMLElement | null = el
+  while (current && current !== document.body) {
+    const style = getComputedStyle(current)
+    if (style.display === "none" || style.visibility === "hidden" || parseFloat(style.opacity || "1") <= 0.01) {
+      return false
+    }
+    current = current.parentElement
+  }
+  return true
 }
 
 const VisualEditorContext = createContext<VisualEditorContextType>({
@@ -555,7 +779,7 @@ function scanRegistry(): Map<string, RuntimeEntry> {
     if (!id) return
     const rect = el.getBoundingClientRect()
     const style = getComputedStyle(el)
-    const visible = style.display !== "none" && style.visibility !== "hidden" && parseFloat(style.opacity || "1") > 0
+    const visible = style.display !== "none" && style.visibility !== "hidden" && parseFloat(style.opacity || "1") > 0 && isElementTreeVisible(el)
     const type = normalizeType(el.dataset.editorNodeType || "text")
     const sectionId = el.dataset.editorSectionId || "root"
     const label = el.dataset.editorNodeLabel || id
@@ -678,8 +902,52 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
       }
     }
   }
+  if (entry.id === "live-section-concerts-container") {
+    content.concerts = parseLiveConcertsDataset(el.dataset.liveConcerts)
+  }
+  if (isStructuredConcertCard) {
+    const editorId = Number(el.dataset.concertId || entry.id.match(/event-(\d+)/)?.[1] || 0)
+    const getField = (field: ConcertField): string =>
+      el.querySelector<HTMLElement>(`[data-concert-field="${field}"]`)?.textContent?.trim() || ""
+    content.concerts = [{
+      _editorId: Number.isFinite(editorId) ? editorId : 0,
+      date: getField("date"),
+      time: getField("time"),
+      locationName: getField("locationName") || getField("venue"),
+      locationLink: getField("locationLink") || getField("locationUrl"),
+      style: getField("style") || getField("genre") || "World Music",
+      price: getField("price").replace(/^€/, ""),
+      status: entry.id.includes("-history-") ? "Completed" : "Upcoming",
+    }]
+  }
   if (entry.type === "button") {
     content.href = el.getAttribute("href") || ""
+    if (el.dataset.editorDownloadName) content.fileName = el.dataset.editorDownloadName
+  }
+  if (/^press-kit-resource-\d+$/.test(entry.id)) {
+    content.title = el.querySelector<HTMLElement>("[data-editor-resource-title]")?.textContent?.trim() || ""
+    content.description = el.querySelector<HTMLElement>("[data-editor-resource-description]")?.textContent?.trim() || ""
+    try {
+      const parsed = JSON.parse(el.dataset.editorResourceAssets || "[]") as Array<{ label?: string; url?: string; fileName?: string }>
+      content.assets = Array.isArray(parsed)
+        ? parsed
+          .map((asset) => ({
+            label: typeof asset.label === "string" ? asset.label : "Asset",
+            url: typeof asset.url === "string" ? asset.url : "",
+            fileName: typeof asset.fileName === "string" ? asset.fileName : "",
+          }))
+          .filter((asset) => asset.url)
+        : []
+    } catch {
+      content.assets = []
+    }
+  }
+  if (entry.id === "press-kit-manager") {
+    content.title = el.querySelector<HTMLElement>("[data-editor-manager-title]")?.textContent?.trim() || ""
+    content.text = el.querySelector<HTMLElement>("[data-editor-manager-name]")?.textContent?.trim() || ""
+    content.role = el.dataset.editorManagerRole || ""
+    content.email = el.dataset.editorManagerEmail || ""
+    content.src = el.dataset.editorManagerPhoto || ""
   }
   if (entry.type === "image" || entry.type === "background") {
     const img = el.tagName === "IMG" ? (el as HTMLImageElement) : el.querySelector("img")
@@ -693,7 +961,12 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
       } else {
         content.mediaKind = "image"
       }
-      content.videoUrl = iframe?.getAttribute("src") || ""
+      const parsedSources = parseEditorVideoSources(el.dataset.editorVideoSources)
+      const videoUrl = iframe?.getAttribute("src") || el.dataset.editorVideoUrl || parsedSources[0]?.url || content.src || ""
+      content.videoUrl = videoUrl
+      content.videoSources = parsedSources.length > 0
+        ? parsedSources
+        : normalizeEditorVideoSources([{ type: "youtube", url: videoUrl }])
     }
   }
   const cs = getComputedStyle(el)
@@ -710,7 +983,13 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
   const hydratedContent = hydrated?.content || null
   const isHeroTextPatternNode = HERO_TEXT_PATTERN_NODE_IDS.has(entry.id)
   const hasUsableHydratedHeroTextGeometry = isHeroTextPatternNode && isUsableHeroTextGeometry(hydratedGeometry)
-  const hydratedGeometryForNode = isHeroTextPatternNode && !hasUsableHydratedHeroTextGeometry ? null : hydratedGeometry
+  const isAboutCopyButtonNode = entry.id === "about-copy-button"
+  const hasUsableHydratedAboutCopyButtonGeometry = isAboutCopyButtonNode && hasUsableAboutCopyButtonGeometry(hydratedGeometry)
+  const hydratedGeometryForNode =
+    (isHeroTextPatternNode && !hasUsableHydratedHeroTextGeometry) ||
+    (isAboutCopyButtonNode && !hasUsableHydratedAboutCopyButtonGeometry)
+      ? null
+      : hydratedGeometry
   const hydratedStyleForNode = isHeroTextPatternNode
     ? (() => {
       const textStyle = { ...(hydratedStyle || {}) }
@@ -731,6 +1010,10 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
   if (isHeroTextPatternNode) {
     explicitPosition = hasUsableHydratedHeroTextGeometry && explicitPosition
     explicitSize = hasUsableHydratedHeroTextGeometry && explicitSize
+  }
+  if (isAboutCopyButtonNode && !hasUsableHydratedAboutCopyButtonGeometry) {
+    explicitPosition = false
+    explicitSize = false
   }
 
   return {
@@ -753,6 +1036,7 @@ function buildNodeFromEntry(entry: RuntimeEntry): EditorNode {
       fontWeight: cs.fontWeight,
       fontStyle: cs.fontStyle,
       textDecoration: cs.textDecorationLine,
+      textAlign: cs.textAlign === "center" || cs.textAlign === "right" ? cs.textAlign : "left",
       scale: 1,
       minHeight: cs.minHeight,
       paddingTop: cs.paddingTop,
@@ -975,6 +1259,8 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     const hasManagedSize = el.dataset.editorManagedSize === "true"
     const isHeroTextPatternNode = HERO_TEXT_PATTERN_NODE_IDS.has(node.id)
     const hasUsableHeroTextGeometry = isHeroTextPatternNode && isUsableHeroTextGeometry(node.geometry)
+    const isAboutCopyButtonNode = node.id === "about-copy-button"
+    const hasUsableAboutCopyButtonLayout = isAboutCopyButtonNode && hasUsableAboutCopyButtonGeometry(node.geometry)
     const nodeScale = Math.max(0.1, node.style.scale ?? 1)
 
     // Special handling for hero-scroll-indicator to match public page layout
@@ -990,7 +1276,8 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       }
     } else if (
       (isHeroTextPatternNode && hasUsableHeroTextGeometry && (node.explicitPosition || (node.explicitStyle && nodeScale !== 1))) ||
-      (!isHeroTextPatternNode && (node.explicitPosition || (node.explicitStyle && nodeScale !== 1)))
+      (isAboutCopyButtonNode && hasUsableAboutCopyButtonLayout && (node.explicitPosition || (node.explicitStyle && nodeScale !== 1))) ||
+      (!isHeroTextPatternNode && !isAboutCopyButtonNode && (node.explicitPosition || (node.explicitStyle && nodeScale !== 1)))
     ) {
       el.style.transform = nodeScale !== 1
         ? `translate(${g.x}px, ${g.y}px) scale(${nodeScale})`
@@ -1006,7 +1293,8 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     }
     if (
       (isHeroTextPatternNode && hasUsableHeroTextGeometry && node.explicitSize) ||
-      (!isHeroTextPatternNode && node.explicitSize)
+      (isAboutCopyButtonNode && hasUsableAboutCopyButtonLayout && node.explicitSize) ||
+      (!isHeroTextPatternNode && !isAboutCopyButtonNode && node.explicitSize)
     ) {
       el.style.width = `${Math.max(8, g.width)}px`
       el.style.height = `${Math.max(8, g.height)}px`
@@ -1053,6 +1341,12 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
         if (node.style.fontWeight) el.style.fontWeight = node.style.fontWeight
         if (node.style.fontStyle) el.style.fontStyle = node.style.fontStyle
         if (node.style.textDecoration) el.style.textDecoration = node.style.textDecoration
+        if (node.style.textAlign) {
+          el.style.textAlign = node.style.textAlign
+          if (node.type === "button") {
+            el.style.justifyContent = node.style.textAlign === "left" ? "flex-start" : node.style.textAlign === "right" ? "flex-end" : "center"
+          }
+        }
         if (node.style.textShadowEnabled === true) {
           el.style.textShadow = TEXT_EMPHASIS_SHADOW
         } else if (node.style.textShadowEnabled === false) {
@@ -1064,10 +1358,53 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       if (node.explicitContent && node.content.href !== undefined && (el.tagName === "A" || el.tagName === "BUTTON")) {
         el.setAttribute("href", node.content.href)
       }
-      if (node.explicitStyle && node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
+      if (node.explicitContent && node.content.fileName !== undefined && el.tagName === "A") {
+        el.setAttribute("download", node.content.fileName)
+        el.dataset.editorDownloadName = node.content.fileName
+        if (node.content.href) el.dataset.editorDownloadUrl = node.content.href
+      }
+      if (node.explicitStyle && node.style.backgroundColor) {
+        el.style.backgroundColor = node.style.backgroundColor
+        if (!node.style.gradientEnabled) el.style.backgroundImage = "none"
+      }
     }
     if (node.type === "card" || node.type === "overlay") {
-      if (node.explicitContent && node.content.text !== undefined) el.textContent = node.content.text
+      if (node.explicitContent && node.id === "live-section-concerts-container" && Array.isArray(node.content.concerts)) {
+        el.dataset.liveConcerts = JSON.stringify(node.content.concerts)
+        emitLiveConcertsUpdated(node.content.concerts)
+      } else if (node.explicitContent && /^live-(?:upcoming|history)-event-\d+$/.test(node.id) && Array.isArray(node.content.concerts)) {
+        const concert = node.content.concerts[0]
+        if (concert) {
+          const setField = (field: ConcertField, value: string) => {
+            const fieldEl = el.querySelector<HTMLElement>(`[data-concert-field="${field}"]`)
+            if (fieldEl) fieldEl.textContent = value
+          }
+          setField("date", concert.date)
+          setField("time", concert.time)
+          setField("locationName", concert.locationName)
+          setField("locationLink", concert.locationLink)
+          setField("style", concert.style)
+          setField("price", concert.price)
+        }
+      } else if (node.explicitContent && /^press-kit-resource-\d+$/.test(node.id)) {
+        const titleEl = el.querySelector<HTMLElement>("[data-editor-resource-title]")
+        const descriptionEl = el.querySelector<HTMLElement>("[data-editor-resource-description]")
+        if (titleEl && node.content.title !== undefined) titleEl.textContent = node.content.title
+        if (descriptionEl && node.content.description !== undefined) descriptionEl.textContent = node.content.description
+        if (Array.isArray(node.content.assets)) {
+          el.dataset.editorResourceAssets = JSON.stringify(node.content.assets)
+        }
+      } else if (node.explicitContent && node.id === "press-kit-manager") {
+        const titleEl = el.querySelector<HTMLElement>("[data-editor-manager-title]")
+        const nameEl = el.querySelector<HTMLElement>("[data-editor-manager-name]")
+        if (titleEl && node.content.title !== undefined) titleEl.textContent = node.content.title
+        if (nameEl && node.content.text !== undefined) nameEl.textContent = node.content.text
+        if (node.content.role !== undefined) el.dataset.editorManagerRole = node.content.role
+        if (node.content.email !== undefined) el.dataset.editorManagerEmail = node.content.email
+        if (node.content.src !== undefined) el.dataset.editorManagerPhoto = node.content.src
+      } else if (node.explicitContent && node.content.text !== undefined) {
+        el.textContent = node.content.text
+      }
       if (node.explicitStyle && node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
     }
     if (node.type === "image" || node.type === "background") {
@@ -1075,7 +1412,13 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       const iframe = node.type === "background" ? el.querySelector("iframe") : null
       if (node.explicitContent) {
         if (node.type === "background" && node.content.mediaKind === "video") {
-          if (iframe && node.content.videoUrl) iframe.setAttribute("src", node.content.videoUrl)
+          const primaryVideoUrl = node.content.videoSources?.find((source) => source.enabled)?.url || node.content.videoUrl
+          const embedSrc = getEditorYouTubeEmbedSrc(primaryVideoUrl)
+          if (iframe && embedSrc) iframe.setAttribute("src", embedSrc)
+          if (!iframe && img) {
+            const previewSrc = getEditorYouTubePreviewSrc(primaryVideoUrl || node.content.src)
+            if (previewSrc) img.src = previewSrc
+          }
         } else {
           if (img && node.content.src) img.src = node.content.src
           if (img && node.content.alt !== undefined) img.alt = node.content.alt
@@ -1097,6 +1440,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
     }
     if (node.type === "section") {
       if (node.explicitStyle) {
+        if (node.style.backgroundColor) el.style.backgroundColor = node.style.backgroundColor
         if (node.style.minHeight) el.style.minHeight = node.style.minHeight
         if (node.style.paddingTop) el.style.paddingTop = node.style.paddingTop
         if (node.style.paddingBottom) el.style.paddingBottom = node.style.paddingBottom
@@ -1170,7 +1514,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
           patchNode(command.nodeId, (n) => ({
             ...n,
             explicitPosition: true,
-            explicitSize: command.explicitSize !== false ? true : n.explicitSize,
+            explicitSize: command.explicitSize ?? true,
             geometry: { ...n.geometry, x: command.x, y: command.y, width: command.width, height: command.height },
           }))
           shouldSnapshot = false
@@ -1202,7 +1546,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
                 (style as Record<string, unknown>)[k] = v
               }
               // Content properties
-              else if (["text", "textSegments", "titleSegments", "href", "src", "alt", "videoUrl", "accentText"].includes(k)) {
+              else if (["text", "title", "description", "textSegments", "titleSegments", "href", "fileName", "download", "assets", "src", "alt", "role", "email", "videoUrl", "videoSources", "backgroundVideoSources", "concerts", "accentText"].includes(k)) {
                 isContentEdit = true;
                 (content as Record<string, unknown>)[k] = v
               }
@@ -1321,12 +1665,22 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
   const getEditableAtPosition = useCallback((x: number, y: number): RuntimeEntry | null => {
     const els = document.elementsFromPoint(x, y)
     const candidates: RuntimeEntry[] = []
+    const addCandidate = (entry: RuntimeEntry | undefined) => {
+      if (!entry || !entry.eligible) return
+      if (!candidates.find((c) => c.id === entry.id)) candidates.push(entry)
+    }
 
     for (const candidate of els) {
       if (!(candidate instanceof HTMLElement)) continue
       if (candidate.closest("[data-editor-toolbar]") || candidate.closest("[data-editor-panel]")) continue
 
       // Concert card editing always wins over parent grouped lists and generic card handlers.
+      const concertField = candidate.closest<HTMLElement>("[data-concert-field][data-editor-node-id]")
+      if (concertField?.dataset.editorNodeId) {
+        const concertFieldEntry = registry.get(concertField.dataset.editorNodeId)
+        if (concertFieldEntry?.eligible) return concertFieldEntry
+      }
+
       const concertCard = candidate.closest<HTMLElement>("[data-concert-card='true'][data-editor-node-id]")
       if (concertCard?.dataset.editorNodeId) {
         const concertEntry = registry.get(concertCard.dataset.editorNodeId)
@@ -1336,8 +1690,29 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
       const bound = candidate.closest<HTMLElement>("[data-editor-node-id]")
       if (!bound?.dataset.editorNodeId) continue
       const entry = registry.get(bound.dataset.editorNodeId)
-      if (!entry || !entry.eligible) continue
-      if (!candidates.find((c) => c.id === entry.id)) candidates.push(entry)
+      addCandidate(entry)
+    }
+
+    ;["about-copy-button", "about-text-card", "about-section"].forEach((nodeId) => {
+      const entry = registry.get(nodeId)
+      if (!entry?.eligible) return
+      const rect = entry.element.getBoundingClientRect()
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        addCandidate(entry)
+      }
+    })
+
+    registry.forEach((entry) => {
+      if (!entry.eligible) return
+      const rect = entry.element.getBoundingClientRect()
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        addCandidate(entry)
+      }
+    })
+
+    const aboutCopyButtonEntry = candidates.find((c) => c.id === "about-copy-button")
+    if (aboutCopyButtonEntry) {
+      return aboutCopyButtonEntry
     }
 
     if (candidates.length === 0) return null
@@ -1368,6 +1743,7 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
     const best = candidates[0]
     if (best && HERO_TEXT_PATTERN_NODE_IDS.has(best.id)) return best
+    if (best && BAND_MEMBER_PERSIST_ONLY_NODE_ID.test(best.id)) return best
     if (best) {
       const groupedAncestor = best.element.parentElement?.closest<HTMLElement>("[data-editor-grouped='true'][data-editor-node-id]")
       if (groupedAncestor?.dataset.editorNodeId && groupedAncestor.dataset.editorNodeId !== best.id) {
@@ -1498,7 +1874,15 @@ export function VisualEditorProvider({ children }: { children: ReactNode }) {
 
 function SelectionOverlay({ entry }: { entry: RuntimeEntry }) {
   const boxRef = useRef<HTMLDivElement>(null)
-  const isSection = entry.type === "section"
+  const overlayTheme = getSelectionOverlayTheme(entry)
+  const edgeHandles = (["n", "e", "s", "w"] as const).map((handle) => {
+    const className =
+      handle === "n" ? "left-7 right-7 top-[-8px] h-4 cursor-ns-resize" :
+      handle === "s" ? "bottom-[-8px] left-7 right-7 h-4 cursor-ns-resize" :
+      handle === "e" ? "bottom-7 right-[-8px] top-7 w-4 cursor-ew-resize" :
+      "bottom-7 left-[-8px] top-7 w-4 cursor-ew-resize"
+    return { handle, className }
+  })
 
   useEffect(() => {
     let rafId: number | null = null
@@ -1519,9 +1903,11 @@ function SelectionOverlay({ entry }: { entry: RuntimeEntry }) {
     const observer = new ResizeObserver(syncOnce)
     observer.observe(entry.element)
     window.addEventListener("resize", syncOnce)
+    window.addEventListener("scroll", syncOnce, true)
     return () => {
       observer.disconnect()
       window.removeEventListener("resize", syncOnce)
+      window.removeEventListener("scroll", syncOnce, true)
       if (rafId !== null) window.cancelAnimationFrame(rafId)
     }
   }, [entry])
@@ -1530,30 +1916,39 @@ function SelectionOverlay({ entry }: { entry: RuntimeEntry }) {
     <div data-editor-overlay className="fixed inset-0 pointer-events-none z-[9990]">
       <div
         ref={boxRef}
-        className={`absolute border-2 ${
-          isSection
-            ? "border-[#22c55e] shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_12px_rgba(34,197,94,0.2)]"
-            : "border-[#FF8C21] shadow-[0_0_0_1px_rgba(255,140,33,0.3),0_0_12px_rgba(255,140,33,0.15)]"
-        }`}
+        className={`absolute border-2 ${overlayTheme.borderClass}`}
       >
-        {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const).map((handle) => (
+        {edgeHandles.map(({ handle, className }) => (
           <div
-            key={handle}
+            key={`edge-${handle}`}
             data-editor-resize-handle={handle}
             data-editor-resize-node-id={entry.id}
-            className={`absolute h-3 w-3 rounded-sm border border-white bg-[#FF8C21] shadow ${
-              handle === "nw" ? "-left-2 -top-2 cursor-nwse-resize" :
-              handle === "n" ? "left-1/2 -top-2 -translate-x-1/2 cursor-ns-resize" :
-              handle === "ne" ? "-right-2 -top-2 cursor-nesw-resize" :
-              handle === "e" ? "-right-2 top-1/2 -translate-y-1/2 cursor-ew-resize" :
-              handle === "se" ? "-bottom-2 -right-2 cursor-nwse-resize" :
-              handle === "s" ? "bottom-[-0.5rem] left-1/2 -translate-x-1/2 cursor-ns-resize" :
-              handle === "sw" ? "-bottom-2 -left-2 cursor-nesw-resize" :
-              "-left-2 top-1/2 -translate-y-1/2 cursor-ew-resize"
-            }`}
+            className={`absolute ${className}`}
             style={{ pointerEvents: "auto" }}
           />
         ))}
+        {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const).map((handle) => {
+          const isCorner = handle.length === 2
+          const sizeClass = isCorner ? "h-7 w-7 z-30" : "h-3 w-3 z-10"
+          return (
+            <div
+              key={handle}
+              data-editor-resize-handle={handle}
+              data-editor-resize-node-id={entry.id}
+              className={`absolute rounded-sm border border-white ${sizeClass} ${overlayTheme.handleClass} shadow ${
+                handle === "nw" ? "-left-3 -top-3 cursor-nwse-resize" :
+                handle === "n" ? "left-1/2 -top-2 -translate-x-1/2 cursor-ns-resize" :
+                handle === "ne" ? "-right-3 -top-3 cursor-nesw-resize" :
+                handle === "e" ? "-right-2 top-1/2 -translate-y-1/2 cursor-ew-resize" :
+                handle === "se" ? "-bottom-3 -right-3 cursor-nwse-resize" :
+                handle === "s" ? "bottom-[-0.5rem] left-1/2 -translate-x-1/2 cursor-ns-resize" :
+                handle === "sw" ? "-bottom-3 -left-3 cursor-nesw-resize" :
+                "-left-2 top-1/2 -translate-y-1/2 cursor-ew-resize"
+              }`}
+              style={{ pointerEvents: "auto" }}
+            />
+          )
+        })}
       </div>
     </div>,
     document.body
@@ -1593,17 +1988,18 @@ function ExtraNodesLayer({ nodes }: { nodes: Map<string, EditorNode> }) {
           fontWeight: node.style.fontWeight,
           fontStyle: node.style.fontStyle,
           textDecoration: node.style.textDecoration,
+          textAlign: node.style.textAlign,
           display: kind === "button" ? "inline-flex" : kind === "text" ? "block" : "flex",
           alignItems: kind === "text" ? undefined : "center",
-          justifyContent: kind === "text" ? undefined : "center",
+          justifyContent: kind === "text" ? undefined : node.style.textAlign === "left" ? "flex-start" : node.style.textAlign === "right" ? "flex-end" : "center",
           padding: kind === "text" ? undefined : kind === "button" ? "0 18px" : "16px",
           borderRadius: kind === "text" ? undefined : kind === "button" ? "8px" : "8px",
           border: kind === "card" ? "1px solid rgba(255,255,255,0.18)" : undefined,
           backdropFilter: kind === "overlay" ? "blur(2px)" : undefined,
           pointerEvents: "auto",
         }
-        if ((kind === "text" || kind === "button") && node.style.textShadowEnabled) {
-          baseStyle.textShadow = TEXT_EMPHASIS_SHADOW
+        if (kind === "text" || kind === "button") {
+          baseStyle.textShadow = node.style.textShadowEnabled ? TEXT_EMPHASIS_SHADOW : "none"
         }
         if ((kind === "text" || kind === "button") && node.style.gradientEnabled) {
           baseStyle.background = `linear-gradient(90deg, ${node.style.gradientStart || "#FFB15A"}, ${node.style.gradientEnd || "#FF6C00"})`
@@ -1715,7 +2111,6 @@ export function VisualEditorOverlay() {
     (selectedNode?.type === "image" || selectedNode?.type === "background") &&
     (selectedNode.id === "hero-logo" || selectedNode.id === "hero-bg-image")
   const isFooterSocialGroup = selectedNode?.type === "card" && selectedNode.id === "footer-social-group"
-  const isNavbarOrHeroTextNode = selectedNode ? isNavbarOrHeroTextPatternNodeId(selectedNode.id) : false
   const hasNestedEditableChildren = Boolean(
     selectedNode?.type === "card" &&
       selectedEntry?.element &&
@@ -1735,7 +2130,10 @@ export function VisualEditorOverlay() {
   const isSimpleEditableBox =
     (selectedNode?.type === "card" || selectedNode?.type === "overlay") &&
     !isFooterSocialGroup &&
-    !hasNestedEditableChildren &&
+    (selectedNode.id === "latest-release-card" ||
+      selectedNode.id === "about-text-card" ||
+      /^member-item-\d+$/.test(selectedNode.id) ||
+      !hasNestedEditableChildren) &&
     !hasStructuredCardFields
 
   const selectedEntryElement = selectedEntry?.element
@@ -1855,6 +2253,26 @@ export function VisualEditorOverlay() {
   }
 
   const selectedBandMemberIndex = extractBandMemberIndex(selectedNode?.id)
+  const selectedLiveConcertCardMatch = selectedNode?.id.match(/^live-(upcoming|history)-event-(\d+)$/)
+  const selectedLiveConcertCard = selectedLiveConcertCardMatch && Array.isArray(selectedNode?.content.concerts)
+    ? selectedNode.content.concerts[0] || null
+    : null
+
+  const updateLiveConcertsContainer = useCallback((concerts: LiveConcertEditorItem[]) => {
+    dispatch({ type: "UPDATE_CARD", nodeId: "live-section-concerts-container", patch: { concerts } })
+    emitLiveConcertsUpdated(concerts)
+  }, [dispatch])
+
+  const updateSelectedLiveConcertCard = useCallback((patch: Partial<LiveConcertEditorItem>) => {
+    if (!selectedNode || !selectedLiveConcertCard) return
+    const nextConcert = { ...selectedLiveConcertCard, ...patch }
+    dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { concerts: [nextConcert] } })
+    const container = nodes.get("live-section-concerts-container")
+    if (Array.isArray(container?.content.concerts)) {
+      const nextConcerts = container.content.concerts.map((concert) => concert._editorId === nextConcert._editorId ? nextConcert : concert)
+      updateLiveConcertsContainer(nextConcerts)
+    }
+  }, [nodes, selectedLiveConcertCard, selectedNode, updateLiveConcertsContainer])
 
   const getBandMemberFieldValue = useCallback((index: number, field: "number" | "name" | "role" | "photo"): string => {
     if (typeof document === "undefined") return ""
@@ -2071,12 +2489,11 @@ export function VisualEditorOverlay() {
     origin: NodeGeometry | null
     groupNodeIds: string[]
     groupOrigins: Record<string, NodeGeometry>
-    handle: "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw" | null
+    handle: ResizeHandle | null
     nodeId: string | null
     lastGeometry: NodeGeometry | null
   }>({ mode: null, start: { x: 0, y: 0 }, origin: null, groupNodeIds: [], groupOrigins: {}, handle: null, nodeId: null, lastGeometry: null })
   const pointerScaleRef = useRef<{ origin: number; last: number }>({ origin: 1, last: 1 })
-  const bodyOverflowRef = useRef<string | null>(null)
   const createPointerState = (
     partial: Partial<typeof pointerRef.current>
   ): typeof pointerRef.current => ({
@@ -2089,6 +2506,31 @@ export function VisualEditorOverlay() {
     nodeId: partial.nodeId ?? null,
     lastGeometry: partial.lastGeometry ?? null,
   })
+
+  const resolveResizeHandle = useCallback((rawHandle: ResizeHandle, nodeId: string, x: number, y: number): ResizeHandle => {
+    const entry = registry.get(nodeId)
+    const rect = entry?.element.getBoundingClientRect()
+    if (!rect || rect.width <= 0 || rect.height <= 0) return rawHandle
+
+    const localX = x - rect.left
+    const localY = y - rect.top
+    const cornerSize = Math.min(36, Math.max(22, Math.min(rect.width, rect.height) * 0.28))
+    const horizontal =
+      localX <= cornerSize && localX <= rect.width / 2
+        ? "w"
+        : localX >= rect.width - cornerSize && localX > rect.width / 2
+          ? "e"
+          : null
+    const vertical =
+      localY <= cornerSize && localY <= rect.height / 2
+        ? "n"
+        : localY >= rect.height - cornerSize && localY > rect.height / 2
+          ? "s"
+          : null
+
+    if (vertical && horizontal) return `${vertical}${horizontal}` as ResizeHandle
+    return rawHandle
+  }, [registry])
 
   const arrangeNodeById = useCallback((nodeId: string) => {
     const node = nodesRef.current.get(nodeId)
@@ -2120,26 +2562,6 @@ export function VisualEditorOverlay() {
   }, [arrangeNodeById, dispatch, resetHeroImageFilters, selectedId, selectedIds])
 
   useEffect(() => {
-    if (!isEditing || !openPanel || !selectedNode) {
-      if (bodyOverflowRef.current !== null) {
-        document.body.style.overflow = bodyOverflowRef.current
-        bodyOverflowRef.current = null
-      }
-      return
-    }
-    if (bodyOverflowRef.current === null) {
-      bodyOverflowRef.current = document.body.style.overflow || ""
-    }
-    document.body.style.overflow = "hidden"
-    return () => {
-      if (bodyOverflowRef.current !== null) {
-        document.body.style.overflow = bodyOverflowRef.current
-        bodyOverflowRef.current = null
-      }
-    }
-  }, [isEditing, openPanel, selectedNode])
-
-  useEffect(() => {
     if (!isEditing) return
     document.body.setAttribute("data-editor-mode", "true")
 
@@ -2150,11 +2572,12 @@ export function VisualEditorOverlay() {
       if (resizeHandleTarget instanceof HTMLElement) {
         e.preventDefault()
         e.stopPropagation()
-        const handle = (resizeHandleTarget.dataset.editorResizeHandle || null) as "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw" | null
+        const rawHandle = (resizeHandleTarget.dataset.editorResizeHandle || null) as ResizeHandle | null
         const resizeNodeId = resizeHandleTarget.dataset.editorResizeNodeId || selectedId
         if (!resizeNodeId) return
         const n = nodes.get(resizeNodeId)
-        if (!n || !handle) return
+        if (!n || !rawHandle) return
+        const handle = resolveResizeHandle(rawHandle, resizeNodeId, e.clientX, e.clientY)
         dispatch({ type: "SELECT_NODE", nodeId: resizeNodeId })
         dispatch({ type: "BEGIN_TRANSACTION" })
         pointerScaleRef.current = { origin: n.style.scale ?? 1, last: n.style.scale ?? 1 }
@@ -2264,6 +2687,35 @@ export function VisualEditorOverlay() {
         })
       } else if (state.mode === "resize" && state.origin && state.nodeId && state.handle) {
         const handle = state.handle
+        const originScale = pointerScaleRef.current.origin || 1
+        if (handle.length === 2) {
+          const originVisualWidth = state.origin.width * originScale
+          const originVisualHeight = state.origin.height * originScale
+          const desiredVisualWidth = handle.includes("w") ? originVisualWidth - dx : originVisualWidth + dx
+          const desiredVisualHeight = handle.includes("n") ? originVisualHeight - dy : originVisualHeight + dy
+          const scaleX = desiredVisualWidth / Math.max(1, state.origin.width)
+          const scaleY = desiredVisualHeight / Math.max(1, state.origin.height)
+          const nextScaleCandidate = Math.abs(scaleX - originScale) >= Math.abs(scaleY - originScale) ? scaleX : scaleY
+          const nextScale = Math.max(0.1, nextScaleCandidate)
+          const nextX = handle.includes("w")
+            ? state.origin.x + originVisualWidth - state.origin.width * nextScale
+            : state.origin.x
+          const nextY = handle.includes("n")
+            ? state.origin.y + originVisualHeight - state.origin.height * nextScale
+            : state.origin.y
+          const geometry: NodeGeometry = {
+            x: nextX,
+            y: nextY,
+            width: state.origin.width,
+            height: state.origin.height,
+          }
+          pointerScaleRef.current.last = nextScale
+          pointerRef.current.lastGeometry = geometry
+          dispatch({ type: "SET_NODE_SCALE", nodeId: state.nodeId, scale: nextScale, transient: true })
+          dispatch({ type: "SET_NODE_GEOMETRY", nodeId: state.nodeId, ...geometry, transient: true, explicitSize: false })
+          return
+        }
+
         let nextX = state.origin.x
         let nextY = state.origin.y
         let nextWidth = state.origin.width
@@ -2280,23 +2732,16 @@ export function VisualEditorOverlay() {
           nextY = state.origin.y + dy
         }
 
-        if (handle.length === 2) {
-          const scale = Math.max(nextWidth / Math.max(1, state.origin.width), nextHeight / Math.max(1, state.origin.height))
-          const safeScale = Math.max(0.2, scale * pointerScaleRef.current.origin)
-          nextWidth = state.origin.width
-          nextHeight = state.origin.height
-          if (handle.includes("w")) nextX = state.origin.x + (state.origin.width - nextWidth)
-          if (handle.includes("n")) nextY = state.origin.y + (state.origin.height - nextHeight)
-          pointerScaleRef.current.last = safeScale
-          dispatch({ type: "SET_NODE_SCALE", nodeId: state.nodeId, scale: safeScale, transient: true })
-          const geometry: NodeGeometry = { x: nextX, y: nextY, width: nextWidth, height: nextHeight }
-          pointerRef.current.lastGeometry = geometry
-          dispatch({ type: "SET_NODE_GEOMETRY", nodeId: state.nodeId, ...geometry, transient: true })
-          return
+        const minWidth = 8
+        const minHeight = 8
+        if (nextWidth < minWidth) {
+          if (handle.includes("w")) nextX = state.origin.x + state.origin.width - minWidth
+          nextWidth = minWidth
         }
-
-        nextWidth = Math.max(8, nextWidth)
-        nextHeight = Math.max(8, nextHeight)
+        if (nextHeight < minHeight) {
+          if (handle.includes("n")) nextY = state.origin.y + state.origin.height - minHeight
+          nextHeight = minHeight
+        }
 
         const geometry: NodeGeometry = { x: nextX, y: nextY, width: nextWidth, height: nextHeight }
         pointerRef.current.lastGeometry = geometry
@@ -2327,8 +2772,12 @@ export function VisualEditorOverlay() {
       const state = pointerRef.current
       if (state.mode === "resize" && state.nodeId && state.lastGeometry) {
         const g = state.lastGeometry
-        dispatch({ type: "SET_NODE_GEOMETRY", nodeId: state.nodeId, x: g.x, y: g.y, width: g.width, height: g.height })
-        dispatch({ type: "SET_NODE_SCALE", nodeId: state.nodeId, scale: pointerScaleRef.current.last })
+        if (state.handle?.length === 2) {
+          dispatch({ type: "SET_NODE_GEOMETRY", nodeId: state.nodeId, x: g.x, y: g.y, width: g.width, height: g.height, explicitSize: false })
+          dispatch({ type: "SET_NODE_SCALE", nodeId: state.nodeId, scale: pointerScaleRef.current.last })
+        } else {
+          dispatch({ type: "SET_NODE_GEOMETRY", nodeId: state.nodeId, x: g.x, y: g.y, width: g.width, height: g.height })
+        }
       } else if (state.mode === "move") {
         const groupIds = state.groupNodeIds.length > 0 ? state.groupNodeIds : (state.nodeId ? [state.nodeId] : [])
         groupIds.forEach((id) => {
@@ -2431,7 +2880,7 @@ export function VisualEditorOverlay() {
       window.removeEventListener("keydown", onKeyDown)
       document.body.removeAttribute("data-editor-mode")
     }
-  }, [isEditing, dispatch, selectedId, selectedIds, undo, redo, getEditableAtPosition, marqueeRect, registry])
+  }, [isEditing, dispatch, selectedId, selectedIds, undo, redo, getEditableAtPosition, resolveResizeHandle, marqueeRect, registry])
 
   if (isMobileEditBlocked) {
     return (
@@ -2619,8 +3068,8 @@ export function VisualEditorOverlay() {
       )}
 
       {openPanel && selectedNode && (
-        <div data-editor-panel className="fixed top-16 right-3 z-[9997] w-72 rounded-xl bg-white text-slate-900 shadow-2xl">
-          <div className="bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-3 py-2 text-white">
+        <div data-editor-panel className="fixed right-3 top-16 z-[9997] flex max-h-[calc(100dvh-5rem)] w-72 flex-col overflow-hidden rounded-xl bg-white text-slate-900 shadow-2xl">
+          <div className="shrink-0 bg-gradient-to-r from-[#FF8C21] to-[#FF6C00] px-3 py-2 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold">{selectedNode.label}</div>
@@ -2630,7 +3079,10 @@ export function VisualEditorOverlay() {
             </div>
           </div>
 
-          <div className="space-y-2 p-3 text-slate-900">
+          <div
+            className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 text-slate-900"
+            onWheel={(event) => event.stopPropagation()}
+          >
             <button
               type="button"
               className="w-full rounded border border-slate-300 px-2 py-1 text-xs font-semibold"
@@ -2718,15 +3170,28 @@ export function VisualEditorOverlay() {
                   <label className="text-[10px]">Font Family</label>
                   <select
                     className="w-full rounded border p-1 text-xs"
-                    value={selectedNode.style.fontFamily || "sans-serif"}
+                    value={selectedNode.style.fontFamily || "inherit"}
                     onChange={(e) => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { fontFamily: e.target.value } })}
                   >
-                    <option value="sans-serif">Sans Serif</option>
-                    <option value="serif">Serif</option>
-                    <option value="monospace">Monospace</option>
-                    <option value="cursive">Cursive</option>
-                    <option value="system-ui">System UI</option>
+                    {TEXT_FONT_OPTIONS.map((font) => (
+                      <option key={font.value} value={font.value}>{font.label}</option>
+                    ))}
                   </select>
+                </div>
+                <div>
+                  <label className="text-[10px]">Text Align</label>
+                  <div className="mt-1 grid grid-cols-3 gap-1">
+                    {(["left", "center", "right"] as const).map((align) => (
+                      <button
+                        key={align}
+                        type="button"
+                        className={`rounded border px-2 py-1 text-xs capitalize ${selectedNode.style.textAlign === align || (!selectedNode.style.textAlign && align === "left") ? "bg-slate-900 text-white" : ""}`}
+                        onClick={() => dispatch({ type: selectedNode.type === "text" ? "UPDATE_TEXT" : "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { textAlign: align } })}
+                      >
+                        {align}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2750,7 +3215,7 @@ export function VisualEditorOverlay() {
                   >
                     U
                   </button>
-                  {(isNavbarOrHeroTextNode || isExtraNodeId(selectedNode.id)) && (
+                  {supportsTextShadowTool(selectedNode.id) && (
                     <button
                       type="button"
                       title="Text shadow"
@@ -2814,8 +3279,12 @@ export function VisualEditorOverlay() {
                 <input
                   type="color"
                   className="h-8 w-full rounded border p-1"
-                  value={selectedNode.style.backgroundColor || "#ff8c21"}
-                  onChange={(e) => dispatch({ type: "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { backgroundColor: e.target.value } })}
+                  value={readColorHex(selectedNode.style.backgroundColor, "#ff8c21")}
+                  onChange={(e) => dispatch({
+                    type: "UPDATE_BUTTON",
+                    nodeId: selectedNode.id,
+                    patch: { backgroundColor: withColorOpacity(e.target.value, readColorOpacity(selectedNode.style.backgroundColor)) },
+                  })}
                 />
                 <label className="text-[10px]">Button opacity ({readColorOpacity(selectedNode.style.backgroundColor).toFixed(2)})</label>
                 <input
@@ -2829,13 +3298,210 @@ export function VisualEditorOverlay() {
                     dispatch({ type: "UPDATE_BUTTON", nodeId: selectedNode.id, patch: buildBoxOpacityPatch(selectedNode.id, Number(e.target.value)) })
                   }}
                 />
-                <label className="text-xs font-semibold">Link</label>
+                {selectedNode.id !== "about-copy-button" && selectedNode.id !== "press-kit-download-button" && (
+                  <>
+                    <label className="text-xs font-semibold">Link</label>
+                    <input
+                      className="w-full rounded border p-1 text-xs"
+                      value={selectedNode.content.href || ""}
+                      onChange={(e) => dispatch({ type: "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { href: e.target.value } })}
+                    />
+                  </>
+                )}
+                {selectedNode.id === "press-kit-download-button" && (
+                  <div className="space-y-2 rounded border border-slate-200 p-2">
+                    <label className="text-xs font-semibold">Download file</label>
+                    <div className="rounded bg-slate-50 p-2 text-[11px] text-slate-700">
+                      <div><span className="font-semibold">Current:</span> {selectedNode.content.fileName || selectedNode.content.href?.split("/").pop() || "No file selected"}</div>
+                      <div className="mt-1 break-all text-slate-500">{selectedNode.content.href || "Missing download URL"}</div>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".pdf,.zip,.doc,.docx,.txt,application/pdf,application/zip"
+                      className="w-full text-xs"
+                      onChange={async (e) => {
+                        const input = e.currentTarget
+                        const file = input.files?.[0]
+                        if (!file) return
+                        try {
+                          const formData = new FormData()
+                          formData.append("file", file)
+                          formData.append("nodeId", selectedNode.id)
+                          formData.append("assetType", "file")
+                          const uploadRes = await fetch("/api/editor-upload-asset", {
+                            method: "POST",
+                            body: formData,
+                          })
+                          const data = await uploadRes.json() as { url?: string; filename?: string; error?: string }
+                          if (!uploadRes.ok || !data.url) {
+                            console.error("[press-kit-file-upload] Upload failed.", { status: uploadRes.status, error: data.error })
+                            return
+                          }
+                          dispatch({
+                            type: "UPDATE_BUTTON",
+                            nodeId: selectedNode.id,
+                            patch: { href: data.url, fileName: data.filename || file.name },
+                          })
+                        } catch (error) {
+                          console.error("[press-kit-file-upload] Upload exception.", error)
+                        } finally {
+                          input.value = ""
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/^press-kit-resource-\d+$/.test(selectedNode.id) && (
+              <div className="space-y-2 rounded border border-slate-200 p-2">
+                <label className="text-xs font-semibold">Press Kit Resource</label>
                 <input
                   className="w-full rounded border p-1 text-xs"
-                  value={selectedNode.content.href || ""}
-                  onChange={(e) => dispatch({ type: "UPDATE_BUTTON", nodeId: selectedNode.id, patch: { href: e.target.value } })}
+                  placeholder="Resource title"
+                  value={selectedNode.content.title || ""}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { title: e.target.value } })}
                 />
-              </>
+                <textarea
+                  className="w-full rounded border p-1 text-xs"
+                  rows={2}
+                  placeholder="Resource description"
+                  value={selectedNode.content.description || ""}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { description: e.target.value } })}
+                />
+                <div className="rounded bg-slate-50 p-2 text-[11px] text-slate-700">
+                  <div className="font-semibold">Current gallery assets</div>
+                  <div className="mt-2 space-y-2">
+                    {(selectedNode.content.assets || []).map((asset, index) => (
+                      <div key={`${asset.url}-${index}`} className="flex items-start justify-between gap-2 rounded border border-slate-200 bg-white p-2">
+                        <div className="min-w-0">
+                          <input
+                            className="mb-1 w-full rounded border p-1 text-[11px]"
+                            value={asset.label}
+                            onChange={(e) => {
+                              const nextAssets = [...(selectedNode.content.assets || [])]
+                              nextAssets[index] = { ...asset, label: e.target.value }
+                              dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { assets: nextAssets } })
+                            }}
+                          />
+                          <div className="break-all text-slate-500">{asset.fileName || asset.url}</div>
+                        </div>
+                        <button
+                          type="button"
+                          className="rounded border px-2 py-1 text-[10px]"
+                          onClick={() => {
+                            const nextAssets = (selectedNode.content.assets || []).filter((_, assetIndex) => assetIndex !== index)
+                            dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { assets: nextAssets } })
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    {(selectedNode.content.assets || []).length === 0 && (
+                      <div className="text-slate-500">No assets in this gallery.</div>
+                    )}
+                  </div>
+                </div>
+                <label className="text-[10px] font-semibold">Add gallery asset</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="w-full text-xs"
+                  onChange={async (e) => {
+                    const input = e.currentTarget
+                    const file = input.files?.[0]
+                    if (!file) return
+                    try {
+                      const formData = new FormData()
+                      formData.append("file", file)
+                      formData.append("nodeId", selectedNode.id)
+                      const uploadRes = await fetch("/api/editor-upload-asset", { method: "POST", body: formData })
+                      const data = await uploadRes.json() as { url?: string; filename?: string; error?: string }
+                      if (!uploadRes.ok || !data.url) {
+                        console.error("[press-kit-resource-upload] Upload failed.", { nodeId: selectedNode.id, status: uploadRes.status, error: data.error })
+                        return
+                      }
+                      dispatch({
+                        type: "UPDATE_CARD",
+                        nodeId: selectedNode.id,
+                        patch: {
+                          assets: [
+                            ...(selectedNode.content.assets || []),
+                            { label: data.filename || file.name, url: data.url, fileName: data.filename || file.name },
+                          ],
+                        },
+                      })
+                    } catch (error) {
+                      console.error("[press-kit-resource-upload] Upload exception.", error)
+                    } finally {
+                      input.value = ""
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {selectedNode.id === "press-kit-manager" && (
+              <div className="space-y-2 rounded border border-slate-200 p-2">
+                <label className="text-xs font-semibold">Manager popup</label>
+                <input
+                  className="w-full rounded border p-1 text-xs"
+                  placeholder="Card title"
+                  value={selectedNode.content.title || ""}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { title: e.target.value } })}
+                />
+                <input
+                  className="w-full rounded border p-1 text-xs"
+                  placeholder="Manager name"
+                  value={selectedNode.content.text || ""}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { text: e.target.value } })}
+                />
+                <input
+                  className="w-full rounded border p-1 text-xs"
+                  placeholder="Role"
+                  value={selectedNode.content.role || ""}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { role: e.target.value } })}
+                />
+                <label className="text-[10px] font-semibold">Link / Email destination</label>
+                <input
+                  className="w-full rounded border p-1 text-xs"
+                  placeholder="Email"
+                  value={selectedNode.content.email || ""}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { email: e.target.value } })}
+                />
+                <div className="rounded bg-slate-50 p-2 text-[11px] text-slate-700">
+                  <div className="font-semibold">Current photo</div>
+                  <div className="mt-1 break-all text-slate-500">{selectedNode.content.src || "Missing manager photo"}</div>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="w-full text-xs"
+                  onChange={async (e) => {
+                    const input = e.currentTarget
+                    const file = input.files?.[0]
+                    if (!file) return
+                    try {
+                      const formData = new FormData()
+                      formData.append("file", file)
+                      formData.append("nodeId", selectedNode.id)
+                      const uploadRes = await fetch("/api/editor-upload-asset", { method: "POST", body: formData })
+                      const data = await uploadRes.json() as { url?: string; error?: string }
+                      if (!uploadRes.ok || !data.url) {
+                        console.error("[press-kit-manager-photo-upload] Upload failed.", { status: uploadRes.status, error: data.error })
+                        return
+                      }
+                      dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { src: data.url } })
+                    } catch (error) {
+                      console.error("[press-kit-manager-photo-upload] Upload exception.", error)
+                    } finally {
+                      input.value = ""
+                    }
+                  }}
+                />
+              </div>
             )}
 
             {isFooterSocialGroup && footerSocialLinkItems.length > 0 && (
@@ -2853,6 +3519,104 @@ export function VisualEditorOverlay() {
                     </div>
                   ))}
                 </div>
+              </>
+            )}
+
+            {selectedNode.id === "live-section-concerts-container" && selectedNode.type === "card" && (
+              <>
+                <label className="text-xs font-semibold">Concerts</label>
+                <div className="max-h-64 space-y-2 overflow-y-auto rounded border border-slate-200 p-2 overscroll-contain">
+                  {(selectedNode.content.concerts || []).length === 0 && (
+                    <p className="text-[11px] text-slate-500">No concerts are listed on the public source right now.</p>
+                  )}
+                  {(selectedNode.content.concerts || []).map((concert) => (
+                    <div key={`live-concert-row-${concert._editorId}`} className="flex items-center justify-between gap-2 rounded bg-slate-50 p-2 text-xs">
+                      <span className="min-w-0 truncate">
+                        {concert.date || "No date"} · {concert.locationName || "No location"} · {concert.status || "Upcoming"}
+                      </span>
+                      <button
+                        type="button"
+                        className="shrink-0 rounded border border-red-200 px-2 py-1 text-red-700"
+                        onClick={() => {
+                          const nextConcerts = (selectedNode.content.concerts || []).filter((item) => item._editorId !== concert._editorId)
+                          updateLiveConcertsContainer(nextConcerts)
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+                  onClick={() => {
+                    const concerts = selectedNode.content.concerts || []
+                    const nextId = concerts.reduce((max, concert) => Math.max(max, concert._editorId), -1) + 1
+                    updateLiveConcertsContainer([
+                      ...concerts,
+                      {
+                        _editorId: nextId,
+                        date: "",
+                        time: "",
+                        locationName: "",
+                        locationLink: "",
+                        style: "World Music",
+                        price: "",
+                        status: "Upcoming",
+                      },
+                    ])
+                  }}
+                >
+                  + Add concert
+                </button>
+                <label className="text-[10px]">Container background</label>
+                <input
+                  type="color"
+                  className="h-8 w-full rounded border p-1"
+                  value={readColorHex(selectedNode.style.backgroundColor, "#000000")}
+                  onChange={(e) => dispatch({
+                    type: "UPDATE_CARD",
+                    nodeId: selectedNode.id,
+                    patch: { backgroundColor: withColorOpacity(e.target.value, readColorOpacity(selectedNode.style.backgroundColor)) },
+                  })}
+                />
+                <label className="text-[10px]">Container opacity ({readColorOpacity(selectedNode.style.backgroundColor).toFixed(2)})</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  className="w-full"
+                  value={readColorOpacity(selectedNode.style.backgroundColor)}
+                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: buildBoxOpacityPatch(selectedNode.id, Number(e.target.value)) })}
+                />
+              </>
+            )}
+
+            {selectedLiveConcertCard && selectedNode.type === "card" && (
+              <>
+                <label className="text-xs font-semibold">Concert card</label>
+                <label className="text-[10px]">Date</label>
+                <input className="w-full rounded border p-1 text-xs" type="date" value={selectedLiveConcertCard.date} onChange={(e) => updateSelectedLiveConcertCard({ date: e.target.value })} />
+                <label className="text-[10px]">Time</label>
+                <input className="w-full rounded border p-1 text-xs" value={selectedLiveConcertCard.time} onChange={(e) => updateSelectedLiveConcertCard({ time: e.target.value })} />
+                <label className="text-[10px]">Location name</label>
+                <input className="w-full rounded border p-1 text-xs" value={selectedLiveConcertCard.locationName} onChange={(e) => updateSelectedLiveConcertCard({ locationName: e.target.value })} />
+                <label className="text-[10px]">Google Maps URL</label>
+                <input className="w-full rounded border p-1 text-xs" value={selectedLiveConcertCard.locationLink} onChange={(e) => updateSelectedLiveConcertCard({ locationLink: e.target.value })} />
+                <label className="text-[10px]">Style</label>
+                <select className="w-full rounded border p-1 text-xs" value={selectedLiveConcertCard.style} onChange={(e) => updateSelectedLiveConcertCard({ style: e.target.value })}>
+                  {["World Music", "Funk", "Soul", "Reggae", "Global Grooves"].map((style) => <option key={style} value={style}>{style}</option>)}
+                </select>
+                <label className="text-[10px]">Price</label>
+                <input className="w-full rounded border p-1 text-xs" value={selectedLiveConcertCard.price} onChange={(e) => updateSelectedLiveConcertCard({ price: e.target.value })} />
+                <label className="text-[10px]">Status</label>
+                <select className="w-full rounded border p-1 text-xs" value={selectedLiveConcertCard.status} onChange={(e) => updateSelectedLiveConcertCard({ status: e.target.value })}>
+                  <option value="Upcoming">Upcoming</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
               </>
             )}
 
@@ -2910,6 +3674,8 @@ export function VisualEditorOverlay() {
                     const requiresSanityAsset =
                       selectedNode.id === "hero-logo" ||
                       selectedNode.id === "hero-bg-image" ||
+                      selectedNode.id === "about-bg-image" ||
+                      selectedNode.id === "band-members-bg" ||
                       selectedNode.id === "live-section-bg-image" ||
                       selectedNode.id === "contact-bg-image" ||
                       selectedNode.id === "footer-logo" ||
@@ -3085,12 +3851,70 @@ export function VisualEditorOverlay() {
                   value={selectedNode.style.opacity ?? 1}
                   onChange={(e) => dispatch({ type: "UPDATE_BACKGROUND", nodeId: selectedNode.id, patch: { opacity: Number(e.target.value) } })}
                 />
-                <label className="text-xs font-semibold">Video Link</label>
-                <input
-                  className="w-full rounded border p-1 text-xs"
-                  value={selectedNode.content.videoUrl || ""}
-                  onChange={(e) => dispatch({ type: "UPDATE_BACKGROUND", nodeId: selectedNode.id, patch: { videoUrl: e.target.value, mediaKind: "video" } })}
-                />
+                <label className="text-xs font-semibold">Background video sources</label>
+                {Array.from({ length: 3 }).map((_, index) => {
+                  const sources = selectedNode.content.videoSources?.length
+                    ? selectedNode.content.videoSources
+                    : normalizeEditorVideoSources([{ type: "youtube", url: selectedNode.content.videoUrl || "" }])
+                  const sourceUrl = sources[index]?.url || ""
+                  return (
+                    <div key={index} className="space-y-1 rounded border border-black/10 p-2">
+                      <div className="flex items-center justify-between gap-2 text-[10px]">
+                        <span>Source {index + 1}</span>
+                        <label className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={sources[index]?.enabled ?? Boolean(sourceUrl)}
+                            onChange={(e) => {
+                              const nextRawSources = Array.from({ length: 3 }).map((__, sourceIndex) => ({
+                                type: "youtube",
+                                url: sources[sourceIndex]?.url || "",
+                                youtubeId: sources[sourceIndex]?.youtubeId || "",
+                                enabled: sourceIndex === index ? e.target.checked : sources[sourceIndex]?.enabled ?? Boolean(sources[sourceIndex]?.url),
+                                order: sourceIndex + 1,
+                              }))
+                              const nextSources = normalizeEditorVideoSources(nextRawSources)
+                              dispatch({
+                                type: "UPDATE_BACKGROUND",
+                                nodeId: selectedNode.id,
+                                patch: {
+                                  videoUrl: nextSources.find((source) => source.enabled)?.url || nextSources[0]?.url || "",
+                                  videoSources: nextSources,
+                                  mediaKind: "video",
+                                },
+                              })
+                            }}
+                          />
+                          Enabled
+                        </label>
+                      </div>
+                      <input
+                        className="w-full rounded border p-1 text-xs"
+                        placeholder={`YouTube source ${index + 1}`}
+                        value={sourceUrl}
+                        onChange={(e) => {
+                          const nextRawSources = Array.from({ length: 3 }).map((__, sourceIndex) => ({
+                            type: "youtube",
+                            url: sourceIndex === index ? e.target.value : sources[sourceIndex]?.url || "",
+                            youtubeId: sources[sourceIndex]?.youtubeId || "",
+                            enabled: sources[sourceIndex]?.enabled ?? true,
+                            order: sourceIndex + 1,
+                          }))
+                          const nextSources = normalizeEditorVideoSources(nextRawSources)
+                          dispatch({
+                            type: "UPDATE_BACKGROUND",
+                            nodeId: selectedNode.id,
+                            patch: {
+                              videoUrl: nextSources.find((source) => source.enabled)?.url || nextSources[0]?.url || "",
+                              videoSources: nextSources,
+                              mediaKind: "video",
+                            },
+                          })
+                        }}
+                      />
+                    </div>
+                  )
+                })}
               </>
             )}
 
@@ -3098,9 +3922,20 @@ export function VisualEditorOverlay() {
 
             {selectedNode.type === "section" && (
               <>
-                {selectedNode.id === "navigation" && (
+                {(selectedNode.id === "navigation" || selectedNode.id === "about-section") && (
                   <>
-                    <label className="text-[10px]">Scrolled background opacity ({readColorOpacity(selectedNode.style.backgroundColor || "#00000080").toFixed(2)})</label>
+                    <label className="text-[10px]">{selectedNode.id === "navigation" ? "Navigation" : "About"} background color</label>
+                    <input
+                      type="color"
+                      className="h-8 w-full rounded border p-1"
+                      value={readColorHex(selectedNode.style.backgroundColor, "#000000")}
+                      onChange={(e) => dispatch({
+                        type: "UPDATE_SECTION",
+                        nodeId: selectedNode.id,
+                        patch: { backgroundColor: withColorOpacity(e.target.value, readColorOpacity(selectedNode.style.backgroundColor || "#00000080")) },
+                      })}
+                    />
+                    <label className="text-[10px]">Background opacity ({readColorOpacity(selectedNode.style.backgroundColor || "#00000080").toFixed(2)})</label>
                     <input
                       type="range"
                       min={0}
@@ -3117,7 +3952,7 @@ export function VisualEditorOverlay() {
 
             {isSimpleEditableBox && (
               <>
-                {selectedNode.type === "card" && !isExtraNodeId(selectedNode.id) && (
+                {selectedNode.type === "card" && !isExtraNodeId(selectedNode.id) && selectedNode.id !== "latest-release-card" && selectedNode.id !== "about-text-card" && !/^member-item-\d+$/.test(selectedNode.id) && !/^press-kit-resource-\d+$/.test(selectedNode.id) && selectedNode.id !== "press-kit-manager" && (
                   <>
                     <label className="text-xs font-semibold">Card Text</label>
                     <textarea
@@ -3141,8 +3976,12 @@ export function VisualEditorOverlay() {
                 <input
                   type="color"
                   className="h-8 w-full rounded border p-1"
-                  value={selectedNode.style.backgroundColor || "#000000"}
-                  onChange={(e) => dispatch({ type: "UPDATE_CARD", nodeId: selectedNode.id, patch: { backgroundColor: e.target.value } })}
+                  value={readColorHex(selectedNode.style.backgroundColor, "#000000")}
+                  onChange={(e) => dispatch({
+                    type: "UPDATE_CARD",
+                    nodeId: selectedNode.id,
+                    patch: { backgroundColor: withColorOpacity(e.target.value, readColorOpacity(selectedNode.style.backgroundColor)) },
+                  })}
                 />
               </>
             )}

@@ -11,10 +11,16 @@ export interface BandMemberData {
 export interface BandMembersLoadResult {
   members: BandMemberData[]
   backgroundImageUrl: string
+  headerEyebrow: string
+  headerTitle: string
+  headerDescription: string
   elementStyles?: Record<string, Record<string, unknown>>
 }
 
 const DEFAULT_BAND_BACKGROUND = "/images/sections/band-section.jpg"
+const DEFAULT_BAND_HEADER_EYEBROW = "The Musicians"
+const DEFAULT_BAND_HEADER_TITLE = "Meet the Band"
+const DEFAULT_BAND_HEADER_DESCRIPTION = "Five musicians from diverse backgrounds, united by a passion for rhythm and groove."
 
 const FALLBACK_MEMBERS: BandMemberData[] = [
   { id: 1, fullName: "Janosch Puhe", role: "Main Vocals", image: "/images/members/Janosch Puhe2.JPG" },
@@ -75,7 +81,7 @@ export async function loadBandMembersData(
       projectId: resolveSanityProjectId(),
       dataset: resolveSanityDataset(),
       apiVersion: "2024-01-01",
-      useCdn: process.env.SANITY_USE_CDN === "true",
+      useCdn: false,
       perspective: perspective,
     })
 
@@ -100,10 +106,16 @@ export async function loadBandMembersData(
     // Load band members settings (styles/layout materialized from editor)
     const settingsQuery = `*[_type == "bandMembersSettings"][0]{
       elementStyles,
+      headerEyebrow,
+      headerTitle,
+      headerDescription,
       "backgroundImageUrl": backgroundImage.asset->url
     }`
     const settings = await client.fetch<{
       elementStyles?: unknown
+      headerEyebrow?: string
+      headerTitle?: string
+      headerDescription?: string
       backgroundImageUrl?: string
     } | null>(settingsQuery)
     const elementStyles = parseElementStyles(settings?.elementStyles)
@@ -111,6 +123,9 @@ export async function loadBandMembersData(
     return {
       members,
       backgroundImageUrl: settings?.backgroundImageUrl || DEFAULT_BAND_BACKGROUND,
+      headerEyebrow: settings?.headerEyebrow?.trim() || DEFAULT_BAND_HEADER_EYEBROW,
+      headerTitle: settings?.headerTitle?.trim() || DEFAULT_BAND_HEADER_TITLE,
+      headerDescription: settings?.headerDescription?.trim() || DEFAULT_BAND_HEADER_DESCRIPTION,
       elementStyles,
     }
   } catch (error) {
@@ -118,6 +133,9 @@ export async function loadBandMembersData(
     return {
       members: FALLBACK_MEMBERS,
       backgroundImageUrl: DEFAULT_BAND_BACKGROUND,
+      headerEyebrow: DEFAULT_BAND_HEADER_EYEBROW,
+      headerTitle: DEFAULT_BAND_HEADER_TITLE,
+      headerDescription: DEFAULT_BAND_HEADER_DESCRIPTION,
       elementStyles: {},
     }
   }

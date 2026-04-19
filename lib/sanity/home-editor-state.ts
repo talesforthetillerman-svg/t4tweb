@@ -60,8 +60,15 @@ export interface HomeEditorNodeContent {
     gradientEnd?: string
   }>
   href?: string
+  fileName?: string
+  title?: string
+  description?: string
+  download?: boolean
+  assets?: Array<{ label: string; url: string; fileName: string }>
   src?: string
   alt?: string
+  role?: string
+  email?: string
   videoUrl?: string
   mediaKind?: "image" | "video"
   gradientEnabled?: boolean

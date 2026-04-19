@@ -67,6 +67,7 @@ function hasUsableHeroTextGeometry(styles: Record<string, unknown>, elementStyle
 
 function applyLegacyTextStyleFields(result: CSSProperties, styles: Record<string, unknown>): CSSProperties {
   if (typeof styles.fontSize === "string" && styles.fontSize.trim()) result.fontSize = styles.fontSize
+  if (typeof styles.fontFamily === "string" && styles.fontFamily.trim()) result.fontFamily = styles.fontFamily
   if (typeof styles.fontWeight === "string" && styles.fontWeight.trim()) result.fontWeight = styles.fontWeight
   if (typeof styles.fontStyle === "string" && styles.fontStyle !== "normal") result.fontStyle = styles.fontStyle
   if (typeof styles.textDecoration === "string" && styles.textDecoration !== "none") result.textDecoration = styles.textDecoration

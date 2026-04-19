@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, type CSSProperties } from "react"
+import { useMemo, useSyncExternalStore, type CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { TEXT_EMPHASIS_SHADOW } from "@/lib/hero-layout-styles"
 import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
@@ -8,6 +8,19 @@ import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 type ExtraNodeKind = "text" | "button" | "card" | "overlay"
 
 const EXTRA_NODE_PREFIX = "extra-"
+
+function subscribeAfterHydration(onStoreChange: () => void): () => void {
+  const timeout = window.setTimeout(onStoreChange, 0)
+  return () => window.clearTimeout(timeout)
+}
+
+function getMountedSnapshot(): boolean {
+  return true
+}
+
+function getServerSnapshot(): boolean {
+  return false
+}
 
 function getExtraNodeKind(node: HomeEditorNodeOverride): ExtraNodeKind | null {
   if (!node.nodeId.startsWith(EXTRA_NODE_PREFIX)) return null
@@ -39,9 +52,10 @@ function buildExtraNodeStyle(node: HomeEditorNodeOverride, kind: ExtraNodeKind):
     fontWeight: node.style.fontWeight,
     fontStyle: node.style.fontStyle,
     textDecoration: node.style.textDecoration,
+    textAlign: node.style.textAlign,
     display: kind === "button" ? "inline-flex" : kind === "text" ? "block" : "flex",
     alignItems: kind === "text" ? undefined : "center",
-    justifyContent: kind === "text" ? undefined : "center",
+    justifyContent: kind === "text" ? undefined : node.style.textAlign === "left" ? "flex-start" : node.style.textAlign === "right" ? "flex-end" : "center",
     padding: kind === "text" ? undefined : kind === "button" ? "0 18px" : "16px",
     borderRadius: kind === "text" ? undefined : "8px",
     border: kind === "card" ? "1px solid rgba(255,255,255,0.18)" : undefined,
@@ -51,8 +65,8 @@ function buildExtraNodeStyle(node: HomeEditorNodeOverride, kind: ExtraNodeKind):
     overflow: "hidden",
   }
 
-  if ((kind === "text" || kind === "button") && node.style.textShadowEnabled) {
-    style.textShadow = TEXT_EMPHASIS_SHADOW
+  if (kind === "text" || kind === "button") {
+    style.textShadow = node.style.textShadowEnabled ? TEXT_EMPHASIS_SHADOW : "none"
   }
   if ((kind === "text" || kind === "button") && node.style.gradientEnabled) {
     style.background = `linear-gradient(90deg, ${node.style.gradientStart || "#FFB15A"}, ${node.style.gradientEnd || "#FF6C00"})`
@@ -66,9 +80,10 @@ function buildExtraNodeStyle(node: HomeEditorNodeOverride, kind: ExtraNodeKind):
 }
 
 export function ExtraNodesRenderer({ nodes }: { nodes: HomeEditorNodeOverride[] }) {
+  const mounted = useSyncExternalStore(subscribeAfterHydration, getMountedSnapshot, getServerSnapshot)
   const extraNodes = useMemo(() => nodes.filter((node) => getExtraNodeKind(node) !== null), [nodes])
 
-  if (typeof document === "undefined" || extraNodes.length === 0) return null
+  if (!mounted || extraNodes.length === 0) return null
 
   return (
     <>

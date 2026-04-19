@@ -17,9 +17,16 @@ export const DEFAULT_NAV_LINKS: NavigationData["links"] = [
   { href: "#band", label: "Band" },
   { href: "#live", label: "Live" },
   { href: "#contact", label: "Contact" },
+  { href: "#latest-release", label: "Release" },
 ]
 
 const DEFAULT_LINKS = DEFAULT_NAV_LINKS
+const LATEST_RELEASE_NAV_LINK = { href: "#latest-release", label: "Release" }
+
+function withLatestReleaseLink(links: NavigationData["links"]): NavigationData["links"] {
+  const hasReleaseLink = links.some((link) => link.href === LATEST_RELEASE_NAV_LINK.href || link.label.toLowerCase() === "release")
+  return hasReleaseLink ? links : [...links, LATEST_RELEASE_NAV_LINK]
+}
 
 const FALLBACK: NavigationData = {
   brandName: "Tales for the Tillerman",
@@ -53,8 +60,9 @@ export async function loadNavigationData(perspective: "published" | "drafts" = "
 
     if (!fetched) return FALLBACK
 
-    const links =
+    const links = withLatestReleaseLink(
       Array.isArray(fetched.links) && fetched.links.length > 0 ? fetched.links : FALLBACK.links
+    )
 
     const elementStyles =
       fetched.elementStyles && typeof fetched.elementStyles === "object" && !Array.isArray(fetched.elementStyles)

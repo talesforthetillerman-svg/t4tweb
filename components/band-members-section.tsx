@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import type { CSSProperties } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
@@ -12,12 +13,32 @@ import type { BandMemberData } from "@/lib/sanity/band-members-loader"
 interface BandMembersSectionProps {
   initialMembers: BandMemberData[]
   backgroundImageUrl?: string
+  headerEyebrow?: string
+  headerTitle?: string
+  headerDescription?: string
   elementStyles?: Record<string, Record<string, unknown>>
+}
+
+function getBandMemberCardStyle(
+  elementStyles: Record<string, Record<string, unknown>>,
+  nodeId: string
+): CSSProperties {
+  const style = { ...getElementLayoutStyle(elementStyles, nodeId) }
+  const rawStyle = elementStyles[nodeId]
+  delete style.opacity
+  if (typeof rawStyle?.backgroundColor === "string") {
+    style.backgroundColor = rawStyle.backgroundColor
+    style.backgroundImage = "none"
+  }
+  return style
 }
 
 export function BandMembersSection({
   initialMembers,
   backgroundImageUrl = "/images/sections/band-section.jpg",
+  headerEyebrow = "The Musicians",
+  headerTitle = "Meet the Band",
+  headerDescription = "Five musicians from diverse backgrounds, united by a passion for rhythm and groove.",
   elementStyles = {},
 }: BandMembersSectionProps) {
   const sectionRef = useRef<HTMLElement>(null)
@@ -64,7 +85,6 @@ export function BandMembersSection({
   }))
   const activeMember = displayedMembers[activeIndex]
   const activeImage = activeMember?.image || initialMembers[0]?.image || ""
-  const headerLayoutStyle = getElementLayoutStyle(elementStyles, "band-members-header")
 
   return (
     <section
@@ -102,16 +122,13 @@ export function BandMembersSection({
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div
-            style={isEditing ? headerLayoutStyle : { ...headerLayoutStyle, opacity, y }}
+            style={isEditing ? undefined : { opacity, y }}
             className="mb-8 md:mb-12 lg:mb-16 text-center"
-            data-editor-node-id="band-members-header"
-            data-editor-node-type="card"
-            data-editor-node-label="Encabezado Miembros"
           >
           <SectionHeader
-            eyebrow="The Musicians"
-            title="Meet the Band"
-            description="Five musicians from diverse backgrounds, united by a passion for rhythm and groove."
+            eyebrow={headerEyebrow}
+            title={headerTitle}
+            description={headerDescription}
             dataEditId="band-members-header"
             dataEditLabel="Encabezado Miembros"
             elementStyles={elementStyles}
@@ -177,7 +194,7 @@ export function BandMembersSection({
                 role="button"
                 tabIndex={0}
                 aria-label={`${member.fullName} card`}
-                style={getElementLayoutStyle(elementStyles, `member-item-${index}`)}
+                style={getBandMemberCardStyle(elementStyles, `member-item-${index}`)}
                 className={`group flex min-h-[62px] w-full touch-manipulation items-center justify-between rounded-xl border p-3.5 text-left transition-all duration-300 md:min-h-[88px] md:rounded-2xl md:p-6
                   ${
                     activeIndex === index

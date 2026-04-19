@@ -10,6 +10,12 @@ export default defineType({
       title: 'Background image',
       type: 'image',
     }),
+    defineField({
+      name: 'concertsManagedByEditor',
+      title: 'Concerts managed by custom editor',
+      type: 'boolean',
+      readOnly: true,
+    }),
     // elementStylesFieldConfig() — managed via editor API, not Studio UI
     defineField({
       name: 'updatedAt',
