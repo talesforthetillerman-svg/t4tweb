@@ -3,5 +3,6 @@
     "tabby.config.telemetry": false,
     "tabby.settings.advanced": {
         
-    }
+    },
+    "codium.codeCompletion.enable": false
 }
