@@ -1,196 +1,427 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useEffect, useState } from "react"
+import type { CSSProperties } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
-import { useScrollAnimation } from "@/hooks/useScrollAnimation"
+import { SectionHeader } from "@/components/section-header"
+import { useVisualEditor } from "@/components/visual-editor"
+import { getElementLayoutStyle } from "@/lib/hero-layout-styles"
+import type { PressKitData } from "@/lib/sanity/press-kit-loader"
 
-export function PressKitSection() {
+interface PressKitSectionProps {
+  data: PressKitData
+}
+
+function getPressKitBoxStyle(elementStyles: PressKitData["elementStyles"], nodeId: string): CSSProperties {
+  const style = { ...getElementLayoutStyle(elementStyles, nodeId) }
+  const rawStyle = elementStyles[nodeId]
+  delete style.opacity
+  if (typeof rawStyle?.backgroundColor === "string") {
+    style.backgroundColor = rawStyle.backgroundColor
+    style.backgroundImage = "none"
+  }
+  return style
+}
+
+export function PressKitSection({ data }: PressKitSectionProps) {
+  const { isEditing, registerEditable, unregisterEditable } = useVisualEditor()
   const sectionRef = useRef<HTMLElement>(null)
-  const { opacity, y } = useScrollAnimation(sectionRef)
+  const bgRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
+  const mainCardRef = useRef<HTMLDivElement>(null)
+  const folderIconRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  const descriptionRef = useRef<HTMLParagraphElement>(null)
+  const downloadButtonRef = useRef<HTMLAnchorElement>(null)
+  const resourceRefs = useRef<(HTMLAnchorElement | null)[]>([])
+  const managerRef = useRef<HTMLButtonElement>(null)
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState<number | null>(null)
 
-  const resources = [
-    {
-      title: "Band Logo",
-      description: "High-resolution logo files",
-      icon: ImageIcon,
-      href: "/images/logo-transparent.png",
-      download: true,
-    },
-    {
-      title: "Linktree",
-      description: "All links in one place",
-      icon: LinkIcon,
-      href: "https://linktr.ee/tales4tillerman",
-    },
-  ]
+  const visibleResources = data.resources.slice(0, 2)
+  const pressKitTitle = data.pressKitTitle
+  const pressKitDescription = data.pressKitDescription
+  const pressKitButtonLabel = data.pressKitButtonLabel
+  const pressKitButtonHref = data.pressKitButtonHref
+  const pressKitButtonFileName = data.pressKitButtonFileName
+  const pressKitManagerTitle = data.managerTitle
+  const pressKitBgSrc = data.backgroundImageUrl
 
   const resourceVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 12 },
     visible: (custom: number) => ({
       opacity: 1,
       y: 0,
       transition: {
-        delay: custom * 0.1,
-        duration: 0.5,
+        delay: custom * 0.08,
+        duration: 0.42,
       },
-    }),
+      }),
   }
 
+  useEffect(() => {
+    if (!isEditing) return
+
+    if (sectionRef.current) {
+      registerEditable({
+        id: 'press-kit-section',
+        type: 'section',
+        label: 'Press Kit Section',
+        parentId: null,
+        element: sectionRef.current,
+        originalRect: sectionRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: sectionRef.current.offsetWidth, height: sectionRef.current.offsetHeight },
+      })
+    }
+
+    if (bgRef.current) {
+      registerEditable({
+        id: 'press-kit-bg',
+        type: 'image',
+        label: 'Press Kit Background',
+        parentId: 'press-kit-section',
+        element: bgRef.current,
+        originalRect: bgRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: bgRef.current.offsetWidth, height: bgRef.current.offsetHeight },
+      })
+    }
+
+    if (headerRef.current) {
+      registerEditable({
+        id: 'press-kit-header',
+        type: 'text',
+        label: 'Press Kit Header',
+        parentId: 'press-kit-section',
+        element: headerRef.current,
+        originalRect: headerRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: headerRef.current.offsetWidth, height: headerRef.current.offsetHeight },
+      })
+    }
+
+    if (folderIconRef.current) {
+      registerEditable({
+        id: 'press-kit-folder-icon',
+        type: 'box',
+        label: 'Folder Icon',
+        parentId: 'press-kit-section',
+        element: folderIconRef.current,
+        originalRect: folderIconRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: folderIconRef.current.offsetWidth, height: folderIconRef.current.offsetHeight },
+      })
+    }
+
+    if (mainCardRef.current) {
+      registerEditable({
+        id: 'press-kit-main-card',
+        type: 'box',
+        label: 'Main Press Kit Card',
+        parentId: 'press-kit-section',
+        element: mainCardRef.current,
+        originalRect: mainCardRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: mainCardRef.current.offsetWidth, height: mainCardRef.current.offsetHeight },
+      })
+    }
+
+    if (titleRef.current) {
+      registerEditable({
+        id: 'press-kit-title',
+        type: 'text',
+        label: 'Press Kit Title',
+        parentId: 'press-kit-section',
+        element: titleRef.current,
+        originalRect: titleRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: titleRef.current.offsetWidth, height: titleRef.current.offsetHeight },
+      })
+    }
+
+    if (descriptionRef.current) {
+      registerEditable({
+        id: 'press-kit-description',
+        type: 'text',
+        label: 'Press Kit Description',
+        parentId: 'press-kit-section',
+        element: descriptionRef.current,
+        originalRect: descriptionRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: descriptionRef.current.offsetWidth, height: descriptionRef.current.offsetHeight },
+      })
+    }
+
+    if (downloadButtonRef.current) {
+      registerEditable({
+        id: 'press-kit-download-button',
+        type: 'button',
+        label: 'Download Press Kit Button',
+        parentId: 'press-kit-section',
+        element: downloadButtonRef.current,
+        originalRect: downloadButtonRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: downloadButtonRef.current.offsetWidth, height: downloadButtonRef.current.offsetHeight },
+      })
+    }
+
+    // Register lower cards for selection (drag is handled separately)
+    resourceRefs.current = resourceRefs.current.slice(0, visibleResources.length)
+    resourceRefs.current.forEach((ref, index) => {
+      if (ref) {
+        registerEditable({
+          id: `press-kit-resource-${index}`,
+          type: 'card',
+          label: `Resource: ${visibleResources[index]?.title || index}`,
+          parentId: 'press-kit-section',
+          element: ref,
+          originalRect: ref.getBoundingClientRect(),
+          transform: { x: 0, y: 0 },
+          dimensions: { width: ref.offsetWidth, height: ref.offsetHeight },
+        })
+      }
+    })
+
+    if (managerRef.current) {
+      registerEditable({
+        id: 'press-kit-manager',
+        type: 'card',
+        label: 'Manager Contact',
+        parentId: 'press-kit-section',
+        element: managerRef.current,
+        originalRect: managerRef.current.getBoundingClientRect(),
+        transform: { x: 0, y: 0 },
+        dimensions: { width: managerRef.current.offsetWidth, height: managerRef.current.offsetHeight },
+      })
+    }
+
+    return () => {
+      unregisterEditable('press-kit-section')
+      unregisterEditable('press-kit-bg')
+      unregisterEditable('press-kit-folder-icon')
+      unregisterEditable('press-kit-main-card')
+      unregisterEditable('press-kit-title')
+      unregisterEditable('press-kit-description')
+      unregisterEditable('press-kit-download-button')
+      visibleResources.forEach((_, i) => unregisterEditable(`press-kit-resource-${i}`))
+      unregisterEditable('press-kit-manager')
+    }
+  }, [isEditing, registerEditable, unregisterEditable, visibleResources])
+
   return (
-    <section id="press-kit" ref={sectionRef} className="relative py-16 md:py-20 overflow-hidden">
-      <div className="absolute inset-0 -z-10">
+    <section 
+      ref={sectionRef} 
+      className="relative min-h-[85vh] min-h-[85dvh] w-full overflow-hidden sm:min-h-screen sm:min-h-[100dvh]"
+      data-editor-node-id="press-kit-section"
+      data-editor-node-type="section"
+      data-editor-node-label="Press Kit Section"
+      style={getPressKitBoxStyle(data.elementStyles, "press-kit-section")}>
+      <div
+        ref={bgRef}
+        className="absolute inset-0 -z-10"
+        data-editor-node-id="press-kit-bg"
+        data-editor-node-type="background"
+        data-editor-media-kind="image"
+        data-editor-node-label="Background Image"
+        style={getElementLayoutStyle(data.elementStyles, "press-kit-bg")}
+      >
         <Image
-          src="/images/sections/press-bg.jpg"
+          src={pressKitBgSrc}
           alt="Press kit background"
           fill
           className="object-cover"
+          sizes="100vw"
         />
-        <div className="absolute inset-0 bg-black/50" />
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header */}
-        <motion.div
-          style={{ opacity, y }}
-          className="text-center mb-12"
-        >
-          <motion.span
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="text-primary text-sm font-medium tracking-wider uppercase mb-4 block"
-          >
-            Media Resources
-          </motion.span>
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="font-serif text-4xl md:text-5xl lg:text-6xl text-foreground mb-6 text-balance"
-          >
-            Professional Press Materials
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-muted-foreground max-w-2xl mx-auto text-lg"
-          >
-            Everything you need for press coverage, event promotion, and booking information.
-          </motion.p>
-        </motion.div>
+      <div className="section-photo-scrim" />
+      <div className="section-photo-fade-top" />
+      <div className="section-photo-fade-bottom" />
 
-        {/* Main Download CTA */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mb-12"
-        >
-          <div className="bg-card/33 border border-border rounded-3xl p-8 md:p-12 text-center backdrop-blur-sm">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-primary/20 flex items-center justify-center">
-              <FolderIcon className="w-10 h-10 text-primary" />
+      <div className="relative z-20">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
+          <motion.div 
+            ref={headerRef}
+            className="mb-10 md:mb-12"
+          >
+            <div>
+              <SectionHeader
+              eyebrow="Media Resources"
+              title="Professional Press Materials"
+              description="Everything you need for press coverage, event promotion, and booking information."
+              dataEditId="press-kit-header"
+              dataEditType="text"
+              dataEditLabel="Press Kit Header"
+            />
             </div>
-            <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-3">
-              Complete Press Kit
-            </h3>
-            <p className="text-muted-foreground max-w-lg mx-auto mb-8">
-              Download our full press kit including high-quality photos, biography, technical rider, and more.
-            </p>
-            <a
-              href="/PressKit T40 2025.26_compressed.pdf"
-              download="PressKit T40 2025.26_compressed.pdf"
-              className="inline-flex items-center gap-3 px-10 py-5 bg-primary text-primary-foreground rounded-xl font-semibold text-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/25"
+          </motion.div>
+
+          <motion.div
+            ref={mainCardRef}
+            initial={isEditing ? false : { opacity: 0, y: 12 }}
+            whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+            viewport={isEditing ? undefined : { once: true, amount: 0.2 }}
+            transition={isEditing ? undefined : { duration: 0.45 }}
+            className="mb-10 md:mb-12">
+            <div 
+              className="rounded-xl border border-border bg-card/35 p-4 text-center shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-6 md:p-9"
+              data-editor-node-id="press-kit-main-card"
+              data-editor-node-type="card"
+              data-editor-node-label="Main Press Kit Card"
+              style={getPressKitBoxStyle(data.elementStyles, "press-kit-main-card")}
             >
-              <motion.span
-                whileHover={{ scale: 1.1, rotate: 20 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              >
-                <DownloadIcon className="w-6 h-6" />
-              </motion.span>
-              Press Kit
-            </a>
-          </div>
-        </motion.div>
-
-        {/* Additional Resources Grid */}
-        <div className="grid sm:grid-cols-3 gap-6">
-          {/* Band Logo Card - First */}
-          {resources.length > 0 && (() => {
-            const BandLogoIcon = resources[0].icon;
-            return (
-              <motion.a
-                key={resources[0].title}
-                custom={0}
-                initial="hidden"
-                whileInView="visible"
-                variants={resourceVariants}
-                whileHover={{ y: -4, scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                href={resources[0].href}
-                target={resources[0].download ? undefined : "_blank"}
-                rel={resources[0].download ? undefined : "noopener noreferrer"}
-                download={resources[0].download}
-                className="group p-6 bg-card/33 rounded-2xl border border-border hover:border-primary/50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl"
-              >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-secondary text-muted-foreground group-hover:text-foreground transition-colors">
-                  <BandLogoIcon />
-                </div>
-                <h3 className="font-medium text-foreground mb-1">{resources[0].title}</h3>
-                <p className="text-sm text-muted-foreground">{resources[0].description}</p>
-              </motion.a>
-            );
-          })()}
-
-          {/* Manager Card - Second */}
-          <motion.a
-            href="mailto:talesforthetillerman@gmail.com"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            whileHover={{ y: -4, scale: 1.02 }}
-            transition={{ duration: 0.6, delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
-            className="group p-6 bg-card/33 rounded-2xl border border-border hover:border-primary/50 transition-all duration-300 overflow-hidden backdrop-blur-sm shadow-lg hover:shadow-xl cursor-pointer"
-          >
-            <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden">
-              <img
-                src="/images/Momo Garcia Manager.png"
-                alt="Momo Garcia Manager"
-                className="w-full h-full object-cover blur-sm group-hover:blur-none transition-all duration-300"
-              />
+              <div ref={folderIconRef} className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-[#FF8C21]/18 sm:mb-5 sm:h-16 sm:w-16 md:mb-6 md:h-20 md:w-20" style={getPressKitBoxStyle(data.elementStyles, "press-kit-folder-icon")}>
+                <FolderIcon className="h-8 w-8 text-[#FF8C21] sm:h-9 sm:w-9 md:h-10 md:w-10" />
+              </div>
+              <h3 
+                ref={titleRef}
+                className="mb-2 font-serif text-[clamp(1.5rem,6.5vw,2.1rem)] leading-tight text-foreground md:mb-3 md:text-[length:var(--text-h3)]"
+                data-editor-node-id="press-kit-title"
+                data-editor-node-type="text"
+                data-editor-node-label="Press Kit Title"
+                style={getElementLayoutStyle(data.elementStyles, "press-kit-title")}>
+                {pressKitTitle}
+              </h3>
+              <p 
+                ref={descriptionRef}
+                className="mx-auto mb-5 max-w-lg text-sm leading-relaxed text-muted-foreground md:mb-7 md:text-[length:var(--text-body)]"
+                data-editor-node-id="press-kit-description"
+                data-editor-node-type="text"
+                data-editor-node-label="Press Kit Description"
+                style={getElementLayoutStyle(data.elementStyles, "press-kit-description")}>
+                {pressKitDescription}
+              </p>
+              <a
+                ref={downloadButtonRef}
+                href={pressKitButtonHref}
+                download={pressKitButtonFileName}
+                onClick={(event) => {
+                  if (isEditing) event.preventDefault()
+                }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF8C21] px-5 py-3 text-sm font-semibold text-white shadow-md shadow-[#FF8C21]/22 transition-all hover:bg-[#FF7C00] sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"
+                data-editor-node-id="press-kit-download-button"
+                data-editor-node-type="button"
+                data-editor-node-label="Download Press Kit Button"
+                data-editor-download-name={pressKitButtonFileName}
+                data-editor-download-url={pressKitButtonHref}
+                style={getPressKitBoxStyle(data.elementStyles, "press-kit-download-button")}>
+                <DownloadIcon className="h-6 w-6" />
+                {pressKitButtonLabel}
+              </a>
             </div>
-            <h3 className="font-medium text-foreground mb-1">Manager</h3>
-            <p className="text-sm text-muted-foreground">Momo Garcia - Band Management</p>
-          </motion.a>
+          </motion.div>
 
-          {/* Linktree Card - Third */}
-          {resources.length > 1 && (() => {
-            const LinktreeIcon = resources[1].icon;
-            return (
-              <motion.a
-                key={resources[1].title}
-                custom={1}
-                initial="hidden"
-                whileInView="visible"
-                variants={resourceVariants}
-                whileHover={{ y: -4, scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                href={resources[1].href}
-                target={resources[1].download ? undefined : "_blank"}
-                rel={resources[1].download ? undefined : "noopener noreferrer"}
-                download={resources[1].download}
-                className="group p-6 bg-card/33 rounded-2xl border border-border hover:border-primary/50 transition-all duration-300 backdrop-blur-sm shadow-lg hover:shadow-xl"
-              >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-secondary text-muted-foreground group-hover:text-foreground transition-colors">
-                  <LinktreeIcon />
-                </div>
-                <h3 className="font-medium text-foreground mb-1">{resources[1].title}</h3>
-                <p className="text-sm text-muted-foreground">{resources[1].description}</p>
-              </motion.a>
-            );
-          })()}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {visibleResources.map((resource, index) => {
+              const Icon = ImageIcon
+              return (
+                <motion.a
+                  ref={(el) => { resourceRefs.current[index] = el }}
+                  key={resource.title}
+                  custom={index}
+                  initial={isEditing ? false : "hidden"}
+                  whileInView={isEditing ? undefined : "visible"}
+                  variants={resourceVariants}
+                  whileHover={isEditing ? undefined : { y: -2 }}
+                  transition={isEditing ? undefined : { type: "spring", stiffness: 320, damping: 22 }}
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    if (isEditing) return
+                    setActiveGalleryIndex(index)
+                  }}
+                  className="group rounded-xl border border-border bg-card/35 p-4 shadow-md backdrop-blur-sm transition-all duration-300 hover:border-[#FF8C21]/45 hover:shadow-lg sm:rounded-2xl sm:p-5"
+                  data-editor-node-id={`press-kit-resource-${index}`}
+                  data-editor-node-type="card"
+                  data-editor-node-label={`Resource: ${resource.title}`}
+                  data-editor-grouped="true"
+                  data-editor-resource-assets={JSON.stringify(resource.assets)}
+                  style={getPressKitBoxStyle(data.elementStyles, `press-kit-resource-${index}`)}
+                >
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition-colors group-hover:text-foreground">
+                    <Icon />
+                  </div>
+                  <h3 className="mb-1 font-medium text-foreground" data-editor-resource-title>{resource.title}</h3>
+                  <p className="text-sm text-muted-foreground" data-editor-resource-description>{resource.description}</p>
+                </motion.a>
+              )
+            })}
+
+            <ManagerCard
+              managerRef={managerRef}
+              isEditing={isEditing}
+              managerTitle={pressKitManagerTitle}
+              managerName={data.managerName}
+              managerRole={data.managerRole}
+              managerEmail={data.managerEmail}
+              managerPhotoUrl={data.managerPhotoUrl}
+              managerStyle={getPressKitBoxStyle(data.elementStyles, "press-kit-manager")}
+            />
+          </div>
         </div>
       </div>
+
+      <div className="section-photo-fade-bottom" />
+      {activeGalleryIndex !== null && visibleResources[activeGalleryIndex] && (
+        <ResourceGalleryModal
+          resource={visibleResources[activeGalleryIndex]}
+          onClose={() => setActiveGalleryIndex(null)}
+        />
+      )}
     </section>
+  )
+}
+
+function ResourceGalleryModal({
+  resource,
+  onClose,
+}: {
+  resource: PressKitData["resources"][number]
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 sm:p-5" onClick={onClose}>
+      <div
+        className="flex max-h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-xl sm:p-5"
+        onClick={(event) => event.stopPropagation()}
+        onWheel={(event) => event.stopPropagation()}
+      >
+        <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
+          <div>
+            <h3 className="font-serif text-xl font-semibold text-foreground">{resource.title}</h3>
+            <p className="text-sm text-muted-foreground">{resource.description}</p>
+          </div>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+            onClick={onClose}
+            aria-label="Close resource gallery"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {resource.assets.map((asset) => (
+              <a
+                key={`${asset.url}-${asset.label}`}
+                href={asset.url}
+                download={asset.fileName}
+                className="group overflow-hidden rounded-lg border border-border bg-background/60 shadow-sm transition-all hover:border-[#FF8C21]/50 hover:shadow-md"
+                aria-label={`Download ${asset.label}`}
+              >
+                <div className="relative aspect-square w-full bg-secondary">
+                  <img src={asset.url} alt={asset.label} className="h-full w-full object-cover" />
+                </div>
+                <div className="truncate px-2 py-2 text-xs font-medium text-foreground">{asset.label}</div>
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -220,19 +451,6 @@ function ImageIcon() {
   )
 }
 
-function LinkIcon() {
-  return (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.658 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-      />
-    </svg>
-  )
-}
-
 function DownloadIcon({ className }: { className?: string }) {
   return (
     <svg className={className || "w-6 h-6"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -243,5 +461,106 @@ function DownloadIcon({ className }: { className?: string }) {
         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
       />
     </svg>
+  )
+}
+
+function ManagerCard({
+  managerRef,
+  isEditing,
+  managerTitle,
+  managerName,
+  managerRole,
+  managerEmail,
+  managerPhotoUrl,
+  managerStyle,
+}: {
+  managerRef: React.RefObject<HTMLButtonElement | null>
+  isEditing: boolean
+  managerTitle: string
+  managerName: string
+  managerRole: string
+  managerEmail: string
+  managerPhotoUrl: string
+  managerStyle: CSSProperties | undefined
+}) {
+  const [showModal, setShowModal] = useState(false)
+  
+  return (
+    <>
+      <motion.button
+        ref={managerRef}
+        initial={isEditing ? false : { opacity: 0, y: 12 }}
+        whileInView={isEditing ? undefined : { opacity: 1, y: 0 }}
+        whileHover={isEditing ? undefined : { y: -2 }}
+        transition={isEditing ? undefined : { duration: 0.45, delay: 0.06, type: "spring", stiffness: 320, damping: 22 }}
+        onClick={(event) => {
+          if (isEditing) {
+            event.preventDefault()
+            return
+          }
+          setShowModal(true)
+        }}
+        className="group flex w-full flex-col items-start rounded-2xl border border-border bg-card/35 p-6 shadow-md backdrop-blur-sm transition-all duration-300 hover:border-[#FF8C21]/45 hover:shadow-lg cursor-pointer text-left"
+        data-editor-node-id="press-kit-manager"
+        data-editor-node-type="card"
+        data-editor-node-label="Manager Contact"
+        data-editor-grouped="true"
+        data-editor-manager-role={managerRole}
+        data-editor-manager-email={managerEmail}
+        data-editor-manager-photo={managerPhotoUrl}
+        style={managerStyle}
+      >
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-muted-foreground transition-colors group-hover:text-foreground">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <h3 className="mb-1 font-medium text-foreground" data-editor-manager-title>{managerTitle}</h3>
+        <p className="text-sm text-muted-foreground" data-editor-manager-name>{managerName}</p>
+      </motion.button>
+
+      {showModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div 
+          className="relative max-h-[90vh] max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+            onWheel={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="relative mb-4 h-56 w-full overflow-hidden rounded-xl">
+              <img
+                src={managerPhotoUrl}
+                alt={managerName}
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <h3 className="mb-2 font-serif text-xl font-semibold text-foreground">{managerName}</h3>
+            <p className="mb-4 text-sm text-muted-foreground">{managerRole}</p>
+            <a
+              href={`mailto:${managerEmail}`}
+              onClick={(event) => {
+                if (isEditing) event.preventDefault()
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#FF8C21] px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-[#FF7C00]"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Contact Manager
+            </a>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

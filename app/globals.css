@@ -3,20 +3,23 @@
 @tailwind utilities;
 
 :root {
+  --font-inter: "Inter", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
+  --font-playfair: "Playfair Display", Georgia, "Times New Roman", serif;
   /* ============================================================================
      COLOR TOKENS - Semantic color system
      ============================================================================ */
-  --background: 0 0% 4%;
+  --background: 0 0% 0%;
   --foreground: 0 0% 95%;
   --card: 0 0% 8%;
   --card-foreground: 0 0% 95%;
-  --primary: 35 100% 50%;
+  --primary: 33 100% 56%;  /* #FF8C21 */
   --primary-foreground: 0 0% 100%;
+  --primary-light: 33 100% 70%; /* Tone suave */
   --secondary: 0 0% 14%;
   --secondary-foreground: 0 0% 95%;
   --muted: 0 0% 18%;
   --muted-foreground: 0 0% 60%;
-  --accent: 35 90% 55%;
+  --accent: 33 100% 56%; /* Same as primary */
   --accent-foreground: 0 0% 100%;
   --border: 0 0% 18%;
   --ring: 35 100% 50%;
@@ -105,6 +108,7 @@
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 80px;
+    overflow-x: clip;
   }
 
   body {
@@ -113,6 +117,7 @@
     font-size: var(--text-body);
     line-height: var(--line-height-normal);
     color: var(--text-primary);
+    overflow-x: clip;
   }
 
   /* ========================================================================
@@ -667,8 +672,22 @@
   }
 }
 
+@keyframes hero-shine {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.24;
+  }
+}
+
 .animate-fade-in-up {
   animation: fade-in-up 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-hero-shine {
+  animation: hero-shine 16s ease-in-out infinite;
 }
 
 .animate-fade-in {
@@ -794,3 +813,228 @@ select:focus-visible {
     text-shadow: none !important;
   }
 }
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* body background now uses bg-background token from layer base */
+
+main,
+section {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Mobile touch optimizations */
+@media (max-width: 768px) {
+  html {
+    scroll-padding-top: 70px;
+  }
+  
+  /* Ensure all buttons/links meet touch target minimum */
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent text selection on interactive elements */
+  button,
+  a,
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Smooth momentum scrolling */
+  body {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ============================================================================
+   ORANGE BUTTONS - Consistent naranja #FF8C21 theme
+   ============================================================================ */
+
+/* Primary Orange Button with glow */
+.btn-orange {
+  background: linear-gradient(135deg, hsl(33, 100%, 56%), hsl(33, 100%, 50%));
+  color: #ffffff;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 25px rgba(255, 140, 33, 0.25);
+}
+
+.btn-orange:hover {
+  background: linear-gradient(135deg, hsl(33, 100%, 50%), hsl(33, 100%, 45%));
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(255, 140, 33, 0.35);
+}
+
+.btn-orange:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 20px rgba(255, 140, 33, 0.2);
+}
+
+/* Secondary Orange - Soft tone */
+.btn-orange-soft {
+  background: rgba(255, 140, 33, 0.15);
+  color: hsl(33, 100%, 56%);
+  border: 1px solid hsl(33, 100%, 56%);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(255, 140, 33, 0.1);
+}
+
+.btn-orange-soft:hover {
+  background: rgba(255, 140, 33, 0.25);
+  border-color: hsl(33, 100%, 45%);
+  box-shadow: 0 8px 20px rgba(255, 140, 33, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Ghost Orange Button */
+.btn-orange-ghost {
+  background: transparent;
+  color: hsl(33, 100%, 56%);
+  border: 2px solid hsl(33, 100%, 56%);
+  border-radius: 0.75rem;
+  padding: 0.65rem 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: inset 0 0 0 0 rgba(255, 140, 33, 0);
+}
+
+.btn-orange-ghost:hover {
+  background: hsl(33, 100%, 56%);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 2px rgba(255, 140, 33, 0.5), 0 8px 20px rgba(255, 140, 33, 0.2);
+}
+
+/* Icon Button Orange */
+.btn-icon-orange {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: rgba(255, 140, 33, 0.2);
+  color: hsl(33, 100%, 56%);
+  border: 1px solid hsl(33, 100%, 56%);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.btn-icon-orange:hover {
+  background: hsl(33, 100%, 56%);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(255, 140, 33, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Navigation Button Orange */
+.nav-btn-orange {
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, hsl(33, 100%, 56%), hsl(33, 100%, 52%));
+  color: #ffffff;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 20px rgba(255, 140, 33, 0.3);
+  white-space: nowrap;
+}
+
+.nav-btn-orange:hover {
+  background: linear-gradient(135deg, hsl(33, 100%, 52%), hsl(33, 100%, 48%));
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(255, 140, 33, 0.4);
+}
+
+.nav-btn-orange:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #000a0a, 0 0 0 4px hsl(33, 100%, 56%), 0 0 0 8px rgba(255, 140, 33, 0.2);
+}
+
+/* Full-bleed photo sections: one scrim strength + shared edge fades */
+@layer components {
+  .section-photo-scrim {
+    @apply absolute inset-0 -z-10 bg-black/45;
+  }
+
+  .section-photo-fade-top {
+    @apply pointer-events-none absolute inset-x-0 top-0 z-10 h-24 md:h-32 bg-gradient-to-b from-black via-black/25 to-transparent;
+  }
+
+  .section-photo-fade-bottom {
+    @apply pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 md:h-32 bg-gradient-to-t from-black via-black/25 to-transparent;
+  }
+}
+
+/* ============================================================================
+   VISUAL EDITOR
+   ============================================================================ */
+/* Conflict-resolution baseline: keep editor-mode interaction and visibility rules from stabilization branch. */
+
+/* Editable elements cursor */
+body[data-editor-mode="true"] [data-editor-node-id] {
+  cursor: move !important;
+  transition: none !important;
+  animation: none !important;
+  will-change: auto !important;
+}
+
+body[data-editor-mode="true"] [data-editor-node-id] * {
+  transition: none !important;
+  animation: none !important;
+}
+
+body[data-editor-mode="true"] [data-editor-node-id="nav-logo"],
+body[data-editor-mode="true"] [data-editor-node-id="hero-logo"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+body[data-editor-mode="true"] [data-editor-node-id="hero-title"],
+body[data-editor-mode="true"] [data-editor-node-id="hero-title"] * {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Hover state */
+body[data-editor-mode="true"] [data-editor-node-id]:hover {
+  outline: 2px dashed #FF8C21 !important;
+  outline-offset: 2px;
+}
+
+/* Editor UI always interactive */
+[data-editor-panel],
+[data-editor-panel] *,
+[data-editor-toolbar],
+[data-editor-toolbar] *,
+[data-editor-modal],
+[data-editor-modal] *,
+.resize-handle {
+  pointer-events: auto !important;
+}
+
+

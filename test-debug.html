@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Layout Debug Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow: auto; }
+    button { margin: 5px; padding: 8px 12px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #005a9e; }
+    .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Layout Debug System Test</h1>
+  
+  <div class="section">
+    <h2>Test Instructions</h2>
+    <p>Open these URLs in browser tabs:</p>
+    <ol>
+      <li><a href="http://localhost:3001/editor?layoutDebug=1" target="_blank">/editor?layoutDebug=1</a></li>
+      <li><a href="http://localhost:3001/?layoutDebug=1" target="_blank">/?layoutDebug=1</a></li>
+    </ol>
+    
+    <p>In each tab, open DevTools Console (F12) and run:</p>
+    <pre>window.__LAYOUT_DEBUG__.measureAll()</pre>
+    
+    <p>Then export metrics:</p>
+    <pre>window.__LAYOUT_DEBUG__.export()</pre>
+    
+    <p>Copy the JSON output from each tab.</p>
+    
+    <p>After visiting both routes, you can run:</p>
+    <pre>window.compareHeroLayout()</pre>
+    
+    <p>This will compare the current route with the stored metrics from the other route.</p>
+  </div>
+  
+  <div class="section">
+    <h2>Quick Test (if already visited both routes)</h2>
+    <p>Open console and run:</p>
+    <button onclick="navigator.clipboard.writeText('window.compareHeroLayout()')">Copy: window.compareHeroLayout()</button>
+    <button onclick="navigator.clipboard.writeText('window.__LAYOUT_DEBUG__.measureAll()')">Copy: window.__LAYOUT_DEBUG__.measureAll()</button>
+    <button onclick="navigator.clipboard.writeText('window.__LAYOUT_DEBUG__.export()')">Copy: window.__LAYOUT_DEBUG__.export()</button>
+  </div>
+  
+  <div class="section">
+    <h2>Expected Output</h2>
+    <p>The system should log detailed metrics for:</p>
+    <ul>
+      <li>hero-section</li>
+      <li>hero-title</li>
+      <li>hero-subtitle</li>
+      <li>hero-logo</li>
+      <li>hero-bg-image</li>
+      <li>intro-section</li>
+      <li>intro-banner-text</li>
+      <li>intro-banner-gif</li>
+    </ul>
+    
+    <p>Comparison will show:</p>
+    <ul>
+      <li>Position deltas (Δ left, Δ top)</li>
+      <li>Size deltas (Δ width, Δ height)</li>
+      <li>Style differences</li>
+      <li>Dataset differences</li>
+    </ul>
+  </div>
+  
+  <script>
+    // Helper functions
+    console.log('Debug test page loaded')
+  </script>
+</body>
+</html>

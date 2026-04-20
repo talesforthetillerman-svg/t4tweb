@@ -1,0 +1,14 @@
+services:
+  t4tweb-1:
+    build: .
+    container_name: t4tweb-1-dev
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: pnpm dev --hostname 0.0.0.0
+    restart: unless-stopped

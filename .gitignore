@@ -1,3 +1,14 @@
 node_modules/
 .next/
 *.log
+*.tsbuildinfo
+.DS_Store
+*.dmg
+*.mp4
+.t4tPics/
+.qodo/
+.vercel
+.env.local
+*.bak
+*.backup
+*.orig
