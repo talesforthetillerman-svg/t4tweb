@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { SectionHeader } from "@/components/section-header"
 import { useVisualEditor } from "@/components/visual-editor"
+import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 
 interface Concert {
   venue: string
@@ -28,7 +29,11 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export function LiveSection() {
+interface LiveSectionProps {
+  overrides?: Record<string, HomeEditorNodeOverride>
+}
+
+export function LiveSection({ overrides = {} }: LiveSectionProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const [concerts, setConcerts] = useState<Concert[]>([])
   const [loading, setLoading] = useState(true)

@@ -1,5 +1,4 @@
 import { createClient } from "next-sanity"
-import { resolveSanityDataset, resolveSanityProjectId } from "@/lib/sanity/env"
 
 export interface LiveConcert {
   _editorId: number
@@ -255,8 +254,8 @@ export async function loadLiveSectionData(
 ): Promise<LiveSectionData> {
   try {
     const client = createClient({
-      projectId: resolveSanityProjectId(),
-      dataset: resolveSanityDataset(),
+      projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'qtpb6qpz',
+      dataset: 'production',
       apiVersion: "2024-01-01",
       useCdn: false,
       perspective,

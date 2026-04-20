@@ -2,9 +2,16 @@
 
 import { motion } from "framer-motion"
 
-export function SectionDivider() {
+interface SectionDividerProps {
+  editorId?: string
+}
+
+export function SectionDivider({ editorId }: SectionDividerProps) {
   return (
     <motion.div
+      data-editor-node-id={editorId}
+      data-editor-node-type="section"
+      data-editor-node-label={editorId ? `Divider: ${editorId}` : "Section Divider"}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

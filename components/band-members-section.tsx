@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useScrollAnimation } from "@/hooks/useScrollAnimation"
 import { SectionHeader } from "@/components/section-header"
 import { useVisualEditor } from "@/components/visual-editor"
+import type { HomeEditorNodeOverride } from "@/lib/sanity/home-editor-state"
 
 import { client } from "@/lib/sanity/client"
 import { bandMembersQuery } from "@/lib/sanity/queries"
@@ -18,7 +19,11 @@ const FALLBACK_MEMBERS = [
   { id: 5, fullName: "Tarik Benatmane", role: "Electric Bass", image: "/images/members/Tarik Benatmane.JPG" },
 ]
 
-export function BandMembersSection() {
+interface BandMembersSectionProps {
+  overrides?: Record<string, HomeEditorNodeOverride>
+}
+
+export function BandMembersSection({ overrides = {} }: BandMembersSectionProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const [activeIndex, setActiveIndex] = useState<number>(0)
   const [modalOpen, setModalOpen] = useState(false)
