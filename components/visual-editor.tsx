@@ -228,11 +228,13 @@ function extractBandMemberIndex(nodeId: string | null | undefined): number | nul
   return Number.isFinite(index) ? index : null
 }
 
-// function getConcertFieldFromNodeContent(node: EditorNode | null, field: ConcertField): string {
-//   if (!node) return ""
-//   const value = node.content[field as keyof EditorNode["content"]]
-//   return typeof value === "string" ? value : ""
-// }
+type ConcertField = "venue" | "city" | "country" | "date" | "time" | "status" | "genre" | "capacity" | "price" | "locationUrl"
+
+function getConcertFieldFromNodeContent(node: EditorNode | null, field: ConcertField): string {
+  if (!node) return ""
+  const value = node.content[field as keyof EditorNode["content"]]
+  return typeof value === "string" ? value : ""
+}
 
 function rgbToHex(rgb: string): string {
   if (!rgb) return "#ffffff"
@@ -988,6 +990,18 @@ export function VisualEditorOverlay() {
   const [deployStatus, setDeployStatus] = useState<string | null>(null)
   const [deployDetails, setDeployDetails] = useState<string | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle")
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
+  const selectedIdsRef = useRef<string[]>([])
+  const marqueeRef = useRef<{ active: boolean; start: { x: number; y: number } }>({ active: false, start: { x: 0, y: 0 } })
+  
+  // Helper to check for multi-selection modifier key
+  const multiModifier = useRef(false)
+  
+  // Update refs when state changes
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds
+  }, [selectedIds])
 
   const selectedEntry = selectedId ? registry.get(selectedId) || null : null
   const selectedNode = selectedId ? nodes.get(selectedId) || null : null
@@ -1201,30 +1215,29 @@ export function VisualEditorOverlay() {
       if (target.closest("[data-editor-toolbar]") || target.closest("[data-editor-panel]") || target.closest("[data-editor-overlay]") || target.closest("[data-editor-deploy-modal]")) return
       const hit = getEditableAtPosition(e.clientX, e.clientY)
       if (hit) {
-        // Multi-selection feature commented out for now
-        // if (multiModifier) {
-        //   e.preventDefault()
-        //   e.stopPropagation()
-        //   const current = selectedIdsRef.current
-        //   let next: string[]
-        //   if (current.includes(hit.id)) {
-        //     next = current.filter((id) => id !== hit.id)
-        //     if (next.length === 0) {
-        //       dispatch({ type: "DESELECT_NODE" })
-        //     } else {
-        //       dispatch({ type: "SELECT_NODE", nodeId: next[0] })
-        //     }
-        //   } else {
-        //     next = [...current, hit.id]
-        //     dispatch({ type: "SELECT_NODE", nodeId: hit.id })
-        //   }
-        //   setSelectedIds(next)
-        //   const bandMemberIndex = extractBandMemberIndex(hit.id)
-        //   if (bandMemberIndex !== null) {
-        //     window.dispatchEvent(new CustomEvent("editor-band-member-focus", { detail: { index: bandMemberIndex } }))
-        //   }
-        //   return
-        // }
+        if (multiModifier.current) {
+          e.preventDefault()
+          e.stopPropagation()
+          const current = selectedIdsRef.current
+          let next: string[]
+          if (current.includes(hit.id)) {
+            next = current.filter((id) => id !== hit.id)
+            if (next.length === 0) {
+              dispatch({ type: "DESELECT_NODE" })
+            } else {
+              dispatch({ type: "SELECT_NODE", nodeId: next[0] })
+            }
+          } else {
+            next = [...current, hit.id]
+            dispatch({ type: "SELECT_NODE", nodeId: hit.id })
+          }
+          setSelectedIds(next)
+          const bandMemberIndex = extractBandMemberIndex(hit.id)
+          if (bandMemberIndex !== null) {
+            window.dispatchEvent(new CustomEvent("editor-band-member-focus", { detail: { index: bandMemberIndex } }))
+          }
+          return
+        }
         e.preventDefault()
         e.stopPropagation()
         dispatch({ type: "SELECT_NODE", nodeId: hit.id })
@@ -1240,14 +1253,13 @@ export function VisualEditorOverlay() {
           lastGeometry: n ? { ...n.geometry } : null,
         })
       } else {
-        // Multi-selection feature commented out for now
-        // if (multiModifier) {
-        //   marqueeRef.current = { active: true, start: { x: e.clientX, y: e.clientY } }
-        //   setMarqueeRect({ x: e.clientX, y: e.clientY, width: 0, height: 0 })
-        //   return
-        // }
+        if (multiModifier.current) {
+          marqueeRef.current = { active: true, start: { x: e.clientX, y: e.clientY } }
+          setMarqueeRect({ x: e.clientX, y: e.clientY, width: 0, height: 0 })
+          return
+        }
         dispatch({ type: "DESELECT_NODE" })
-        // setSelectedIds([])
+        setSelectedIds([])
       }
     }
 
@@ -1336,6 +1348,12 @@ export function VisualEditorOverlay() {
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (isEditingInput(e.target)) return
+      
+      // Update multi-selection modifier
+      if (e.ctrlKey || e.metaKey || e.shiftKey) {
+        multiModifier.current = true
+      }
+      
       const isActivation = e.key === "Enter" || e.key === " "
       if (isActivation && shouldBlockPublicAction(e.target)) {
         e.preventDefault()
@@ -1376,7 +1394,14 @@ export function VisualEditorOverlay() {
     document.addEventListener("contextmenu", blockPublicAction, true)
     document.addEventListener("dragstart", blockPublicAction, true)
     document.addEventListener("submit", blockPublicAction, true)
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        multiModifier.current = false
+      }
+    }
+
     window.addEventListener("keydown", onKeyDown)
+    window.addEventListener("keyup", onKeyUp)
 
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true)
@@ -1391,6 +1416,7 @@ export function VisualEditorOverlay() {
       document.removeEventListener("dragstart", blockPublicAction, true)
       document.removeEventListener("submit", blockPublicAction, true)
       window.removeEventListener("keydown", onKeyDown)
+      window.removeEventListener("keyup", onKeyUp)
       document.body.removeAttribute("data-editor-mode")
     }
   }, [isEditing, dispatch, selectedId, nodes, undo, redo, getEditableAtPosition])

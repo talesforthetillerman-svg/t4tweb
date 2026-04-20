@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useState, type CSSProperties } from "react"
 import { motion } from "framer-motion"
 import { CAMPAIGN_CONTENT, CAMPAIGN_PRIMARY_CTA_CLASS } from "@/components/campaign-content"
 import { useVisualEditor } from "@/components/visual-editor"
@@ -60,6 +60,7 @@ export function LatestReleaseSection({ overrides = {} }: LatestReleaseSectionPro
   const { isEditing, registerEditable, unregisterEditable, getElementById } = useVisualEditor()
   const [isIosMobile, setIsIosMobile] = useState(false)
   const [isAndroidMobile, setIsAndroidMobile] = useState(false)
+  const allowGeometryOverrides = useDesktopLayoutOverridesEnabled()
 
   const sectionRef = useRef<HTMLElement>(null)
   const bgRef = useRef<HTMLDivElement>(null)
